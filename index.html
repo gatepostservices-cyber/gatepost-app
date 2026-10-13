@@ -4,248 +4,261 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Gatepost">
-<title>Gatepost</title>
+<meta name="theme-color" content="#0e0e0e">
+<title>Gatepost Property Services</title>
 <link rel="manifest" href="manifest.json">
-<link rel="icon" type="image/png" href="arch-mark.png">
-<link rel="apple-touch-icon" href="arch-mark.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-512.png">
 <style>
+/* Palette sampled from official assets: ink #141414 (arch-mark) / #000 (wordmark) on paper. */
 :root {
-  --bg: #0f1410;
-  --surface: #1a211c;
-  --surface2: #242c26;
-  --text: #f4f1ea;
-  --muted: #a8a39a;
-  --accent: #c4a574;
-  --accent2: #8b7355;
-  --green: #4a7c59;
-  --danger: #c45c5c;
-  --ok: #5a9a6a;
-  --border: #2e382f;
-  --radius: 12px;
+  --ink: #0e0e0e; --ink2: #161616; --ink3: #1f1f1f; --line: #2c2c2c;
+  --paper: #f6f4ef; --paper2: #e9e6df; --mute: #9a978f; --text: #f6f4ef;
+  --ok: #6f8f74; --danger: #a85a52; --warn: #b39a6b;
+  --serif: "Cormorant Garamond", "EB Garamond", Garamond, "Times New Roman", Georgia, serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --r: 14px;
 }
-* { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-body { display: flex; flex-direction: column; min-height: 100dvh; }
-header {
-  display: flex; align-items: center; gap: 12px; padding: 12px 16px;
-  background: var(--surface); border-bottom: 1px solid var(--border);
-  position: sticky; top: 0; z-index: 10;
-}
-header img.logo { height: 36px; width: auto; }
-header h1 { margin: 0; font-size: 1.15rem; font-weight: 600; letter-spacing: 0.02em; }
-.nav {
-  display: flex; gap: 4px; padding: 8px 12px; background: var(--surface);
-  border-bottom: 1px solid var(--border); overflow-x: auto;
-}
-.nav button {
-  background: transparent; border: 1px solid transparent; color: var(--muted);
-  padding: 8px 14px; border-radius: 8px; font-size: 0.85rem; white-space: nowrap; cursor: pointer;
-}
-.nav button.active { background: var(--surface2); color: var(--text); border-color: var(--border); }
-main { flex: 1; padding: 16px; overflow-y: auto; }
-.card {
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 16px; margin-bottom: 12px;
-}
-.card h2 { margin: 0 0 12px; font-size: 1.1rem; }
-label { display: block; margin: 10px 0 4px; font-size: 0.85rem; color: var(--muted); }
-input, select, textarea, button {
-  width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border);
-  background: var(--surface2); color: var(--text); font-size: 1rem;
-}
-button.primary { background: var(--green); border: none; color: white; font-weight: 600; cursor: pointer; }
-button.secondary { background: transparent; border: 1px solid var(--border); }
-button.danger { background: var(--danger); border: none; color: white; }
-button.ok { background: var(--ok); border: none; color: white; }
-.row { display: flex; gap: 8px; }
-.row > * { flex: 1; }
-.muted { color: var(--muted); font-size: 0.85rem; }
-.hidden { display: none !important; }
-.event, .request, .estimate-item {
-  padding: 10px 0; border-bottom: 1px solid var(--border);
-}
-.event:last-child, .request:last-child, .estimate-item:last-child { border-bottom: none; }
-.badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.75rem; background: var(--surface2); }
-.badge.pending { background: #5a4a2a; color: #e8d4a8; }
-.badge.approved { background: #1e3a28; color: #8fcea8; }
-footer { padding: 12px; text-align: center; font-size: 0.75rem; color: var(--muted); }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin:0; padding:0; background:var(--ink); color:var(--text); font-family:var(--sans); }
+body { display:flex; flex-direction:column; min-height:100dvh; }
+header { position:sticky; top:0; padding-left:max(16px, env(safe-area-inset-left)); padding-right:max(16px, env(safe-area-inset-right)); z-index:10; background:var(--ink); padding-top:calc(env(safe-area-inset-top) + 10px); padding-bottom:10px; display:flex; align-items:center; gap:12px; border-bottom:1px solid var(--line); }
+.plaque { background:var(--paper); border-radius:10px; display:inline-flex; align-items:center; justify-content:center; }
+header .plaque { width:40px; height:40px; padding:5px; }
+header .plaque img { height:100%; width:auto; }
+header .word { min-width:0; white-space:nowrap; overflow:hidden; font-family:var(--serif); letter-spacing:.28em; font-size:1.05rem; text-transform:uppercase; line-height:1.1; }
+header .word small { display:block; font-size:.58rem; letter-spacing:.32em; color:var(--mute); }
+#user-label { margin-left:auto; min-width:0; max-width:35vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.78rem; color:var(--mute); text-align:right; }
+#sync-dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--mute); margin-right:6px; vertical-align:middle; }
+#sync-dot.on { background:var(--ok); }
+.nav { position:fixed; left:0; right:0; bottom:0; z-index:20; display:flex; gap:2px; padding:6px 6px calc(env(safe-area-inset-bottom) + 6px); background:rgba(14,14,14,.96); border-top:1px solid var(--line); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); }
+.nav button { flex:1 1 0; min-width:0; width:auto; background:transparent; border:1px solid transparent; color:var(--mute); padding:10px 2px; border-radius:10px; font-size:.68rem; letter-spacing:.06em; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+body.has-nav { padding-bottom:calc(env(safe-area-inset-bottom) + 64px); }
+.nav button.active { background:var(--paper); color:var(--ink); }
+main { flex:1; padding:16px max(16px, env(safe-area-inset-right)) 16px max(16px, env(safe-area-inset-left)); max-width:640px; width:100%; margin:0 auto; }
+.card { background:var(--ink2); border:1px solid var(--line); border-radius:var(--r); padding:18px; margin-bottom:14px; }
+h2 { margin:0 0 12px; font-family:var(--serif); font-weight:500; font-size:1.45rem; letter-spacing:.06em; }
+label { display:block; margin:12px 0 5px; font-size:.72rem; letter-spacing:.14em; text-transform:uppercase; color:var(--mute); }
+input, select, textarea, button { width:100%; padding:13px 14px; border-radius:10px; border:1px solid var(--line); background:var(--ink3); color:var(--text); font-size:1rem; font-family:var(--sans); }
+input, select, textarea { display:block; max-width:100%; min-width:0; -webkit-appearance:none; appearance:none; }
+input[type=date] { min-height:48px; line-height:1.2; text-align:left; color-scheme:dark; }
+input[type=date]::-webkit-date-and-time-value { text-align:left; }
+select { background-image:linear-gradient(45deg,transparent 50%,var(--mute) 50%),linear-gradient(135deg,var(--mute) 50%,transparent 50%); background-position:calc(100% - 18px) 55%,calc(100% - 13px) 55%; background-size:5px 5px; background-repeat:no-repeat; padding-right:34px; }
+.row > * { min-width:0; }
+main, .card { min-width:0; overflow-wrap:anywhere; }
+input:focus, select:focus, textarea:focus { outline:none; border-color:var(--paper2); }
+button { cursor:pointer; }
+button.primary { background:var(--paper); color:var(--ink); border:none; font-weight:600; letter-spacing:.06em; }
+button.secondary { background:transparent; border:1px solid var(--line); color:var(--text); }
+button.danger { background:var(--danger); border:none; color:#fff; }
+button.ok { background:var(--ok); border:none; color:#fff; }
+.row { display:flex; gap:8px; } .row > * { flex:1; }
+.muted { color:var(--mute); font-size:.85rem; }
+.hidden { display:none !important; }
+.item { padding:12px 0; border-bottom:1px solid var(--line); } .item:last-child { border-bottom:none; }
+.badge { display:inline-block; padding:2px 9px; border-radius:999px; font-size:.7rem; letter-spacing:.06em; text-transform:uppercase; background:var(--ink3); border:1px solid var(--line); }
+.badge.pending { color:var(--warn); border-color:#4a4030; }
+.badge.approved { color:#a9c7ad; border-color:#34463a; }
+.badge.denied { color:#d39a92; border-color:#4e302c; }
+.stat { text-align:center; padding:16px 8px; background:var(--ink3); border-radius:12px; border:1px solid var(--line); }
+.stat b { display:block; font-family:var(--serif); font-size:2.1rem; font-weight:500; }
+.login-hero { background:var(--paper); color:var(--ink); border-radius:var(--r); padding:28px 18px 22px; text-align:center; margin-bottom:14px; }
+.login-hero img { width:100%; max-width:340px; height:auto; }
+.login-hero p { margin:10px 0 0; font-size:.8rem; letter-spacing:.14em; text-transform:uppercase; color:#555; }
+.result { background:var(--ink3); border-radius:12px; padding:14px; border:1px solid var(--line); }
+footer { padding:14px; text-align:center; font-size:.72rem; letter-spacing:.08em; color:var(--mute); }
 </style>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// PostHog error tracking (optional): loads only if POSTHOG_KEY is set in config.js
+(function(){ var c = window.GATEPOST_CONFIG || {}; if (!c.POSTHOG_KEY) return;
+  var s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/posthog-js@1/dist/array.full.js'; s.async = true;
+  s.onload = function(){ window.posthog && posthog.init(c.POSTHOG_KEY, { api_host: c.POSTHOG_HOST || 'https://us.i.posthog.com', capture_exceptions: true, autocapture: false, capture_pageview: true, person_profiles: 'identified_only' }); };
+  document.head.appendChild(s); })();
+window.gpReportError = function(err, ctx){ try { window.posthog && posthog.captureException && posthog.captureException(err instanceof Error ? err : new Error(String(err)), ctx || {}); } catch(e) {} };
+window.addEventListener('unhandledrejection', function(e){ gpReportError(e.reason, { source: 'unhandledrejection' }); });
+</script>
 </head>
 <body>
 <header>
-  <img class="logo" src="arch-mark.png" alt="Gatepost">
-  <h1>Gatepost</h1>
-  <span style="margin-left:auto; font-size:0.8rem; color:var(--muted);" id="user-label"></span>
+  <span class="plaque"><img src="arch-mark.png" alt="Gatepost"></span>
+  <div class="word">Gatepost<small>Property Services</small></div>
+  <span id="user-label"></span>
 </header>
-<nav class="nav" id="main-nav">
+<nav class="nav hidden" id="main-nav">
   <button data-page="dashboard" class="active">Hub</button>
   <button data-page="estimate">Estimate</button>
   <button data-page="calendar">Calendar</button>
   <button data-page="requests">Requests</button>
   <button data-page="admin" id="admin-tab" class="hidden">Admin</button>
 </nav>
-<main id="app">
-  <!-- Auth screens and content injected by JS -->
-</main>
+<main id="app"></main>
 <footer>Gatepost Property Services · Internal · (505) 750-3019</footer>
 
 <script>
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const CFG = window.GATEPOST_CONFIG || {};
+const CLOUD = !!(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY && window.supabase);
+const sb = CLOUD ? window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY) : null;
+
+// ---------- State (same shape in both modes) ----------
+let S = { me: null, users: [], estimates: [], events: [], requests: [] };
+
+// ---------- Local-only fallback (single device, as before) ----------
 const APP_KEY = 'gatepost_app_v1';
-let state = loadState();
-
-function loadState() {
-  try {
-    const raw = localStorage.getItem(APP_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch(e) {}
-  return {
-    users: [],
-    currentUser: null,
-    estimates: [],
-    events: [],
-    requests: [
-      { id: 1, from: 'Lead runner', text: 'New lead: 1234 Example St — yard cleanup. Approve walk?', status: 'pending' },
-      { id: 2, from: 'Bid clerk', text: 'Quote ready for Cochiti Rd SE. Send to client?', status: 'pending' }
-    ]
-  };
+function lload() {
+  try { const r = localStorage.getItem(APP_KEY); if (r) return JSON.parse(r); } catch(e) {}
+  return { users: [], currentUser: null, estimates: [], events: [], requests: [
+    { id: 1, from: 'Lead runner', text: 'New lead: 1234 Example St — yard cleanup. Approve walk?', status: 'pending' },
+    { id: 2, from: 'Bid clerk', text: 'Quote ready for Cochiti Rd SE. Send to client?', status: 'pending' } ] };
 }
-function saveState() {
-  localStorage.setItem(APP_KEY, JSON.stringify(state));
+let L = CLOUD ? null : lload();
+const lsave = () => localStorage.setItem(APP_KEY, JSON.stringify(L));
+function lsync() {
+  const u = L.users.find(x => x.email === L.currentUser);
+  S = { me: u ? { email: u.email, role: u.role, access: u.access } : null,
+        users: L.users.map(({password, ...r}) => r), estimates: L.estimates, events: L.events, requests: L.requests };
 }
 
-function currentUser() {
-  if (!state.currentUser) return null;
-  return state.users.find(u => u.email === state.currentUser) || null;
-}
-function isApproved() {
-  const u = currentUser();
-  return u && u.access === true;
-}
-function isAdmin() {
-  const u = currentUser();
-  return u && u.role === 'admin';
-}
+// ---------- Data API ----------
+const API = {
+  async init() {
+    if (!CLOUD) { lsync(); return; }
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) { await API.refresh(); window.posthog && S.me && posthog.identify(S.me.id || S.me.email); }
+    let ch = null;
+    const sub = async (token) => { if (ch) await sb.removeChannel(ch); if (token) sb.realtime.setAuth(token);
+      ch = sb.channel('gp').on('postgres_changes', { event: '*', schema: 'public' }, () => API.refresh().then(render)).subscribe(); };
+    sb.auth.onAuthStateChange((ev, s) => { if (ev === 'SIGNED_OUT') { S.me = null; render(); }
+      if (ev === 'SIGNED_IN' && s) setTimeout(() => sub(s.access_token), 0); });
+    await sub(session && session.access_token);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && S.me) API.refresh().then(render); });
+  },
+  async refresh() {
+    const { data: { user } } = await sb.auth.getUser();
+    if (!user) { S.me = null; return; }
+    const { data: prof } = await sb.from('profiles').select('*').eq('id', user.id).maybeSingle();
+    S.me = prof || { email: user.email, role: 'employee', access: false };
+    if (!S.me.access) return;
+    const { data: items } = await sb.from('items').select('*').order('created_at', { ascending: false });
+    const it = items || [];
+    S.estimates = it.filter(i => i.kind === 'estimate').map(i => ({ ...i.data, id: i.id, by: i.created_by, created: Date.parse(i.created_at) }));
+    S.events = it.filter(i => i.kind === 'event').map(i => ({ ...i.data, id: i.id, by: i.created_by })).sort((a,b) => a.date.localeCompare(b.date));
+    S.requests = it.filter(i => i.kind === 'request').map(i => ({ ...i.data, id: i.id, status: i.status, decidedBy: i.decided_by }));
+    if (S.me.role === 'admin') { const { data: us } = await sb.from('profiles').select('*').order('created_at'); S.users = us || []; }
+  },
+  async register(email, password) {
+    if (!CLOUD) {
+      if (L.users.find(u => u.email === email)) return 'Account already exists. Log in.';
+      const first = L.users.length === 0;
+      L.users.push({ email, password, name: email.split('@')[0], access: first, role: first ? 'admin' : 'employee', created: Date.now() });
+      L.currentUser = email; lsave(); lsync(); return null;
+    }
+    const { data, error } = await sb.auth.signUp({ email, password });
+    if (error) return error.message;
+    if (!data.session) return 'Check your email to confirm, then log in.';
+    await API.refresh(); return null;
+  },
+  async login(email, password) {
+    if (!CLOUD) {
+      const u = L.users.find(x => x.email === email && x.password === password);
+      if (!u) return 'Invalid email or password.';
+      L.currentUser = email; lsave(); lsync(); return null;
+    }
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) return error.message;
+    await API.refresh(); return null;
+  },
+  async logout() { if (!CLOUD) { L.currentUser = null; lsave(); lsync(); } else { await sb.auth.signOut(); S.me = null; } },
+  async addItem(kind, data) {
+    if (!CLOUD) { const rec = { ...data, id: Date.now(), by: L.currentUser, created: Date.now() };
+      if (kind === 'estimate') L.estimates.unshift(rec); else { L.events.push(rec); L.events.sort((a,b) => a.date.localeCompare(b.date)); }
+      lsave(); lsync(); return; }
+    const { error } = await sb.from('items').insert({ kind, data, created_by: S.me.email });
+    if (error) { gpReportError(error, { op: 'db' }); alert(error.message); } await API.refresh();
+  },
+  async decide(id, status) {
+    if (!CLOUD) { const r = L.requests.find(x => x.id === id); if (r) { r.status = status; r.decidedBy = L.currentUser; r.decidedAt = Date.now(); } lsave(); lsync(); return; }
+    const { error } = await sb.from('items').update({ status, decided_by: S.me.email, decided_at: new Date().toISOString() }).eq('id', id);
+    if (error) { gpReportError(error, { op: 'db' }); alert(error.message); } await API.refresh();
+  },
+  async toggleAccess(email) {
+    if (!CLOUD) { const u = L.users.find(x => x.email === email); if (u && u.role !== 'admin') { u.access = !u.access; lsave(); lsync(); } return; }
+    const u = S.users.find(x => x.email === email); if (!u || u.role === 'admin') return;
+    const { error } = await sb.from('profiles').update({ access: !u.access }).eq('id', u.id);
+    if (error) { gpReportError(error, { op: 'db' }); alert(error.message); } await API.refresh();
+  }
+};
 
+const isAdmin = () => S.me && S.me.role === 'admin';
+const page = () => document.querySelector('.nav button.active')?.dataset.page || 'dashboard';
+
+// ---------- Render ----------
 function render() {
-  const main = document.getElementById('app');
-  const nav = document.getElementById('main-nav');
-  const userLabel = document.getElementById('user-label');
-  const adminTab = document.getElementById('admin-tab');
-
-  const user = currentUser();
-  if (!user) {
-    nav.classList.add('hidden');
-    userLabel.textContent = '';
-    main.innerHTML = authScreen();
-    return;
-  }
-
+  const main = document.getElementById('app'), nav = document.getElementById('main-nav');
+  const label = document.getElementById('user-label');
+  document.body.classList.toggle('has-nav', !!(S.me && S.me.access));
+  if (!S.me) { nav.classList.add('hidden'); label.innerHTML = ''; main.innerHTML = authScreen(); return; }
   nav.classList.remove('hidden');
-  userLabel.textContent = user.name || user.email.split('@')[0];
-  adminTab.classList.toggle('hidden', !isAdmin());
-
-  if (!isApproved()) {
-    main.innerHTML = `<div class="card"><h2>Access pending</h2><p class="muted">Your account has 0 access. Admin will grant access.</p><button class="secondary" onclick="logout()">Log out</button></div>`;
-    return;
-  }
-
-  const page = document.querySelector('.nav button.active')?.dataset.page || 'dashboard';
-  if (page === 'dashboard') main.innerHTML = dashboard();
-  else if (page === 'estimate') main.innerHTML = estimatePage();
-  else if (page === 'calendar') main.innerHTML = calendarPage();
-  else if (page === 'requests') main.innerHTML = requestsPage();
-  else if (page === 'admin') main.innerHTML = adminPage();
+  label.innerHTML = `<span id="sync-dot" class="${CLOUD ? 'on' : ''}" title="${CLOUD ? 'Synced' : 'This device only'}"></span>${esc(S.me.email.split('@')[0])}`;
+  document.getElementById('admin-tab').classList.toggle('hidden', !isAdmin());
+  if (!S.me.access) { nav.classList.add('hidden');
+    main.innerHTML = `<div class="card"><h2>Access pending</h2><p class="muted">Your account has 0 access. An admin will grant access.</p><button class="secondary" onclick="logout()">Log out</button></div>`; return; }
+  const p = page();
+  main.innerHTML = p === 'estimate' ? estimatePage() : p === 'calendar' ? calendarPage() : p === 'requests' ? requestsPage() : p === 'admin' ? adminPage() : dashboard();
+  renderSaved(); renderEvents(); renderRequests(); renderUsers();
 }
 
 function authScreen() {
-  const fileNote = location.protocol === 'file:' 
-    ? '<p class="muted" style="color:#e8d4a8;">Opened as a file. For best results, serve the folder or use a local server so images and home-screen install work.</p>' 
-    : '';
+  const fileNote = location.protocol === 'file:' ? '<p class="muted" style="color:var(--warn);">Opened as a file. Serve the folder so images and home-screen install work.</p>' : '';
   return `
+    <div class="login-hero"><img src="logo.png" alt="Gatepost Property Services"><p>Internal operating hub</p></div>
     <div class="card">
-      <h2>Gatepost</h2>
-      <p class="muted">Internal operating hub. Employees self-register.</p>
+      <h2>Sign in</h2>
+      <p class="muted">Employees self-register. New accounts start with 0 access until an admin approves.</p>
       ${fileNote}
-      <div id="auth-form">
-        <label>Email</label>
-        <input id="email" type="email" placeholder="you@gatepost.services">
-        <label>Password</label>
-        <input id="password" type="password" placeholder="Create or enter password">
-        <div class="row" style="margin-top:12px;">
-          <button class="primary" onclick="doLogin()">Log in</button>
-          <button class="secondary" onclick="doRegister()">Register</button>
-        </div>
-        <p id="auth-msg" class="muted" style="margin-top:8px;"></p>
+      <label>Email</label><input id="email" type="email" autocomplete="email" placeholder="you@gatepost.services">
+      <label>Password</label><input id="password" type="password" autocomplete="current-password" placeholder="Create or enter password">
+      <div class="row" style="margin-top:16px;">
+        <button class="primary" onclick="doLogin()">Log in</button>
+        <button class="secondary" onclick="doRegister()">Register</button>
       </div>
-    </div>
-  `;
+      <p id="auth-msg" class="muted" style="margin-top:10px;"></p>
+      <p class="muted" style="margin-top:6px;font-size:.72rem;">${CLOUD ? 'Synced across devices.' : 'Local mode: data stays on this device.'}</p>
+    </div>`;
 }
-
-function doRegister() {
-  const email = document.getElementById('email').value.trim().toLowerCase();
-  const password = document.getElementById('password').value;
-  const msg = document.getElementById('auth-msg');
-  if (!email || !password) { msg.textContent = 'Email and password required.'; return; }
-  if (state.users.find(u => u.email === email)) { msg.textContent = 'Account already exists. Log in.'; return; }
-  const isFirst = state.users.length === 0;
-  state.users.push({
-    email,
-    password,
-    name: email.split('@')[0],
-    access: isFirst, // first user gets access and becomes admin
-    role: isFirst ? 'admin' : 'employee',
-    created: Date.now()
-  });
-  state.currentUser = email;
-  saveState();
-  render();
-}
-
-function doLogin() {
-  const email = document.getElementById('email').value.trim().toLowerCase();
-  const password = document.getElementById('password').value;
-  const msg = document.getElementById('auth-msg');
-  const user = state.users.find(u => u.email === email && u.password === password);
-  if (!user) { msg.textContent = 'Invalid email or password.'; return; }
-  state.currentUser = email;
-  saveState();
-  render();
-}
-
-function logout() {
-  state.currentUser = null;
-  saveState();
-  render();
-}
+function creds() { return [document.getElementById('email').value.trim().toLowerCase(), document.getElementById('password').value]; }
+async function doRegister() { const [e, p] = creds(), m = document.getElementById('auth-msg');
+  if (!e || !p) { m.textContent = 'Email and password required.'; return; }
+  if (CLOUD && p.length < 6) { m.textContent = 'Password must be at least 6 characters.'; return; }
+  m.textContent = 'Working…'; const err = await API.register(e, p); if (err) { m.textContent = err; return; } render(); }
+async function doLogin() { const [e, p] = creds(), m = document.getElementById('auth-msg');
+  m.textContent = 'Working…'; const err = await API.login(e, p); if (err) { m.textContent = err; return; } render(); }
+async function logout() { await API.logout(); render(); }
 
 function dashboard() {
-  const pendingReq = state.requests.filter(r => r.status === 'pending').length;
-  const upcoming = state.events.filter(e => new Date(e.date) >= new Date()).length;
+  const pend = S.requests.filter(r => r.status === 'pending').length;
+  const today = new Date().toISOString().slice(0,10);
+  const up = S.events.filter(e => e.date >= today);
   return `
-    <div class="card">
-      <h2>Hub</h2>
-      <p>Central source for Gatepost. Does not replace existing forms or tools.</p>
-      <div class="row" style="margin-top:12px;">
-        <div class="card" style="margin:0; flex:1; text-align:center;">
-          <div style="font-size:1.4rem;">${pendingReq}</div>
-          <div class="muted">Open requests</div>
-        </div>
-        <div class="card" style="margin:0; flex:1; text-align:center;">
-          <div style="font-size:1.4rem;">${upcoming}</div>
-          <div class="muted">Upcoming</div>
-        </div>
-      </div>
-      <button class="secondary" style="margin-top:12px;" onclick="logout()">Log out</button>
-    </div>
-  `;
+    <div class="card"><h2>Hub</h2>
+      <p class="muted">Central source for Gatepost. Does not replace existing forms or tools.</p>
+      <div class="row" style="margin-top:14px;">
+        <div class="stat"><b>${pend}</b><span class="muted">Open requests</span></div>
+        <div class="stat"><b>${up.length}</b><span class="muted">Upcoming</span></div>
+        <div class="stat"><b>${S.estimates.length}</b><span class="muted">Estimates</span></div>
+      </div></div>
+    <div class="card"><h2>Next up</h2>${up.slice(0,3).map(e => `<div class="item"><strong>${esc(e.date)}</strong> — ${esc(e.title)}</div>`).join('') || '<p class="muted">Nothing scheduled.</p>'}
+      <button class="secondary" style="margin-top:14px;" onclick="logout()">Log out</button></div>`;
 }
 
 function estimatePage() {
   return `
-    <div class="card">
-      <h2>Estimate calculator</h2>
+    <div class="card"><h2>Estimate calculator</h2>
       <label>Service</label>
       <select id="svc">
         <option value="garden">Garden / Yard Cleanup</option>
@@ -256,215 +269,67 @@ function estimatePage() {
         <option value="moving">Moving help</option>
         <option value="trash">Trash / junk hauling</option>
       </select>
-      <label>Scope notes</label>
-      <textarea id="notes" rows="2" placeholder="What is included"></textarea>
-      <label>Work amount</label>
-      <input id="work" type="number" step="0.01" placeholder="0.00">
-      <label>Materials amount</label>
-      <input id="materials" type="number" step="0.01" placeholder="0.00">
-      <label>Discount</label>
-      <input id="discount" type="number" step="0.01" placeholder="0.00">
+      <label>Scope notes</label><textarea id="notes" rows="2" placeholder="What is included"></textarea>
+      <div class="row"><div><label>Work</label><input id="work" type="number" inputmode="decimal" step="0.01" placeholder="0.00"></div>
+      <div><label>Materials</label><input id="materials" type="number" inputmode="decimal" step="0.01" placeholder="0.00"></div></div>
+      <label>Discount</label><input id="discount" type="number" inputmode="decimal" step="0.01" placeholder="0.00">
       <label>Location / GRT</label>
-      <select id="grt">
-        <option value="0.074375">Rio Rancho / Sandoval 7.4375%</option>
-        <option value="0.07625">Albuquerque / Bernalillo 7.625%</option>
-      </select>
-      <button class="primary" style="margin-top:12px;" onclick="calcEstimate()">Calculate</button>
-      <div id="est-result" style="margin-top:12px;"></div>
-    </div>
-    <div class="card">
-      <h2>Saved estimates</h2>
-      <div id="saved-ests"></div>
-    </div>
-  `;
+      <select id="grt"><option value="0.074375">Rio Rancho / Sandoval 7.4375%</option><option value="0.07625">Albuquerque / Bernalillo 7.625%</option></select>
+      <button class="primary" style="margin-top:16px;" onclick="calcEstimate()">Calculate</button>
+      <div id="est-result" style="margin-top:12px;"></div></div>
+    <div class="card"><h2>Saved estimates</h2><div id="saved-ests"></div></div>`;
 }
-
 function calcEstimate() {
-  const svc = document.getElementById('svc').value;
-  const notes = document.getElementById('notes').value;
-  let work = parseFloat(document.getElementById('work').value) || 0;
-  let materials = parseFloat(document.getElementById('materials').value) || 0;
-  const discount = parseFloat(document.getElementById('discount').value) || 0;
-  const grtRate = parseFloat(document.getElementById('grt').value);
-
-  // Suggested bands if blank
-  if (work === 0 && materials === 0) {
-    if (svc === 'garden') { work = 650; materials = 0; }
-    else if (svc === 'fence') { work = 275; materials = 0; }
-    else if (svc === 'dirt') { work = 200; materials = 0; }
-    else if (svc === 'handyman') { work = 250; materials = 80; }
-    else if (svc === 'gutter') { work = 180; materials = 0; }
-    else if (svc === 'moving') { work = 300; materials = 0; }
-    else if (svc === 'trash') { work = 220; materials = 0; }
-  }
-
-  const subtotal = Math.max(0, work + materials - discount);
-  const grt = +(subtotal * grtRate).toFixed(2);
-  const total = +(subtotal + grt).toFixed(2);
-
-  const result = document.getElementById('est-result');
+  const svc = document.getElementById('svc').value, notes = document.getElementById('notes').value;
+  let work = parseFloat(document.getElementById('work').value) || 0, materials = parseFloat(document.getElementById('materials').value) || 0;
+  const discount = parseFloat(document.getElementById('discount').value) || 0, grtRate = parseFloat(document.getElementById('grt').value);
+  if (work === 0 && materials === 0) ({ garden:[650,0], fence:[275,0], dirt:[200,0], handyman:[250,80], gutter:[180,0], moving:[300,0], trash:[220,0] }[svc] || [0,0]).forEach((v,i) => i ? materials = v : work = v);
+  const subtotal = Math.max(0, work + materials - discount), grt = +(subtotal * grtRate).toFixed(2), total = +(subtotal + grt).toFixed(2);
   window._lastEstimate = { svc, notes, work, materials, discount, grt, total };
-  result.innerHTML = `
-    <div class="card" style="background:var(--surface2);">
-      <strong>${svc}</strong>
-      <div class="muted">${notes || '—'}</div>
-      <div style="margin-top:8px;">Work: $${work.toFixed(2)}</div>
-      <div>Materials: $${materials.toFixed(2)}</div>
-      ${discount ? `<div>Discount: -$${discount.toFixed(2)}</div>` : ''}
-      <div>Subtotal: $${subtotal.toFixed(2)}</div>
-      <div>GRT: $${grt.toFixed(2)}</div>
-      <div style="font-size:1.2rem; margin-top:6px;"><strong>TOTAL $${total.toFixed(2)}</strong></div>
-      <button class="primary" style="margin-top:8px;" onclick="saveLastEstimate()">Save</button>
-    </div>
-  `;
+  document.getElementById('est-result').innerHTML = `<div class="result"><strong>${esc(svc)}</strong><div class="muted">${esc(notes) || '—'}</div>
+    <div style="margin-top:8px;">Work: $${work.toFixed(2)}</div><div>Materials: $${materials.toFixed(2)}</div>
+    ${discount ? `<div>Discount: -$${discount.toFixed(2)}</div>` : ''}<div>Subtotal: $${subtotal.toFixed(2)}</div><div>GRT: $${grt.toFixed(2)}</div>
+    <div style="font-family:var(--serif);font-size:1.5rem;margin-top:6px;">Total $${total.toFixed(2)}</div>
+    <button class="primary" style="margin-top:10px;" onclick="saveLastEstimate()">Save</button></div>`;
 }
-
-function saveLastEstimate() {
-  if (!window._lastEstimate) return;
-  const est = { ...window._lastEstimate };
-  est.id = Date.now();
-  est.by = state.currentUser;
-  est.created = Date.now();
-  state.estimates.unshift(est);
-  saveState();
-  renderSaved();
-  const result = document.getElementById('est-result');
-  if (result) result.innerHTML += '<p class="muted" style="margin-top:8px;">Saved.</p>';
-}
-
-function renderSaved() {
-  const el = document.getElementById('saved-ests');
-  if (!el) return;
-  if (!state.estimates.length) { el.innerHTML = '<p class="muted">None yet.</p>'; return; }
-  el.innerHTML = state.estimates.map(e => `
-    <div class="estimate-item">
-      <strong>${e.svc}</strong> — $${e.total.toFixed(2)}
-      <div class="muted">${e.notes || ''} · ${new Date(e.created).toLocaleDateString()}</div>
-    </div>
-  `).join('');
-}
+async function saveLastEstimate() { if (!window._lastEstimate) return; await API.addItem('estimate', window._lastEstimate); window._lastEstimate = null;
+  renderSaved(); const r = document.getElementById('est-result'); if (r) r.innerHTML = '<p class="muted">Saved.</p>'; }
+function renderSaved() { const el = document.getElementById('saved-ests'); if (!el) return;
+  el.innerHTML = S.estimates.length ? S.estimates.map(e => `<div class="item"><strong>${esc(e.svc)}</strong> — $${Number(e.total).toFixed(2)}
+    <div class="muted">${esc(e.notes)} · ${new Date(e.created).toLocaleDateString()} · ${esc(e.by)}</div></div>`).join('') : '<p class="muted">None yet.</p>'; }
 
 function calendarPage() {
-  return `
-    <div class="card">
-      <h2>Calendar</h2>
-      <label>Date</label>
-      <input id="ev-date" type="date">
-      <label>Title</label>
-      <input id="ev-title" placeholder="Job start, walk, etc.">
-      <button class="primary" style="margin-top:8px;" onclick="addEvent()">Add</button>
-    </div>
-    <div class="card">
-      <h2>Events</h2>
-      <div id="event-list"></div>
-    </div>
-  `;
+  return `<div class="card"><h2>Calendar</h2><label>Date</label><input id="ev-date" type="date">
+    <label>Title</label><input id="ev-title" placeholder="Job start, walk, etc.">
+    <button class="primary" style="margin-top:14px;" onclick="addEvent()">Add</button></div>
+    <div class="card"><h2>Events</h2><div id="event-list"></div></div>`;
 }
+async function addEvent() { const date = document.getElementById('ev-date').value, title = document.getElementById('ev-title').value.trim();
+  if (!date || !title) return; await API.addItem('event', { date, title }); renderEvents(); document.getElementById('ev-title').value = ''; }
+function renderEvents() { const el = document.getElementById('event-list'); if (!el) return;
+  el.innerHTML = S.events.length ? S.events.map(e => `<div class="item"><strong>${esc(e.date)}</strong> — ${esc(e.title)}<div class="muted">${esc(e.by)}</div></div>`).join('') : '<p class="muted">No events.</p>'; }
 
-function addEvent() {
-  const date = document.getElementById('ev-date').value;
-  const title = document.getElementById('ev-title').value.trim();
-  if (!date || !title) return;
-  state.events.push({ id: Date.now(), date, title, by: state.currentUser });
-  state.events.sort((a,b) => a.date.localeCompare(b.date));
-  saveState();
-  renderEvents();
-  document.getElementById('ev-title').value = '';
-}
+function requestsPage() { return `<div class="card"><h2>Agent requests</h2><p class="muted">Allow or deny. AI agents send these for admin review.</p><div id="req-list"></div></div>`; }
+function renderRequests() { const el = document.getElementById('req-list'); if (!el) return;
+  el.innerHTML = S.requests.length ? S.requests.map(r => `<div class="item"><div><span class="badge ${esc(r.status)}">${esc(r.status)}</span> <strong>${esc(r.from)}</strong></div>
+    <div style="margin:8px 0;">${esc(r.text)}</div>
+    ${r.status === 'pending' && isAdmin() ? `<div class="row"><button class="ok" onclick="decide(${Number(r.id)}, 'approved')">Allow</button><button class="danger" onclick="decide(${Number(r.id)}, 'denied')">Deny</button></div>` : ''}</div>`).join('') : '<p class="muted">None.</p>'; }
+async function decide(id, status) { await API.decide(id, status); renderRequests(); }
 
-function renderEvents() {
-  const el = document.getElementById('event-list');
-  if (!el) return;
-  if (!state.events.length) { el.innerHTML = '<p class="muted">No events.</p>'; return; }
-  el.innerHTML = state.events.map(e => `
-    <div class="event">
-      <strong>${e.date}</strong> — ${e.title}
-      <div class="muted">${e.by}</div>
-    </div>
-  `).join('');
-}
+function adminPage() { if (!isAdmin()) return '<div class="card">Admin only.</div>';
+  return `<div class="card"><h2>Employees</h2><p class="muted">New accounts start with 0 access. Grant access here.</p><div id="user-list"></div></div>`; }
+function renderUsers() { const el = document.getElementById('user-list'); if (!el) return;
+  el.innerHTML = S.users.map(u => `<div class="item"><strong>${esc(u.email)}</strong><br>
+    <span class="badge ${u.access ? 'approved' : 'pending'}">${u.access ? 'Access' : '0 access'}</span> <span class="badge">${esc(u.role)}</span>
+    ${u.role !== 'admin' ? `<button class="secondary" style="margin-top:8px;width:auto;padding:7px 14px;" onclick="toggleAccess('${esc(u.email)}')">${u.access ? 'Revoke' : 'Grant access'}</button>` : ''}</div>`).join(''); }
+async function toggleAccess(email) { await API.toggleAccess(email); renderUsers(); }
 
-function requestsPage() {
-  return `
-    <div class="card">
-      <h2>Agent requests</h2>
-      <p class="muted">Allow or deny. AI agents send these for admin review.</p>
-      <div id="req-list"></div>
-    </div>
-  `;
-}
-
-function renderRequests() {
-  const el = document.getElementById('req-list');
-  if (!el) return;
-  if (!state.requests.length) { el.innerHTML = '<p class="muted">None.</p>'; return; }
-  el.innerHTML = state.requests.map(r => `
-    <div class="request">
-      <div><span class="badge ${r.status}">${r.status}</span> <strong>${r.from}</strong></div>
-      <div style="margin:6px 0;">${r.text}</div>
-      ${r.status === 'pending' && isAdmin() ? `
-        <div class="row">
-          <button class="ok" onclick="decide(${r.id}, 'approved')">Allow</button>
-          <button class="danger" onclick="decide(${r.id}, 'denied')">Deny</button>
-        </div>
-      ` : ''}
-    </div>
-  `).join('');
-}
-
-function decide(id, status) {
-  const r = state.requests.find(x => x.id === id);
-  if (r) { r.status = status; r.decidedBy = state.currentUser; r.decidedAt = Date.now(); }
-  saveState();
-  renderRequests();
-}
-
-function adminPage() {
-  if (!isAdmin()) return '<div class="card">Admin only.</div>';
-  return `
-    <div class="card">
-      <h2>Employees</h2>
-      <p class="muted">New accounts start with 0 access. Grant access here.</p>
-      <div id="user-list"></div>
-    </div>
-  `;
-}
-
-function renderUsers() {
-  const el = document.getElementById('user-list');
-  if (!el) return;
-  el.innerHTML = state.users.map(u => `
-    <div class="estimate-item">
-      <strong>${u.email}</strong>
-      <span class="badge ${u.access ? 'approved' : 'pending'}">${u.access ? 'Access' : '0 access'}</span>
-      <span class="badge">${u.role}</span>
-      ${u.role !== 'admin' ? `<button class="secondary" style="margin-top:6px; width:auto; padding:6px 12px;" onclick="toggleAccess('${u.email}')">${u.access ? 'Revoke' : 'Grant access'}</button>` : ''}
-    </div>
-  `).join('');
-}
-
-function toggleAccess(email) {
-  const u = state.users.find(x => x.email === email);
-  if (u && u.role !== 'admin') { u.access = !u.access; saveState(); renderUsers(); }
-}
-
-// Nav
 document.getElementById('main-nav').addEventListener('click', e => {
   if (e.target.tagName !== 'BUTTON') return;
   document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
-  e.target.classList.add('active');
-  render();
-  // re-render dynamic lists after page switch
-  setTimeout(() => {
-    if (document.getElementById('saved-ests')) renderSaved();
-    if (document.getElementById('event-list')) renderEvents();
-    if (document.getElementById('req-list')) renderRequests();
-    if (document.getElementById('user-list')) renderUsers();
-  }, 0);
+  e.target.classList.add('active'); render();
 });
-
-// Init
-render();
+API.init().then(()=>{ if (location.hash.length>1) document.querySelector(`.nav button[data-page="${location.hash.slice(1)}"]`)?.click(); render(); });
 </script>
 </body>
 </html>
