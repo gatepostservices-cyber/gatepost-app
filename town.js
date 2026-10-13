@@ -50,18 +50,25 @@ const STREETS = [];
 for (const y of [16, 22, 28]) STREETS.push({ a: [CITY.x0, y], b: [CITY.x1, y], main: y === 22 });
 for (const x of [34, 42, 50, 58]) STREETS.push({ a: [x, CITY.y0], b: [x, CITY.y1], main: x === 42 });
 const BLOCKS = [];
-const bcols = ['#e8e2d4', '#efe9dc', '#e2d9c6', '#d9d0be', '#f4efe4'];
+const ROLES = ['Bids', 'Leads', 'Tasks', 'App', 'Office', 'Filing', 'Dispatch', 'Review', 'Follow-up', 'Calendar', 'Cash', 'Crew'];
+const bcols = ['#e8e2d4', '#efe9dc', '#e2d9c6', '#d9d0be', '#f4efe4', '#d4cfc3'];
 for (let bx = 0; bx < 4; bx++) for (let by = 0; by < 3; by++) {
-  const x = 32 + bx * 8, y = 15.2 + by * 6;
-  BLOCKS.push({ x, y, w: 4.2, d: 3.2, h: 2.4 + (bx + by) % 3 * 0.8, col: bcols[(bx + by) % bcols.length], roof: (bx + by) % 2 ? '#3a3a3a' : '#5f7a8a' });
+  const x = 32 + bx * 8, y = 15.2 + by * 6, tall = (bx + by) % 4 === 0;
+  BLOCKS.push({ x, y, w: tall ? 3.6 : 4.2, d: 3.0, h: tall ? 4.2 : 2.2 + (bx * 3 + by) % 3 * 0.6, col: bcols[(bx + by) % bcols.length], roof: tall ? '#2b2b2b' : ((bx + by) % 2 ? '#3a3a3a' : '#5f7a8a'), role: ROLES[(bx * 3 + by) % ROLES.length] });
 }
+const CITY_AGENTS = [];
+STREETS.forEach((st, si) => { for (let k = 0; k < 3; k++) CITY_AGENTS.push({ path: st, t: (si * 0.17 + k * 0.31) % 1, speed: 0.012 + (k % 3) * 0.004, col: ['#2b2b2b', '#6f8f74', '#a85a52', '#5f7a8a', '#b39a6b'][(si + k) % 5], side: k % 2 ? 0.55 : -0.55 }); });
 const RAIL = []; for (let x = 8; x <= 62; x += 0.5) RAIL.push([x, 11.6]);
 const STATIONS = [{ x: 14.2, y: 11.6, name: 'Village' }, { x: 32, y: 11.6, name: 'Midtown' }, { x: 50, y: 11.6, name: 'City' }];
 const CARS = [
-  { path: STREETS[2], t: 0.1, speed: 0.04, col: '#2b2b2b', face: 1 },
-  { path: STREETS[2], t: 0.55, speed: 0.035, col: '#5f7a8a', face: 1 },
-  { path: STREETS[5], t: 0.2, speed: 0.03, col: '#a85a52', face: 1 },
-  { path: STREETS[3], t: 0.7, speed: 0.028, col: '#b39a6b', face: -1 },
+  { path: STREETS[2], t: 0.05, speed: 0.045, col: '#2b2b2b', face: 1 },
+  { path: STREETS[2], t: 0.4, speed: 0.038, col: '#5f7a8a', face: 1 },
+  { path: STREETS[2], t: 0.75, speed: 0.032, col: '#a85a52', face: -1 },
+  { path: STREETS[0], t: 0.2, speed: 0.03, col: '#b39a6b', face: 1 },
+  { path: STREETS[1], t: 0.6, speed: 0.028, col: '#6f8f74', face: -1 },
+  { path: STREETS[5], t: 0.15, speed: 0.034, col: '#2b2b2b', face: 1 },
+  { path: STREETS[3], t: 0.55, speed: 0.03, col: '#5f7a8a', face: -1 },
+  { path: STREETS[4], t: 0.3, speed: 0.026, col: '#a85a52', face: 1 },
 ];
 let trainT = 0;
 function route(from, to) {
@@ -445,8 +452,7 @@ function buildGround() {
     const [X, Y] = S3(st.x, st.y + 0.85, 0);
     c.fillStyle = '#efe9dc'; c.fillRect(X - K * 1.4, Y - K * 0.22, K * 2.8, K * 0.44);
     c.strokeStyle = '#141414'; c.lineWidth = 1; c.strokeRect(X - K * 1.4, Y - K * 0.22, K * 2.8, K * 0.44);
-    c.fillStyle = '#141414'; c.font = '700 ' + Math.round(K * 0.42) + 'px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'bottom';
-    c.fillText(st.name, X, Y - K * 0.35);
+    const sp = pill([st.name], { bg: '#efe9dc', fg: '#141414' }); c.drawImage(sp.img, X - sp.w / 2, Y - K * 0.9, sp.w, sp.h);
   });
   // minimap thumbnail
   miniImg = document.createElement('canvas'); miniImg.width = 176; miniImg.height = Math.round(176 * HPX / WPX); miniImg.getContext('2d').drawImage(ground, 0, 0, miniImg.width, miniImg.height);
@@ -610,6 +616,18 @@ function drawCityTraffic(c, t) {
   c.fillStyle = '#1a1a1a'; c.beginPath(); c.arc(X - 2.4 * u, Y - 0.6 * u, 0.55 * u, 0, 7); c.arc(X + 2.4 * u, Y - 0.6 * u, 0.55 * u, 0, 7); c.fill();
   // bots riding for long trips
   chars.forEach(ch => { if (ch.riding) drawCar(c, ch.x, ch.y, BOTS[ch.i].color, ch.face || 1); });
+  // city agents walking the sidewalks
+  CITY_AGENTS.forEach(ag => {
+    ag.t = (ag.t + ag.speed * 0.016) % 1;
+    const a = ag.path.a, b = ag.path.b;
+    const x = a[0] + (b[0] - a[0]) * ag.t, y = a[1] + (b[1] - a[1]) * ag.t + ag.side;
+    const [X, Y] = S3(x, y, 0), u = K / 14, bob = Math.abs(Math.sin(ag.t * 40)) * u * 0.4;
+    c.fillStyle = 'rgba(0,0,0,.18)'; c.beginPath(); c.ellipse(X, Y, u * 1.6, u * 0.5, 0, 0, 7); c.fill();
+    c.fillStyle = '#0e0e0e'; c.fillRect(X - u * 0.7, Y - u * 2.2 - bob, u * 1.4, u * 2.2);
+    c.fillStyle = ag.col; c.beginPath(); c.arc(X, Y - u * 3.2 - bob, u * 1.1, 0, 7); c.fill();
+  });
+  // role signs on buildings
+  BLOCKS.forEach(b => { const [X, Y] = S3(b.x, b.y, b.h + 0.4); const p = pill([b.role], { bg: 'rgba(20,20,20,.8)' }); c.drawImage(p.img, X - p.w / 2, Y - p.h, p.w, p.h); });
 }
 function drawFrame(t, dt) {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
