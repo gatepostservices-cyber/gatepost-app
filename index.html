@@ -184,7 +184,12 @@ const API = {
     const { data: items } = await sb.from('items').select('*').order('created_at', { ascending: false });
     const it = items || [];
     S.estimates = it.filter(i => i.kind === 'estimate').map(i => ({ ...i.data, id: i.id, by: i.created_by, created: Date.parse(i.created_at) }));
-    S.events = it.filter(i => i.kind === 'event').map(i => ({ ...i.data, id: i.id, by: i.created_by })).sort((a,b) => a.date.localeCompare(b.date));
+    let evs = it.filter(i => i.kind === 'event').map(i => ({ ...i.data, id: i.id, by: i.created_by }));
+    if (S.me.role !== 'admin') { // Outlook events: employees only get date/time/title from the database
+      const { data: ol } = await sb.rpc('calendar_events_basic');
+      evs = evs.concat((ol || []).map(e => ({ id: e.id, date: e.date, time: e.time, start: e.start_at, end: e.end_at, allDay: e.all_day, title: e.title, source: 'outlook', by: 'Outlook' })));
+    }
+    S.events = evs.sort((a,b) => (a.date || '').localeCompare(b.date || '') || (a.time || '').localeCompare(b.time || ''));
     S.requests = it.filter(i => i.kind === 'request').map(i => ({ ...i.data, _data: i.data, id: i.id, status: i.status, decidedBy: i.decided_by, decidedAt: i.decided_at, createdAt: i.created_at, createdBy: i.created_by }));
     if (S.me.role === 'admin') { const { data: us } = await sb.from('profiles').select('*').order('created_at'); S.users = us || []; }
   },
@@ -357,7 +362,7 @@ function calendarPage() {
 async function addEvent() { const date = document.getElementById('ev-date').value, title = document.getElementById('ev-title').value.trim(), notes = (document.getElementById('ev-notes')?.value || '').trim();
   if (!date || !title) return; await API.addItem('event', notes ? { date, title, notes } : { date, title }); const n = document.getElementById('ev-notes'); if (n) n.value = ''; renderEvents(); document.getElementById('ev-title').value = ''; }
 function renderEvents() { const el = document.getElementById('event-list'); if (!el) return;
-  el.innerHTML = S.events.length ? S.events.map(e => `<div class="item"><strong>${esc(e.date)}</strong> — ${esc(e.title)}${e.notes ? `<div style="margin-top:4px;font-size:.88rem;white-space:pre-wrap;">${esc(e.notes)}</div>` : ''}<div class="muted">${esc(e.by)}</div></div>`).join('') : '<p class="muted">No events.</p>'; }
+  el.innerHTML = S.events.length ? S.events.map(e => `<div class="item"><strong>${esc(e.date)}</strong>${e.time && !e.allDay ? ` <span class="muted">${esc(e.time)}</span>` : ''} — ${esc(e.title)}${e.location ? `<div class="muted" style="font-size:.85rem;">📍 ${esc(e.location)}</div>` : ''}${e.notes ? `<div style="margin-top:4px;font-size:.88rem;white-space:pre-wrap;">${esc(e.notes)}</div>` : ''}<div class="muted">${esc(e.source === 'outlook' ? 'Outlook' : e.by)}</div></div>`).join('') : '<p class="muted">No events.</p>'; }
 
 function requestsPage() { return `<div class="card"><h2>Agent requests</h2><p class="muted">Tap a request to see details, then approve, decline or add a note.</p><div id="req-list"></div></div>`; }
 function renderRequests() { const el = document.getElementById('req-list'); if (!el) return;
