@@ -77,6 +77,9 @@ button.ok { background:var(--ok); border:none; color:#fff; }
 .sheet textarea { width:100%; box-sizing:border-box; font-size:16px; }
 .sheet-actions { display:flex; gap:8px; padding:10px 16px; border-top:1px solid var(--line); background:var(--ink); } .sheet-actions button { flex:1; min-height:44px; }
 body.sheet-open { overflow:hidden; }
+.team-row .team-top { display:flex; align-items:center; gap:6px; flex-wrap:wrap; } .segs { display:flex; gap:6px; margin-top:8px; }
+.seg { flex:1; width:auto; padding:8px 4px; font-size:.75rem; border-radius:10px; border:1px solid var(--line); background:transparent; color:inherit; min-height:38px; }
+.seg.on { background:var(--paper); color:var(--ink); border-color:var(--paper); opacity:1; } .seg:disabled:not(.on) { opacity:.4; }
 .nav button { font-size:.6rem; letter-spacing:.02em; padding:10px 0; }
 .req-filter { display:flex; align-items:center; gap:8px; padding:8px 0 12px; border-bottom:1px solid var(--line); font-size:.85rem; } .req-filter button { margin-left:auto; width:auto; padding:6px 12px; font-size:.75rem; }
 .town-card { padding:14px; } .town-head { display:flex; align-items:baseline; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-bottom:10px; } .town-head h2 { margin:0; } .town-head .muted { font-size:.72rem; }
@@ -120,11 +123,11 @@ window.addEventListener('unhandledrejection', function(e){ gpReportError(e.reaso
 </header>
 <nav class="nav hidden" id="main-nav">
   <button data-page="dashboard" class="active">Hub</button>
-  <button data-page="estimate">Estimate</button>
+  <button data-page="estimate" data-admin>Estimate</button>
   <button data-page="calendar">Calendar</button>
-  <button data-page="requests">Requests</button>
-  <button data-page="town">Town</button>
-  <button data-page="admin" id="admin-tab" class="hidden">Admin</button>
+  <button data-page="requests" data-admin>Requests</button>
+  <button data-page="town" data-admin>Town</button>
+  <button data-page="admin" id="admin-tab" class="hidden" data-admin>Team</button>
 </nav>
 <main id="app"></main>
 <footer>Gatepost Property Services · Internal · (505) 750-3019</footer>
@@ -176,7 +179,7 @@ const API = {
     if (!user && error && !/session|jwt|token/i.test(error.message || '')) user = (sess || (await sb.auth.getSession()).data.session)?.user || null;
     if (!user) { S.me = null; return; }
     const { data: prof } = await sb.from('profiles').select('*').eq('id', user.id).maybeSingle();
-    S.me = prof || { email: user.email, role: 'employee', access: false };
+    S.me = prof || { email: user.email, role: 'pending', access: false };
     if (!S.me.access) return;
     const { data: items } = await sb.from('items').select('*').order('created_at', { ascending: false });
     const it = items || [];
@@ -227,10 +230,9 @@ const API = {
     const { error } = await sb.from('items').update(row).eq('id', id);
     if (error) { gpReportError(error, { op: 'db' }); alert(error.message); return false; } await API.refresh(); return true;
   },
-  async toggleAccess(email) {
-    if (!CLOUD) { const u = L.users.find(x => x.email === email); if (u && u.role !== 'admin') { u.access = !u.access; lsave(); lsync(); } return; }
-    const u = S.users.find(x => x.email === email); if (!u || u.role === 'admin') return;
-    const { error } = await sb.from('profiles').update({ access: !u.access }).eq('id', u.id);
+  async setRole(id, role) {
+    if (!CLOUD) { const u = L.users.find(x => x.email === (S.users.find(y => y.id === id) || {}).email); if (u && u.email !== L.currentUser) { u.role = role; u.access = role !== 'pending'; lsave(); lsync(); } return; }
+    const { error } = await sb.from('profiles').update({ role }).eq('id', id);
     if (error) { gpReportError(error, { op: 'db' }); alert(error.message); } await API.refresh();
   }
 };
@@ -248,7 +250,9 @@ function render() {
   label.innerHTML = `<span id="sync-dot" class="${CLOUD ? 'on' : ''}" title="${CLOUD ? 'Synced' : 'This device only'}"></span>${esc(S.me.email.split('@')[0])}`;
   document.getElementById('admin-tab').classList.toggle('hidden', !isAdmin());
   if (!S.me.access) { nav.classList.add('hidden');
-    main.innerHTML = `<div class="card"><h2>Access pending</h2><p class="muted">Your account has 0 access. An admin will grant access.</p><button class="secondary" onclick="logout()">Log out</button></div>`; return; }
+    main.innerHTML = `<div class="card"><h2>Access pending</h2><p class="muted">Your account is waiting for an admin to give you access. You will get in automatically once they do.</p><button class="secondary" onclick="logout()">Log out</button></div>`; return; }
+  document.querySelectorAll('.nav button[data-admin]').forEach(b => b.classList.toggle('hidden', !isAdmin()));
+  if (!isAdmin() && document.querySelector('.nav button.active')?.hasAttribute('data-admin')) { document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('active', b.dataset.page === 'dashboard')); }
   const p = page();
   main.innerHTML = p === 'estimate' ? estimatePage() : p === 'calendar' ? calendarPage() : p === 'requests' ? requestsPage() : p === 'admin' ? adminPage() : p === 'town' && window.townPage ? townPage() : dashboard();
   renderSaved(); renderEvents(); renderRequests(); renderUsers();
@@ -291,10 +295,12 @@ function dashboard() {
     <div class="card"><h2>Hub</h2>
       <p class="muted">Central source for Gatepost. Does not replace existing forms or tools.</p>
       <div class="row" style="margin-top:14px;">
-        <div class="stat"><b>${pend}</b><span class="muted">Open requests</span></div>
+        ${isAdmin() ? `<div class="stat"><b>${pend}</b><span class="muted">Open requests</span></div>` : ''}
         <div class="stat"><b>${up.length}</b><span class="muted">Upcoming</span></div>
-        <div class="stat"><b>${S.estimates.length}</b><span class="muted">Estimates</span></div>
+        ${isAdmin() ? `<div class="stat"><b>${S.estimates.length}</b><span class="muted">Estimates</span></div>` : `<div class="stat"><b>${S.events.filter(e => e.by === S.me.email).length}</b><span class="muted">Added by me</span></div>`}
       </div></div>
+    <div class="card"><h2>My info</h2><dl class="facts"><dt>Email</dt><dd>${esc(S.me.email)}</dd><dt>Role</dt><dd>${esc(roleLabel(S.me.role))}</dd>${S.me.created_at ? `<dt>Joined</dt><dd>${esc(new Date(S.me.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }))}</dd>` : ''}</dl>
+      ${!isAdmin() ? '<p class="muted" style="margin-top:10px;font-size:.8rem;">You can see the schedule and add jobs and notes to the calendar. Ask an admin if you need more access.</p>' : ''}</div>
     <div class="card"><h2>Next up</h2>${up.slice(0,3).map(e => `<div class="item"><strong>${esc(e.date)}</strong> — ${esc(e.title)}</div>`).join('') || '<p class="muted">Nothing scheduled.</p>'}
       <button class="secondary" style="margin-top:14px;" onclick="logout()">Log out</button></div>`;
 }
@@ -344,13 +350,14 @@ function renderSaved() { const el = document.getElementById('saved-ests'); if (!
 function calendarPage() {
   return `<div class="card"><h2>Calendar</h2><label>Date</label><input id="ev-date" type="date">
     <label>Title</label><input id="ev-title" placeholder="Job start, walk, etc.">
+    <label>Notes (optional)</label><input id="ev-notes" placeholder="Address, gate code, materials…">
     <button class="primary" style="margin-top:14px;" onclick="addEvent()">Add</button></div>
     <div class="card"><h2>Events</h2><div id="event-list"></div></div>`;
 }
-async function addEvent() { const date = document.getElementById('ev-date').value, title = document.getElementById('ev-title').value.trim();
-  if (!date || !title) return; await API.addItem('event', { date, title }); renderEvents(); document.getElementById('ev-title').value = ''; }
+async function addEvent() { const date = document.getElementById('ev-date').value, title = document.getElementById('ev-title').value.trim(), notes = (document.getElementById('ev-notes')?.value || '').trim();
+  if (!date || !title) return; await API.addItem('event', notes ? { date, title, notes } : { date, title }); const n = document.getElementById('ev-notes'); if (n) n.value = ''; renderEvents(); document.getElementById('ev-title').value = ''; }
 function renderEvents() { const el = document.getElementById('event-list'); if (!el) return;
-  el.innerHTML = S.events.length ? S.events.map(e => `<div class="item"><strong>${esc(e.date)}</strong> — ${esc(e.title)}<div class="muted">${esc(e.by)}</div></div>`).join('') : '<p class="muted">No events.</p>'; }
+  el.innerHTML = S.events.length ? S.events.map(e => `<div class="item"><strong>${esc(e.date)}</strong> — ${esc(e.title)}${e.notes ? `<div style="margin-top:4px;font-size:.88rem;white-space:pre-wrap;">${esc(e.notes)}</div>` : ''}<div class="muted">${esc(e.by)}</div></div>`).join('') : '<p class="muted">No events.</p>'; }
 
 function requestsPage() { return `<div class="card"><h2>Agent requests</h2><p class="muted">Tap a request to see details, then approve, decline or add a note.</p><div id="req-list"></div></div>`; }
 function renderRequests() { const el = document.getElementById('req-list'); if (!el) return;
@@ -412,13 +419,25 @@ async function saveReqEdit() {
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && OPEN_REQ) closeReq(); });
 async function decide(id, status) { await API.decide(id, status); renderRequests(); }
 
+const roleLabel = r => ({ admin: 'Admin', employee: 'Employee', pending: 'No access (pending)' })[r] || r;
+const OWNER = 'moseley0christian@icloud.com';
 function adminPage() { if (!isAdmin()) return '<div class="card">Admin only.</div>';
-  return `<div class="card"><h2>Employees</h2><p class="muted">New accounts start with 0 access. Grant access here.</p><div id="user-list"></div></div>`; }
+  const pend = S.users.filter(u => u.role === 'pending').length;
+  return `<div class="card"><h2>Team</h2><p class="muted">New sign-ups start with no access. Employees see the calendar and their own info. Admins see everything, including requests, pricing and this screen.</p>
+    ${pend ? `<p style="margin-top:10px;"><span class="badge pending">${pend} waiting for access</span></p>` : ''}<div id="user-list"></div></div>`; }
 function renderUsers() { const el = document.getElementById('user-list'); if (!el) return;
-  el.innerHTML = S.users.map(u => `<div class="item"><strong>${esc(u.email)}</strong><br>
-    <span class="badge ${u.access ? 'approved' : 'pending'}">${u.access ? 'Access' : '0 access'}</span> <span class="badge">${esc(u.role)}</span>
-    ${u.role !== 'admin' ? `<button class="secondary" style="margin-top:8px;width:auto;padding:7px 14px;" onclick="toggleAccess('${esc(u.email)}')">${u.access ? 'Revoke' : 'Grant access'}</button>` : ''}</div>`).join(''); }
-async function toggleAccess(email) { await API.toggleAccess(email); renderUsers(); }
+  const order = { pending: 0, employee: 1, admin: 2 };
+  el.innerHTML = [...S.users].sort((a, b) => order[a.role] - order[b.role] || a.email.localeCompare(b.email)).map(u => {
+    const me = S.me && u.id === S.me.id, owner = u.email === OWNER, locked = me || owner;
+    const opt = (r, label) => `<button class="seg ${u.role === r ? 'on' : ''}" ${locked || u.role === r ? 'disabled' : ''} onclick="setRole('${esc(u.id)}','${r}')">${label}</button>`;
+    return `<div class="item team-row"><div class="team-top"><strong>${esc(u.email)}</strong>${owner ? ' <span class="badge approved">Owner</span>' : me ? ' <span class="badge">You</span>' : ''}</div>
+      <div class="muted" style="font-size:.78rem;">${esc(roleLabel(u.role))}${u.created_at ? ' · joined ' + esc(new Date(u.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })) : ''}</div>
+      ${locked ? '' : `<div class="segs">${opt('employee', 'Employee')}${opt('admin', 'Admin')}${opt('pending', 'Remove access')}</div>`}</div>`; }).join('') || '<p class="muted">No users yet.</p>'; }
+async function setRole(id, role) {
+  const u = S.users.find(x => x.id === id); if (!u) return;
+  if (role === 'admin' && !confirm(`Make ${u.email} an admin? Admins see requests, pricing and can change roles.`)) return;
+  if (role === 'pending' && !confirm(`Remove access for ${u.email}?`)) return;
+  await API.setRole(id, role); render(); }
 
 document.getElementById('main-nav').addEventListener('click', e => {
   if (OPEN_REQ) closeReq();
@@ -430,6 +449,6 @@ document.getElementById('main-nav').addEventListener('click', e => {
 });
 API.init().then(()=>{ if (location.hash.length>1) document.querySelector(`.nav button[data-page="${location.hash.slice(1)}"]`)?.click(); render(); });
 </script>
-<script src="town.js?v=3"></script>
+<script src="town.js?v=3"></script><!--roles-v1-->
 </body>
 </html>
