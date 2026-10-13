@@ -43,6 +43,9 @@ function edge(a, b) { const A = N[a].p, B = N[b].p, mx = (A[0] + B[0]) / 2, my =
 nd('ai', doorOf(AI));
 edge('ai', 'C');
 const AI_EDGE = EDGES[EDGES.length - 1]; AI_EDGE.faint = true; AI_EDGE.main = false;
+// city nodes so the village paths flow into the grid
+nd('cityW', [30, 22]); nd('cityE', [58, 22]); nd('cityN', [42, 16]); nd('cityS', [42, 28]);
+edge('C', 'cityW'); edge('cityW', 'cityE'); edge('cityW', 'cityN'); edge('cityW', 'cityS'); edge('cityN', 'cityE'); edge('cityS', 'cityE');
 
 // city district: paved grid east of the village, rail, ambient traffic
 const CITY = { x0: 30, x1: 64, y0: 14, y1: 34 };
@@ -53,8 +56,8 @@ const BLOCKS = [];
 const ROLES = ['Bids', 'Leads', 'Tasks', 'App', 'Office', 'Filing', 'Dispatch', 'Review', 'Follow-up', 'Calendar', 'Cash', 'Crew'];
 const bcols = ['#e8e2d4', '#efe9dc', '#e2d9c6', '#d9d0be', '#f4efe4', '#d4cfc3'];
 for (let bx = 0; bx < 4; bx++) for (let by = 0; by < 3; by++) {
-  const x = 32 + bx * 8, y = 15.2 + by * 6, tall = (bx + by) % 4 === 0;
-  BLOCKS.push({ x, y, w: tall ? 3.6 : 4.2, d: 3.0, h: tall ? 4.2 : 2.2 + (bx * 3 + by) % 3 * 0.6, col: bcols[(bx + by) % bcols.length], roof: tall ? '#2b2b2b' : ((bx + by) % 2 ? '#3a3a3a' : '#5f7a8a'), role: ROLES[(bx * 3 + by) % ROLES.length] });
+  const x = 31.2 + bx * 8, y = 17.4 + by * 6, tall = (bx + by) % 4 === 0;
+  BLOCKS.push({ x, y, w: tall ? 2.8 : 3.2, d: 2.4, h: tall ? 3.4 : 1.8 + (bx * 3 + by) % 3 * 0.5, col: bcols[(bx + by) % bcols.length], roof: tall ? '#2b2b2b' : ((bx + by) % 2 ? '#3a3a3a' : '#5f7a8a'), role: ROLES[(bx * 3 + by) % ROLES.length] });
 }
 const CITY_AGENTS = [];
 STREETS.forEach((st, si) => { for (let k = 0; k < 3; k++) CITY_AGENTS.push({ path: st, t: (si * 0.17 + k * 0.31) % 1, speed: 0.012 + (k % 3) * 0.004, col: ['#2b2b2b', '#6f8f74', '#a85a52', '#5f7a8a', '#b39a6b'][(si + k) % 5], side: k % 2 ? 0.55 : -0.55 }); });
@@ -427,19 +430,19 @@ function buildGround() {
     c.fillStyle = '#1a1a1a'; c.fillRect(X - K * 0.42, Yt - K * 0.16, K * 0.84, K * 0.18);
   });
 
-  // paved city streets
+  // transition: dirt path from village into the city
+  const dirtIn = (a, b) => { const A = S3(a[0], a[1], 0), B = S3(b[0], b[1], 0); c.strokeStyle = '#c4b18a'; c.lineWidth = K * 1.1; c.lineCap = 'round'; c.beginPath(); c.moveTo(A[0], A[1]); c.lineTo(B[0], B[1]); c.stroke(); };
+  dirtIn([20.4, 14.2], [30, 22]);
+  // paved city streets with sidewalks
   const street = (a, b, wdt, col) => { const A = S3(a[0], a[1], 0), B = S3(b[0], b[1], 0); c.strokeStyle = col; c.lineWidth = wdt; c.lineCap = 'butt'; c.beginPath(); c.moveTo(A[0], A[1]); c.lineTo(B[0], B[1]); c.stroke(); };
-  STREETS.forEach(st => { street(st.a, st.b, K * (st.main ? 2.4 : 1.7), '#3a3a3a'); street(st.a, st.b, K * (st.main ? 2.0 : 1.35), '#555'); });
-  // sidewalks
-  STREETS.forEach(st => street(st.a, st.b, K * 0.12, '#d9d3c4'));
-  // city blocks as 3D buildings with windows
-  const cityWin = (c, len, h) => { const n = Math.max(2, Math.floor(len / 1.1)); for (let i = 0; i < n; i++) { const x = 0.35 + i * (len - 0.7) / n; for (let r = 0; r < 2; r++) winW(c, x, 0.35 + r * 0.7, 0.45, 0.4, false); } };
+  STREETS.forEach(st => { street(st.a, st.b, K * (st.main ? 2.2 : 1.5), '#4a4a4a'); street(st.a, st.b, K * (st.main ? 1.7 : 1.1), '#5c5c5c'); });
+  // city blocks as village-style buildings sitting in the blocks
+  const cityWin = (c, len, h) => { const n = Math.max(2, Math.floor(len / 1.2)); for (let i = 0; i < n; i++) { const x = 0.4 + i * (len - 0.8) / Math.max(1, n); for (let r = 0; r < Math.min(2, Math.floor(h / 0.8)); r++) winW(c, x, 0.3 + r * 0.65, 0.4, 0.35, false); } };
   BLOCKS.forEach(b => {
-    const bb = { cx: b.x, cy: b.y, rot: 0 };
-    const solid = boxS(bb, 0, 0, b.w, b.d, 0, b.h, b.col, { front: cityWin, side: cityWin, topCol: b.roof });
-    drawSolid(c, solid);
-    const roof = boxS(bb, 0, 0, b.w + 0.2, b.d + 0.2, b.h, b.h + 0.15, b.roof);
-    drawSolid(c, roof);
+    const bb = { cx: b.x, cy: b.y, rot: 0.02 };
+    drawSolid(c, boxS(bb, 0, 0, b.w, b.d, 0, b.h, b.col, { front: cityWin, side: cityWin }));
+    if (b.h > 3) drawSolid(c, boxS(bb, 0, 0, b.w + 0.15, b.d + 0.15, b.h, b.h + 0.12, b.roof));
+    else drawSolid(c, gableS(bb, 0, 0, b.w, b.d, b.h, 0.7, b.roof, '#2a2a2a'));
   });
   // rail bed + rails + ties
   c.strokeStyle = '#5a4a38'; c.lineWidth = K * 1.1; c.lineCap = 'butt'; c.beginPath();
@@ -449,10 +452,9 @@ function buildGround() {
   [-0.28, 0.28].forEach(off => { c.beginPath(); RAIL.forEach((p, k) => { const q = S3(p[0], p[1] + off, 0.04); k ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1]); }); c.stroke(); });
   // station platforms + full names
   STATIONS.forEach(st => {
-    const [X, Y] = S3(st.x, st.y + 0.85, 0);
-    c.fillStyle = '#efe9dc'; c.fillRect(X - K * 1.4, Y - K * 0.22, K * 2.8, K * 0.44);
-    c.strokeStyle = '#141414'; c.lineWidth = 1; c.strokeRect(X - K * 1.4, Y - K * 0.22, K * 2.8, K * 0.44);
-    const sp = pill([st.name], { bg: '#efe9dc', fg: '#141414' }); c.drawImage(sp.img, X - sp.w / 2, Y - K * 0.9, sp.w, sp.h);
+    const [X, Y] = S3(st.x, st.y - 0.6, 0);
+    const sp = pill([st.name], { bg: 'rgba(20,20,20,.85)', fg: '#F6F4EF' });
+    c.drawImage(sp.img, X - sp.w / 2, Y - sp.h - 4, sp.w, sp.h);
   });
   // minimap thumbnail
   miniImg = document.createElement('canvas'); miniImg.width = 176; miniImg.height = Math.round(176 * HPX / WPX); miniImg.getContext('2d').drawImage(ground, 0, 0, miniImg.width, miniImg.height);
