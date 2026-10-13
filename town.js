@@ -511,7 +511,7 @@ function drawFrame(t, dt) {
     sign(bt.b, line2 ? [bt.place, line2] : [bt.place], i, ADMIN ? [s.pending && { n: s.pending, col: C.red, kind: 'count' }, u && { n: u, col: C.slate, kind: 'chat' }].filter(Boolean) : []); });
   const op = ADMIN ? otherPending() : 0, wq = ADMIN ? waitingQueue().length : 0;
   sign(HQ, ADMIN ? ['Christian\u2019s HQ', `${wq} waiting on you`] : ['Gatepost HQ'], 'hq', op ? [{ n: op, col: C.red, kind: 'count' }] : []);
-  sign(AI, ['AI Desk', 'Tap to chat'], 'ai');
+  sign(AI, ['AI Desk'], 'ai');
   chars.forEach(ch => drawRobotOver(ctx, ch, t));
   pops.forEach(p => { const k = p.t / 1.3, [X, Y] = S3(p.x, p.y, 1.6 + k * 0.9); ctx.globalAlpha = 1 - k; if (p.item) drawItem(ctx, p.item, X, Y, K / 14 * (1 - k * 0.5));
     ctx.fillStyle = C.sage; ctx.beginPath(); ctx.arc(X + K * 0.45, Y - K * 0.2, K * 0.24, 0, 7); ctx.fill(); ctx.fillStyle = C.cream; ctx.font = FONT(700, K * 0.3); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('✓', X + K * 0.45, Y - K * 0.2 + 0.5); ctx.globalAlpha = 1; });
@@ -656,9 +656,9 @@ window.townPage = () => { ADMIN = typeof isAdmin === 'function' && isAdmin();
   return `<div class="town-full" id="town-full"><canvas id="town-canvas" role="img" aria-label="Gatepost town map. Drag to look around; tap a building, a bot, HQ or the harbor."></canvas>
   <div class="town-top"><div class="town-title"><b>Gatepost Town</b><span id="town-clock"></span></div>${ADMIN ? '<div class="town-ticker" id="town-ticker"></div>' : ''}</div>
   <div class="town-tools"><canvas id="town-mini" aria-label="Minimap: tap to jump"></canvas><button class="town-btn" onclick="townZoom(1.25)" aria-label="Zoom in" title="Zoom in">+</button><button class="town-btn" onclick="townZoom(0.8)" aria-label="Zoom out" title="Zoom out">−</button><button class="town-btn" onclick="townCenter()" aria-label="Center on HQ" title="Center on HQ">⌂</button></div>
-  <div class="town-legend"><button class="town-chip hq" onclick="townChip('hq')"><span class="dot" style="background:#F6F4EF"></span>HQ</button>${chips}<button class="town-chip" onclick="townChip('ai')"><span class="dot" style="background:#c4a574"></span>AI</button><button class="town-chip" onclick="townChip('dock')"><span class="dot" style="background:#6f9aac"></span>Harbor</button></div></div>`; };
+  <div class="town-legend"><button class="town-chip hq" onclick="townChip('hq')"><span class="dot" style="background:#F6F4EF"></span>HQ</button>${chips}<button class="town-chip" onclick="townChip('dock')"><span class="dot" style="background:#6f9aac"></span>Harbor</button></div></div>`; };
 window.townCenter = () => focusOn(HQ.cx, HQ.cy, 1);
-window.townChip = t => { if (t === 'hq') { focusOn(HQ.cx, HQ.cy, 1); openHQ(); } else if (t === 'dock') { focusOn(PIER.x0 - 1, 39.5, 0); openDock(); } else if (t === 'ai') { focusOn(AI.cx, AI.cy, 1); if (window.openGatepostAI) window.openGatepostAI(); } else { const b = BOTS[t].b; focusOn(b.cx, b.cy, 1); openBot(t); } };
+window.townChip = t => { if (t === 'hq') { focusOn(HQ.cx, HQ.cy, 1); openHQ(); } else if (t === 'dock') { focusOn(PIER.x0 - 1, 39.5, 0); openDock(); } else { const b = BOTS[t].b; focusOn(b.cx, b.cy, 1); openBot(t); } };
 
 // ---------- sheets ----------
 window.openBot = i => { OPEN = { kind: 'bot', i, tab: ADMIN ? (unread(BOTS[i].name) && !stats(BOTS[i].name).pending ? 'chat' : 'requests') : 'about' }; renderSheet(true); if (OPEN.tab === 'chat') markRead(BOTS[i].name); };
