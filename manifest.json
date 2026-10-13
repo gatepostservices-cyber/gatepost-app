@@ -1,8 +1,20 @@
 {
   "name": "Gatepost",
   "short_name": "Gatepost",
-  "start_url": "./",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0f1410",
-  "theme_color": "#0f1410"
+  "theme_color": "#0f1410",
+  "icons": [
+    {
+      "src": "arch-mark.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "arch-mark.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
 }
