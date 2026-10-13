@@ -11,7 +11,7 @@ const BOTS = [
   { name: 'Gatepost App', short: 'App', role: 'Builds and maintains this app', color: C.slate, place: 'Tech Garage', glyph: '</>', type: 'garage', at: [22.4, 22.4], work: 'In the tech garage, tinkering with the app.' },
 ];
 const HOME_AT = [[3.4, 31.2], [8.7, 33.6], [13.2, 30.6], [18.6, 33.2], [23.8, 30.4]];
-const WX = 42, WY = 44, TILT = 0.62, ZK = 0.82;
+const WX = 68, WY = 52, TILT = 0.62, ZK = 0.82;
 let ADMIN = false;
 
 // ---------- seeded layout (fixed seed: identical on every device and reload) ----------
@@ -43,6 +43,27 @@ function edge(a, b) { const A = N[a].p, B = N[b].p, mx = (A[0] + B[0]) / 2, my =
 nd('ai', doorOf(AI));
 edge('ai', 'C');
 const AI_EDGE = EDGES[EDGES.length - 1]; AI_EDGE.faint = true; AI_EDGE.main = false;
+
+// city district: paved grid east of the village, rail, ambient traffic
+const CITY = { x0: 30, x1: 64, y0: 14, y1: 34 };
+const STREETS = [];
+for (const y of [16, 22, 28]) STREETS.push({ a: [CITY.x0, y], b: [CITY.x1, y], main: y === 22 });
+for (const x of [34, 42, 50, 58]) STREETS.push({ a: [x, CITY.y0], b: [x, CITY.y1], main: x === 42 });
+const BLOCKS = [];
+const bcols = ['#e8e2d4', '#efe9dc', '#e2d9c6', '#d9d0be', '#f4efe4'];
+for (let bx = 0; bx < 4; bx++) for (let by = 0; by < 3; by++) {
+  const x = 32 + bx * 8, y = 15.2 + by * 6;
+  BLOCKS.push({ x, y, w: 4.2, d: 3.2, h: 2.4 + (bx + by) % 3 * 0.8, col: bcols[(bx + by) % bcols.length], roof: (bx + by) % 2 ? '#3a3a3a' : '#5f7a8a' });
+}
+const RAIL = []; for (let x = 8; x <= 62; x += 0.5) RAIL.push([x, 11.6]);
+const STATIONS = [{ x: 14.2, y: 11.6, name: 'Village' }, { x: 32, y: 11.6, name: 'Midtown' }, { x: 50, y: 11.6, name: 'City' }];
+const CARS = [
+  { path: STREETS[2], t: 0.1, speed: 0.04, col: '#2b2b2b', face: 1 },
+  { path: STREETS[2], t: 0.55, speed: 0.035, col: '#5f7a8a', face: 1 },
+  { path: STREETS[5], t: 0.2, speed: 0.03, col: '#a85a52', face: 1 },
+  { path: STREETS[3], t: 0.7, speed: 0.028, col: '#b39a6b', face: -1 },
+];
+let trainT = 0;
 function route(from, to) {
   if (from === to) return [N[to].p.slice()];
   const dist = { [from]: 0 }, prev = {}, todo = new Set(Object.keys(N));
@@ -396,6 +417,29 @@ function buildGround() {
     c.fillStyle = '#2c2c2c'; c.fillRect(X - K * 0.28, Yt, K * 0.56, Y - Yt);
     c.fillStyle = '#1a1a1a'; c.fillRect(X - K * 0.42, Yt - K * 0.16, K * 0.84, K * 0.18);
   });
+
+  // paved city streets
+  const street = (a, b, wdt, col) => { const A = S3(a[0], a[1], 0), B = S3(b[0], b[1], 0); c.strokeStyle = col; c.lineWidth = wdt; c.lineCap = 'butt'; c.beginPath(); c.moveTo(A[0], A[1]); c.lineTo(B[0], B[1]); c.stroke(); };
+  STREETS.forEach(st => { street(st.a, st.b, K * (st.main ? 2.4 : 1.7), '#3a3a3a'); street(st.a, st.b, K * (st.main ? 2.0 : 1.35), '#555'); });
+  // sidewalks
+  STREETS.forEach(st => street(st.a, st.b, K * 0.12, '#d9d3c4'));
+  // city blocks as simple buildings
+  BLOCKS.forEach(b => {
+    const [X, Y] = S3(b.x, b.y, 0), hw = b.w * K * 0.5, hd = b.d * K * TILT * 0.5, hh = b.h * K * ZK;
+    c.fillStyle = 'rgba(0,0,0,.15)'; c.fillRect(X - hw + 4, Y - hd + 4, hw * 2, hd * 2);
+    c.fillStyle = b.col; c.fillRect(X - hw, Y - hd - hh, hw * 2, hd * 2 + hh);
+    c.fillStyle = b.roof; c.fillRect(X - hw, Y - hd - hh, hw * 2, hd * 0.6);
+    c.strokeStyle = '#2a2a2a'; c.lineWidth = 1; c.strokeRect(X - hw, Y - hd - hh, hw * 2, hd * 2 + hh);
+    // windows
+    c.fillStyle = '#c9d6df';
+    for (let wy = 0; wy < 2; wy++) for (let wx = 0; wx < 3; wx++) c.fillRect(X - hw + 6 + wx * (hw * 2 - 12) / 3, Y - hd - hh + 8 + wy * 10, 6, 6);
+  });
+  // rail
+  c.strokeStyle = '#6b5a43'; c.lineWidth = K * 0.7; c.lineCap = 'butt'; c.beginPath();
+  RAIL.forEach((p, k) => { const q = S3(p[0], p[1], 0); k ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1]); }); c.stroke();
+  c.strokeStyle = '#c4b18a'; c.lineWidth = K * 0.1;
+  [-0.22, 0.22].forEach(off => { c.beginPath(); RAIL.forEach((p, k) => { const q = S3(p[0], p[1] + off, 0); k ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1]); }); c.stroke(); });
+  STATIONS.forEach(st => { const [X, Y] = S3(st.x, st.y + 0.7, 0); c.fillStyle = '#efe9dc'; c.fillRect(X - K * 1.1, Y - K * 0.2, K * 2.2, K * 0.4); c.fillStyle = '#141414'; c.font = '700 ' + Math.round(K * 0.32) + 'px sans-serif'; c.textAlign = 'center'; c.fillText(st.name, X, Y - K * 0.4); });
   // minimap thumbnail
   miniImg = document.createElement('canvas'); miniImg.width = 176; miniImg.height = Math.round(176 * HPX / WPX); miniImg.getContext('2d').drawImage(ground, 0, 0, miniImg.width, miniImg.height);
   const mc = miniImg.getContext('2d'), ms = miniImg.width / WPX; ALLB.forEach(b => { const q = S3(b.cx, b.cy, 0); mc.fillStyle = b === HQ ? '#141414' : b.type === 'home' ? '#8a8172' : '#3a332a'; mc.fillRect(q[0] * ms - 3, q[1] * ms - 3, b.type === 'home' ? 4 : 6, b.type === 'home' ? 4 : 6); });
@@ -531,6 +575,34 @@ function drawBoss(c, t) {
   c.fillStyle = '#0e0e0e'; c.beginPath(); c.arc(ax, ay - 6 * au, 2.2 * au, 0, 7); c.fill();
   c.fillRect(ax - 1.6 * au, ay - 4 * au, 3.2 * au, 4 * au);
 }
+
+function drawCar(c, x, y, col, face) {
+  const [X, Y] = S3(x, y, 0), u = K / 10;
+  c.fillStyle = 'rgba(0,0,0,.2)'; c.beginPath(); c.ellipse(X, Y, u * 3.2, u * 1.1, 0, 0, 7); c.fill();
+  c.fillStyle = col; c.beginPath(); c.roundRect ? c.roundRect(X - 3.2 * u, Y - 2.4 * u, 6.4 * u, 2.2 * u, u * 0.4) : c.rect(X - 3.2 * u, Y - 2.4 * u, 6.4 * u, 2.2 * u); c.fill();
+  c.fillStyle = '#c9d6df'; c.fillRect(X - 1.6 * u, Y - 2.2 * u, 3.2 * u, 1.1 * u);
+  c.fillStyle = '#1a1a1a'; c.beginPath(); c.arc(X - 2.1 * u, Y - 0.3 * u, 0.7 * u, 0, 7); c.arc(X + 2.1 * u, Y - 0.3 * u, 0.7 * u, 0, 7); c.fill();
+  c.fillStyle = face > 0 ? '#f2c96b' : '#a85a52'; c.fillRect(face > 0 ? X + 2.6 * u : X - 3.2 * u, Y - 1.6 * u, 0.5 * u, 0.6 * u);
+}
+function drawCityTraffic(c, t) {
+  // ambient cars
+  CARS.forEach(car => {
+    car.t = (car.t + car.speed * 0.016) % 1;
+    const a = car.path.a, b = car.path.b, k = car.face > 0 ? car.t : 1 - car.t;
+    const x = a[0] + (b[0] - a[0]) * k, y = a[1] + (b[1] - a[1]) * k + 0.25;
+    drawCar(c, x, y, car.col, car.face);
+  });
+  // train on the rail
+  trainT = (trainT + 0.004) % 1;
+  const ri = Math.min(RAIL.length - 2, Math.floor(trainT * (RAIL.length - 1)));
+  const [tx, ty] = RAIL[ri], [X, Y] = S3(tx, ty, 0), u = K / 9;
+  c.fillStyle = '#2b2b2b'; c.fillRect(X - 4 * u, Y - 3.2 * u, 8 * u, 2.4 * u);
+  c.fillStyle = '#f6f4ef'; c.fillRect(X - 3.4 * u, Y - 2.9 * u, 6.8 * u, 1.2 * u);
+  c.fillStyle = '#a85a52'; c.fillRect(X + 3.2 * u, Y - 3.2 * u, 0.8 * u, 2.4 * u);
+  c.fillStyle = '#1a1a1a'; c.beginPath(); c.arc(X - 2.4 * u, Y - 0.6 * u, 0.55 * u, 0, 7); c.arc(X + 2.4 * u, Y - 0.6 * u, 0.55 * u, 0, 7); c.fill();
+  // bots riding for long trips
+  chars.forEach(ch => { if (ch.riding) drawCar(c, ch.x, ch.y, BOTS[ch.i].color, ch.face || 1); });
+}
 function drawFrame(t, dt) {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   { const sx = Math.max(0, cam.x), sy = Math.max(0, cam.y), sw = Math.min(WPX - sx, VW() - (sx - cam.x)), sh = Math.min(HPX - sy, VH() - (sy - cam.y)), k = dpr * ZM; if (cam.x < 0 || cam.y < 0 || sw < VW() || sh < VH()) { ctx.fillStyle = '#c9d2b6'; ctx.fillRect(0, 0, cv.width, cv.height); const wb = (HPX - cam.y) * k; if (wb < cv.height) { ctx.fillStyle = '#5f8ea3'; ctx.fillRect(0, wb, cv.width, cv.height - wb); } } ctx.drawImage(ground, sx * gdpr, sy * gdpr, sw * gdpr, sh * gdpr, (sx - cam.x) * k, (sy - cam.y) * k, sw * k, sh * k); }
@@ -542,7 +614,7 @@ function drawFrame(t, dt) {
   // depth-sorted world objects
   const list = [];
   SPRITES.forEach(s => { if (inView(s.x, s.y, s.w, s.h)) list.push({ k: s.key, s }); });
-  chars.forEach(ch => { if (ch.where === 'home' && !ch.walking) return; list.push({ k: ch.y + 0.01, ch }); });
+  chars.forEach(ch => { if ((ch.where === 'home' && !ch.walking) || ch.riding) return; list.push({ k: ch.y + 0.01, ch }); });
   list.push({ k: SHIP_Y, ship: 1 });
   pierCrates.forEach((it, k) => list.push({ k: 40.5 + k * 0.01, crate: [PIER.x0 + 0.3 + (k % 2) * 0.5, 40.4 - Math.floor(k / 2) * 0.45, it] }));
   list.sort((a, b) => a.k - b.k).forEach(o => {
@@ -578,6 +650,7 @@ function drawFrame(t, dt) {
   sign(HQ, ADMIN ? ['Christian\u2019s HQ', `${wq} waiting on you`] : ['Gatepost HQ'], 'hq', op ? [{ n: op, col: C.red, kind: 'count' }] : []);
   sign(AI, ['AI Desk'], 'ai');
   drawBoss(ctx, t);
+  drawCityTraffic(ctx, t);
   chars.forEach(ch => drawRobotOver(ctx, ch, t));
   pops.forEach(p => { const k = p.t / 1.3, [X, Y] = S3(p.x, p.y, 1.6 + k * 0.9); ctx.globalAlpha = 1 - k; if (p.item) drawItem(ctx, p.item, X, Y, K / 14 * (1 - k * 0.5));
     ctx.fillStyle = C.sage; ctx.beginPath(); ctx.arc(X + K * 0.45, Y - K * 0.2, K * 0.24, 0, 7); ctx.fill(); ctx.fillStyle = C.cream; ctx.font = FONT(700, K * 0.3); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('✓', X + K * 0.45, Y - K * 0.2 + 0.5); ctx.globalAlpha = 1; });
@@ -592,6 +665,8 @@ const daysLeft = e => { const d = asDay(e); return d ? dayDiff(today(), d) : nul
 // ---------- simulation ----------
 function update(dt) {
   chars.forEach(ch => {
+    const long = ch.path && ch.path.filter(p => p && p.length === 2).length > 18;
+    ch.riding = !!(ch.walking && long);
     if (ch.tagT > 0) ch.tagT -= dt; if (ch.busyT > 0) ch.busyT -= dt;
     const head = ch.path[0];
     if (head && !Array.isArray(head)) {
@@ -724,6 +799,7 @@ window.townPage = () => { ADMIN = typeof isAdmin === 'function' && isAdmin();
   <div class="town-tools"><canvas id="town-mini" aria-label="Minimap: tap to jump"></canvas><button class="town-btn" onclick="townZoom(1.25)" aria-label="Zoom in" title="Zoom in">+</button><button class="town-btn" onclick="townZoom(0.8)" aria-label="Zoom out" title="Zoom out">−</button><button class="town-btn" onclick="townCenter()" aria-label="Center on HQ" title="Center on HQ">⌂</button></div>
   <div class="town-legend"><button class="town-chip hq" onclick="townChip('hq')"><span class="dot" style="background:#F6F4EF"></span>HQ</button>${chips}<button class="town-chip" onclick="townChip('dock')"><span class="dot" style="background:#6f9aac"></span>Harbor</button></div></div>`; };
 window.townCenter = () => focusOn(HQ.cx, HQ.cy, 1);
+window.focusOn = focusOn;
 window.townChip = t => { if (t === 'hq') { focusOn(HQ.cx, HQ.cy, 1); openHQ(); } else if (t === 'dock') { focusOn(PIER.x0 - 1, 39.5, 0); openDock(); } else { const b = BOTS[t].b; focusOn(b.cx, b.cy, 1); openBot(t); } };
 
 // ---------- sheets ----------
