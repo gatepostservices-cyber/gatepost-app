@@ -1,17 +1,21 @@
-// Gatepost AI Chat — Gemini via Supabase edge function
+// Gatepost AI Chat — opens from the AI building, not a floating button
 (function(){
   const ENDPOINT = "https://hssevqgkoeuludwoxyuo.supabase.co/functions/v1/ai-chat";
   const history = [];
+  let panel, log;
+
+  function addMsg(text, who) {
+    const d = document.createElement('div');
+    d.style.cssText = `max-width:82%;padding:9px 12px;border-radius:16px;font-size:.92rem;line-height:1.4;white-space:pre-wrap;${who==='me'?'align-self:flex-end;background:#f6f4ef;color:#0e0e0e;':'align-self:flex-start;background:#1f1f1f;border:1px solid #2c2c2c;'}`;
+    d.textContent = text;
+    log.appendChild(d);
+    log.scrollTop = log.scrollHeight;
+    return d;
+  }
 
   function buildUI() {
-    if (document.getElementById('ai-chat-btn')) return;
-    const btn = document.createElement('button');
-    btn.id = 'ai-chat-btn';
-    btn.innerHTML = 'AI';
-    btn.style.cssText = 'position:fixed;right:16px;bottom:calc(env(safe-area-inset-bottom) + 78px);z-index:25;width:52px;height:52px;border-radius:50%;background:#f6f4ef;color:#0e0e0e;border:none;font-weight:700;font-size:.9rem;box-shadow:0 4px 16px rgba(0,0,0,.4);';
-    document.body.appendChild(btn);
-
-    const panel = document.createElement('div');
+    if (document.getElementById('ai-chat-panel')) return;
+    panel = document.createElement('div');
     panel.id = 'ai-chat-panel';
     panel.style.cssText = 'position:fixed;inset:0 0 calc(env(safe-area-inset-bottom) + 58px) 0;z-index:30;background:#0e0e0e;display:none;flex-direction:column;';
     panel.innerHTML = `
@@ -26,21 +30,7 @@
       </div>
     `;
     document.body.appendChild(panel);
-
-    const log = panel.querySelector('#ai-chat-log');
-    function addMsg(text, who) {
-      const d = document.createElement('div');
-      d.style.cssText = `max-width:82%;padding:9px 12px;border-radius:16px;font-size:.92rem;line-height:1.4;white-space:pre-wrap;${who==='me'?'align-self:flex-end;background:#f6f4ef;color:#0e0e0e;':'align-self:flex-start;background:#1f1f1f;border:1px solid #2c2c2c;'}`;
-      d.textContent = text;
-      log.appendChild(d);
-      log.scrollTop = log.scrollHeight;
-      return d;
-    }
-
-    btn.onclick = () => {
-      panel.style.display = 'flex';
-      if (!log.children.length) addMsg('Gatepost AI (Gemini). Ask about jobs, bids, hours, services, or GRT.', 'bot');
-    };
+    log = panel.querySelector('#ai-chat-log');
     panel.querySelector('#ai-chat-close').onclick = () => panel.style.display = 'none';
 
     async function send() {
@@ -68,6 +58,12 @@
     panel.querySelector('#ai-chat-send').onclick = send;
     panel.querySelector('#ai-chat-input').onkeydown = e => { if (e.key === 'Enter') send(); };
   }
+
+  window.openGatepostAI = function() {
+    buildUI();
+    panel.style.display = 'flex';
+    if (!log.children.length) addMsg('Gatepost AI (Gemini). Ask about jobs, bids, hours, services, or GRT.', 'bot');
+  };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', buildUI);
   else buildUI();
