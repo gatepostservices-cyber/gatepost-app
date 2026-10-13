@@ -21,6 +21,7 @@ const SIZES = { hall: [5.0, 3.4], tower: [2.6, 2.6], shop: [4.0, 3.0], kiosk: [3
 function mkB(type, at, extra) { const s = rr(0.92, 1.1), [w, d] = SIZES[type]; return Object.assign({ type, cx: at[0] + rr(-0.5, 0.5), cy: at[1] + rr(-0.5, 0.5), rot: rsign() * rr(0.17, 0.46), w: w * s, d: d * s, s }, extra || {}); }
 BOTS.forEach(bt => { bt.b = mkB(bt.type, bt.at); });
 const HQ = mkB('hq', [14.2, 19.6]); HQ.rot = rsign() * rr(0.1, 0.22);
+const AI = mkB('shop', [24.6, 12.4]); AI.rot = 0.1;
 BOTS.forEach((bt, i) => { bt.home = mkB('home', HOME_AT[i], { col: bt.color }); });
 const loc = (b, lx, ly) => { const c = Math.cos(b.rot), s = Math.sin(b.rot); return [b.cx + lx * c - ly * s, b.cy + lx * s + ly * c]; };
 const doorOf = b => loc(b, 0, b.d / 2 + 0.55);
@@ -48,7 +49,7 @@ function route(from, to) {
   const out = []; legs.forEach(l => l.forEach((p, j) => { if (j || !out.length) out.push(p.slice()); })); return out;
 }
 // terrain: hills, trees, rocks, flowers (rejection sampling against buildings, paths and water)
-const ALLB = BOTS.map(b => b.b).concat([HQ], BOTS.map(b => b.home));
+const ALLB = BOTS.map(b => b.b).concat([HQ, AI], BOTS.map(b => b.home));
 const nearPath = (x, y, r) => EDGES.some(e => e.pts.some(p => Math.abs(p[0] - x) < r && Math.abs(p[1] - y) < r && Math.hypot(p[0] - x, p[1] - y) < r));
 const nearB = (x, y, pad) => ALLB.some(b => Math.hypot(b.cx - x, b.cy - y) < Math.max(b.w, b.d) / 2 + pad) || (x > HQ.cx - 5 && x < HQ.cx - 2.6 && y > HQ.cy && y < HQ.cy + 3);
 const HILLS = [{ x: BOTS[1].b.cx + 0.3, y: BOTS[1].b.cy + 0.6, r: 3.6 }, { x: 25.2, y: 3.2, r: 3.0 }, { x: 15.0, y: 4.0, r: 2.6 }, { x: 1.6, y: 16.2, r: 2.4 }, { x: 26.0, y: 16.6, r: 2.2 }, { x: 11.2, y: 37.6, r: 1.6 }];
@@ -309,7 +310,7 @@ function buildSprites() {
       if (ex.pole) { const a = S3(ex.pole[0], ex.pole[1], ex.pole[2]), z = S3(ex.pole[0], ex.pole[1], ex.pole[3]); R2(c, a[0] - 1, z[1], 2, a[1] - z[1], C.ink); }
       if (ex.bushes) ex.bushes.forEach(p => { const q = S3(p[0], p[1], p[2]); c.fillStyle = C.tree2; c.beginPath(); c.arc(q[0], q[1], K * 0.3, 0, 7); c.fill(); c.fillStyle = C.tree; c.beginPath(); c.arc(q[0] - K * 0.06, q[1] - K * 0.06, K * 0.22, 0, 7); c.fill(); }); }, bb));
     b.screen = bb; };
-  BOTS.forEach((bt, i) => { add(bt, bt.b, i); add(bt, bt.home, i); }); add(null, HQ, 'hq');
+  BOTS.forEach((bt, i) => { add(bt, bt.b, i); add(bt, bt.home, i); }); add(null, HQ, 'hq'); add(null, AI, 'ai');
   TREES.forEach(t => { const [X, Y] = S3(t.x, t.y, 0), r = t.r * K; SPRITES.push(mkSprite(t.y, null, c => treeDraw(c, t), [X - r * 1.3, Y - r * 3.4, X + r * 1.3, Y + 2])); });
   LAMPS.forEach(([x, y]) => { const [X, Y] = S3(x, y, 0), [, Yt] = S3(x, y, 1.6); SPRITES.push(mkSprite(y, null, c => lampDraw(c, x, y, 1.6), [X - K * 0.3, Yt - K * 0.5, X + K * 0.3, Y + 2])); });
   LANTERNS.forEach(([x, y]) => { const [X, Y] = S3(x, y, 0.3), [, Yt] = S3(x, y, 1.6); SPRITES.push(mkSprite(y, 'dock', c => lampDraw(c, x, y - 0.3 * ZK / TILT, 1.6, true), [X - K * 0.4, Yt - K * 0.6, X + K * 0.4, Y + 4])); });
@@ -510,6 +511,7 @@ function drawFrame(t, dt) {
     sign(bt.b, line2 ? [bt.place, line2] : [bt.place], i, ADMIN ? [s.pending && { n: s.pending, col: C.red, kind: 'count' }, u && { n: u, col: C.slate, kind: 'chat' }].filter(Boolean) : []); });
   const op = ADMIN ? otherPending() : 0, wq = ADMIN ? waitingQueue().length : 0;
   sign(HQ, ADMIN ? ['Christian\u2019s HQ', `${wq} waiting on you`] : ['Gatepost HQ'], 'hq', op ? [{ n: op, col: C.red, kind: 'count' }] : []);
+  sign(AI, ['AI Desk'], 'ai');
   chars.forEach(ch => drawRobotOver(ctx, ch, t));
   pops.forEach(p => { const k = p.t / 1.3, [X, Y] = S3(p.x, p.y, 1.6 + k * 0.9); ctx.globalAlpha = 1 - k; if (p.item) drawItem(ctx, p.item, X, Y, K / 14 * (1 - k * 0.5));
     ctx.fillStyle = C.sage; ctx.beginPath(); ctx.arc(X + K * 0.45, Y - K * 0.2, K * 0.24, 0, 7); ctx.fill(); ctx.fillStyle = C.cream; ctx.font = FONT(700, K * 0.3); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('✓', X + K * 0.45, Y - K * 0.2 + 0.5); ctx.globalAlpha = 1; });
@@ -583,7 +585,7 @@ function setup() {
   cv.onpointerup = cv.onpointercancel = e => { pts.delete(e.pointerId);
     if (pinch) { if (pts.size < 2) { pinch = null; drag = null; cam.vx = cam.vy = 0; } return; }
     if (!drag || drag.id !== e.pointerId) return; const d = drag; drag = null; if (performance.now() - d.lt > 90) { cam.vx = cam.vy = 0; }
-    if (!d.moved && e.type === 'pointerup') { const [x, y] = rel(e), h = hit(x, y); if (h === 'hq') openHQ(); else if (h === 'dock') openDock(); else if (h !== null && h >= 0) openBot(h); } };
+    if (!d.moved && e.type === 'pointerup') { const [x, y] = rel(e), h = hit(x, y); if (h === 'hq') openHQ(); else if (h === 'dock') openDock(); else if (h === 'ai') { if (window.openGatepostAI) window.openGatepostAI(); } else if (h !== null && h >= 0) openBot(h); } };
   cv.onwheel = e => { e.preventDefault(); const [x, y] = rel(e), k = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1, dy = e.deltaY * k;
     const mouseWheel = e.deltaMode !== 0 || (e.deltaX === 0 && Math.abs(e.deltaY) >= 50 && Number.isInteger(e.deltaY));
     if (e.ctrlKey || e.metaKey || mouseWheel) { zoomAt(ZM * Math.exp(-dy * (e.ctrlKey && !mouseWheel ? 0.012 : 0.0018)), x, y); }
