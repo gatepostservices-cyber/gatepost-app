@@ -1,8 +1,8 @@
-// Gatepost AI Chat — bottom sheet over the town. Keyboard overlays, does not push the map.
+// Gatepost AI Chat — bottom sheet over the town. Keyboard covers the sheet; the map does not move.
 (function(){
   const ENDPOINT = "https://hssevqgkoeuludwoxyuo.supabase.co/functions/v1/ai-chat";
   const history = [];
-  let panel, log, compose;
+  let panel, log, savedScroll = 0;
 
   function addMsg(text, who) {
     const d = document.createElement('div');
@@ -16,9 +16,31 @@
   function pinToKeyboard() {
     if (!panel || panel.style.display === 'none') return;
     const vv = window.visualViewport;
-    if (!vv) { panel.style.bottom = '0px'; return; }
-    const overlap = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-    panel.style.bottom = overlap + 'px';
+    if (!vv) return;
+    if (window.scrollY) window.scrollTo(0, 0);
+    const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    panel.style.bottom = kb + 'px';
+    panel.style.height = Math.max(180, Math.min(window.innerHeight * 0.58, 520, vv.height - 16)) + 'px';
+  }
+
+  function lockPage() {
+    savedScroll = window.scrollY || 0;
+    document.body.style.position = 'fixed';
+    document.body.style.top = '0px';
+    document.body.style.left = '0px';
+    document.body.style.right = '0px';
+    document.body.style.width = '100%';
+    window.scrollTo(0, 0);
+  }
+  function unlockPage() {
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.left = '';
+    document.body.style.right = '';
+    document.body.style.width = '';
+    panel.style.bottom = '0px';
+    panel.style.height = '';
+    window.scrollTo(0, savedScroll);
   }
 
   function buildUI() {
@@ -33,14 +55,13 @@
       </div>
       <div id="ai-chat-log" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px;display:flex;flex-direction:column;gap:10px;"></div>
       <div id="ai-chat-compose" style="display:flex;gap:8px;padding:10px 16px calc(env(safe-area-inset-bottom) + 10px);border-top:1px solid #2c2c2c;background:#0e0e0e;">
-        <input id="ai-chat-input" placeholder="Ask Gatepost AI…" enterkeyhint="send" style="flex:1;padding:12px;border-radius:10px;border:1px solid #2c2c2c;background:#1f1f1f;color:#f6f4ef;font-size:16px;">
+        <input id="ai-chat-input" placeholder="Ask Gatepost AI…" enterkeyhint="send" autocomplete="off" style="flex:1;padding:12px;border-radius:10px;border:1px solid #2c2c2c;background:#1f1f1f;color:#f6f4ef;font-size:16px;">
         <button id="ai-chat-send" style="width:auto;padding:0 16px;background:#f6f4ef;color:#0e0e0e;border:none;border-radius:10px;font-weight:600;">Send</button>
       </div>
     `;
     document.body.appendChild(panel);
     log = panel.querySelector('#ai-chat-log');
-    compose = panel.querySelector('#ai-chat-compose');
-    panel.querySelector('#ai-chat-close').onclick = () => { panel.style.display = 'none'; };
+    panel.querySelector('#ai-chat-close').onclick = () => { panel.style.display = 'none'; unlockPage(); };
 
     async function send() {
       const input = panel.querySelector('#ai-chat-input');
@@ -65,14 +86,16 @@
       }
     }
     panel.querySelector('#ai-chat-send').onclick = send;
-    panel.querySelector('#ai-chat-input').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); send(); } };
-    panel.querySelector('#ai-chat-input').addEventListener('focus', () => { setTimeout(pinToKeyboard, 50); });
-    panel.querySelector('#ai-chat-input').addEventListener('blur', () => { panel.style.bottom = '0px'; });
+    const input = panel.querySelector('#ai-chat-input');
+    input.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); send(); } };
+    input.addEventListener('focus', () => { lockPage(); setTimeout(pinToKeyboard, 30); setTimeout(pinToKeyboard, 180); });
+    input.addEventListener('blur', () => setTimeout(unlockPage, 80));
 
     if (window.visualViewport) {
       window.visualViewport.addEventListener('resize', pinToKeyboard);
       window.visualViewport.addEventListener('scroll', pinToKeyboard);
     }
+    window.addEventListener('scroll', () => { if (panel && panel.style.display !== 'none' && window.scrollY) window.scrollTo(0, 0); }, { passive: true });
   }
 
   window.openGatepostAI = function() {

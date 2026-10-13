@@ -55,15 +55,16 @@ function route(from, to) {
 const ALLB = BOTS.map(b => b.b).concat([HQ, AI], BOTS.map(b => b.home));
 const nearPath = (x, y, r) => EDGES.some(e => e.pts.some(p => Math.abs(p[0] - x) < r && Math.abs(p[1] - y) < r && Math.hypot(p[0] - x, p[1] - y) < r));
 const nearB = (x, y, pad) => ALLB.some(b => Math.hypot(b.cx - x, b.cy - y) < Math.max(b.w, b.d) / 2 + pad) || (x > HQ.cx - 5 && x < HQ.cx - 2.6 && y > HQ.cy && y < HQ.cy + 3);
+const inCamp = (x, y) => x > 33.0 && x < 40.2 && y > 4.4 && y < 10.6;
 const HILLS = [{ x: BOTS[1].b.cx + 0.3, y: BOTS[1].b.cy + 0.6, r: 3.6 }, { x: 25.2, y: 3.2, r: 3.0 }, { x: 15.0, y: 4.0, r: 2.6 }, { x: 1.6, y: 16.2, r: 2.4 }, { x: 26.0, y: 16.6, r: 2.2 }, { x: 11.2, y: 37.6, r: 1.6 }];
 const TREES = [], ROCKS = [], FLOWERS = [];
 for (let k = 0; k < 900 && TREES.length < 78; k++) { const x = rr(0.3, WX - 0.3), y = rr(0.6, 36), r = rr(0.42, 0.72);
-  if (y > shoreY(x) - 1.3 || nearB(x, y, 1.1 + r) || nearPath(x, y, 0.95 + r * 0.6) || TREES.some(t => Math.hypot(t.x - x, t.y - y) < t.r + r + 0.15)) continue;
+  if (inCamp(x, y) || y > shoreY(x) - 1.3 || nearB(x, y, 1.1 + r) || nearPath(x, y, 0.95 + r * 0.6) || TREES.some(t => Math.hypot(t.x - x, t.y - y) < t.r + r + 0.15)) continue;
   TREES.push({ x, y, r, pine: R() < 0.34, tone: R() }); }
 for (let k = 0; k < 500 && ROCKS.length < 34; k++) { const x = rr(0.3, WX - 0.3), y = rr(0.6, 38.5), r = rr(0.14, 0.4);
-  if (y > shoreY(x) + 0.5 || nearB(x, y, 0.8) || nearPath(x, y, 0.7) || TREES.some(t => Math.hypot(t.x - x, t.y - y) < t.r + 0.3)) continue;
+  if (inCamp(x, y) || y > shoreY(x) + 0.5 || nearB(x, y, 0.8) || nearPath(x, y, 0.7) || TREES.some(t => Math.hypot(t.x - x, t.y - y) < t.r + 0.3)) continue;
   ROCKS.push({ x, y, r, seed: R() * 99 }); }
-for (let k = 0; k < 400 && FLOWERS.length < 70; k++) { const x = rr(0.3, WX - 0.3), y = rr(0.6, 36); if (y > shoreY(x) - 1 || nearB(x, y, 0.5) || nearPath(x, y, 0.6)) continue; FLOWERS.push([x, y, Math.floor(R() * 3)]); }
+for (let k = 0; k < 400 && FLOWERS.length < 70; k++) { const x = rr(0.3, WX - 0.3), y = rr(0.6, 36); if (inCamp(x, y) || y > shoreY(x) - 1 || nearB(x, y, 0.5) || nearPath(x, y, 0.6)) continue; FLOWERS.push([x, y, Math.floor(R() * 3)]); }
 const LAMPS = [N.A.p, N.B.p, N.C.p, N.D.p, N.E.p, N.F.p].map(p => [p[0] + 0.55, p[1] - 0.25]);
 const LANTERNS = [[PIER.x0 - 0.05, 38.4], [PIER.x1 + 0.05, 39.9], [PIER.x0 - 0.05, 41.3]];
 const BOARD = (() => { const p = loc(HQ, -HQ.w / 2 - 1.1, HQ.d / 2 + 0.6); return { x: p[0], y: p[1] }; })();
@@ -372,6 +373,29 @@ function buildGround() {
     c.fillStyle = 'rgba(40,34,24,.18)'; c.beginPath(); c.ellipse(X + rx * 0.35, Y + ry * 0.2, rx, ry * 0.5, 0, 0, 7); c.fill();
     c.fillStyle = '#b4ad9e'; c.beginPath(); pts.forEach((p, k) => k ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.closePath(); c.fill(); c.strokeStyle = 'rgba(20,20,20,.6)'; c.lineWidth = 1; c.stroke();
     c.fillStyle = '#d4cfc3'; c.beginPath(); c.ellipse(X - rx * 0.25, Y - ry * 0.85, rx * 0.4, ry * 0.3, -0.3, 0, 7); c.fill(); });
+
+  // black house compound: mud yard, barbed wire, corner towers
+  const camp = [[33.2, 4.6], [39.9, 4.6], [39.9, 10.4], [33.2, 10.4]];
+  c.fillStyle = '#b7a88a'; c.beginPath();
+  camp.forEach((p, k) => { const q = S3(p[0], p[1], 0); k ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1]); }); c.closePath(); c.fill();
+  for (let k = 0; k < 40; k++) { const [X, Y] = S3(33.4 + (k * 1.7 % 6.2), 4.8 + (k * 1.3 % 5.2), 0); c.fillStyle = 'rgba(90,70,45,.25)'; c.beginPath(); c.ellipse(X, Y, K * 0.35, K * 0.12, 0, 0, 7); c.fill(); }
+  const wire = (a, b) => {
+    const n = 10; for (let i = 0; i <= n; i++) {
+      const t = i / n, x = a[0] + (b[0] - a[0]) * t, y = a[1] + (b[1] - a[1]) * t, [X, Y] = S3(x, y, 0);
+      if (i % 2 === 0) { c.fillStyle = '#4a4034'; c.fillRect(X - 1.5, Y - K * 0.55, 3, K * 0.55); }
+    }
+    [[0.22, '#2a2a2a'], [0.42, '#3a3a3a']].forEach(([h, col]) => {
+      c.strokeStyle = col; c.lineWidth = Math.max(1, K / 28); c.beginPath();
+      for (let i = 0; i <= n; i++) { const t = i / n, x = a[0] + (b[0] - a[0]) * t, y = a[1] + (b[1] - a[1]) * t, [X, Y] = S3(x, y, h); i ? c.lineTo(X, Y) : c.moveTo(X, Y); } c.stroke();
+      for (let i = 1; i < n; i++) { const t = i / n, x = a[0] + (b[0] - a[0]) * t, y = a[1] + (b[1] - a[1]) * t, [X, Y] = S3(x, y, h); c.beginPath(); c.arc(X, Y, 1.4, 0, 7); c.stroke(); }
+    });
+  };
+  wire([33.2, 4.6], [39.9, 4.6]); wire([39.9, 4.6], [39.9, 10.4]); wire([39.9, 10.4], [33.2, 10.4]); wire([33.2, 10.4], [33.2, 4.6]);
+  [[33.2, 4.6], [39.9, 4.6], [39.9, 10.4], [33.2, 10.4]].forEach(([x, y]) => {
+    const [X, Y] = S3(x, y, 0), [, Yt] = S3(x, y, 2.4);
+    c.fillStyle = '#2c2c2c'; c.fillRect(X - K * 0.28, Yt, K * 0.56, Y - Yt);
+    c.fillStyle = '#1a1a1a'; c.fillRect(X - K * 0.42, Yt - K * 0.16, K * 0.84, K * 0.18);
+  });
   // minimap thumbnail
   miniImg = document.createElement('canvas'); miniImg.width = 176; miniImg.height = Math.round(176 * HPX / WPX); miniImg.getContext('2d').drawImage(ground, 0, 0, miniImg.width, miniImg.height);
   const mc = miniImg.getContext('2d'), ms = miniImg.width / WPX; ALLB.forEach(b => { const q = S3(b.cx, b.cy, 0); mc.fillStyle = b === HQ ? '#141414' : b.type === 'home' ? '#8a8172' : '#3a332a'; mc.fillRect(q[0] * ms - 3, q[1] * ms - 3, b.type === 'home' ? 4 : 6, b.type === 'home' ? 4 : 6); });
