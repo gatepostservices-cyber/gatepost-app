@@ -472,30 +472,40 @@ let ZM = 1; const ZMIN = 0.5, ZMAX = 2.5, VW = () => W / ZM, VH = () => H / ZM;
 function inView(x, y, w, h) { return x + w > cam.x - 20 && x < cam.x + VW() + 20 && y + h > cam.y - 20 && y < cam.y + VH() + 20; }
 let LABELRECTS = [];
 
-// massive robot that fires orders at the AI house; black agent waits at the door
-const BOSS = { x: 39.2, y: 6.4 };
-const shots = [];
+// black robot on a tower closer to town; constant red beam to a tower beside the black house
+const BOSS = { x: 27.2, y: 11.6 };
+const RELAY = { x: 34.6, y: 8.4 };
+function towerAt(c, x, y, h, col) {
+  const [X, Y] = S3(x, y, 0), [, Yt] = S3(x, y, h);
+  c.fillStyle = 'rgba(0,0,0,.22)'; c.beginPath(); c.ellipse(X, Y, K * 1.1, K * 0.35, 0, 0, 7); c.fill();
+  c.fillStyle = col; c.fillRect(X - K * 0.55, Yt, K * 1.1, Y - Yt);
+  c.fillStyle = '#2a2a2a'; c.fillRect(X - K * 0.7, Yt - K * 0.18, K * 1.4, K * 0.22);
+  c.strokeStyle = '#3a3a3a'; c.lineWidth = 1;
+  for (let k = 0.4; k < h; k += 0.7) { const [, yy] = S3(x, y, k); c.beginPath(); c.moveTo(X - K * 0.5, yy); c.lineTo(X + K * 0.5, yy); c.stroke(); }
+  return [X, Yt];
+}
 function drawBoss(c, t) {
-  if (Math.random() < 0.012) shots.push({ t: 0, life: 1.6 });
-  const u = K / 10, [X, Y] = S3(BOSS.x, BOSS.y, 0);
-  c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(X, Y, u * 6, u * 1.6, 0, 0, 7); c.fill();
-  const r = (x, y, w, h, col) => { c.fillStyle = col; c.fillRect(X + x * u, Y + y * u, w * u, h * u); };
-  r(-3.2, -6, 2.2, 5.5, '#0e0e0e'); r(1.0, -6, 2.2, 5.5, '#0e0e0e');
-  r(-4.2, -14, 8.4, 8.5, '#141414'); r(-3.4, -13, 6.8, 6.5, '#1c1c1c');
-  r(-5.5, -12, 1.6, 5, '#0e0e0e'); r(3.9, -12, 1.6, 5, '#0e0e0e');
-  r(-3.6, -22, 7.2, 8, '#0e0e0e'); r(-2.8, -21, 5.6, 6, '#1a1a1a');
-  c.fillStyle = '#f6f4ef'; c.beginPath(); c.arc(X - 1.2 * u, Y - 18.5 * u, 0.7 * u, 0, 7); c.arc(X + 1.2 * u, Y - 18.5 * u, 0.7 * u, 0, 7); c.fill();
+  const [bx, by] = towerAt(c, BOSS.x, BOSS.y, 4.6, '#1a1a1a');
+  const [rx, ry] = towerAt(c, RELAY.x, RELAY.y, 3.2, '#222');
+  // black robot on the town-side tower
+  const u = K / 11;
+  const r = (x, y, w, h, col) => { c.fillStyle = col; c.fillRect(bx + x * u, by + y * u, w * u, h * u); };
+  r(-2.4, -5.2, 1.6, 4.6, '#0e0e0e'); r(0.8, -5.2, 1.6, 4.6, '#0e0e0e');
+  r(-3.4, -12.5, 6.8, 7.4, '#141414'); r(-2.7, -11.6, 5.4, 5.6, '#1c1c1c');
+  r(-4.6, -11, 1.4, 4.2, '#0e0e0e'); r(3.2, -11, 1.4, 4.2, '#0e0e0e');
+  r(-2.8, -19.5, 5.6, 7, '#0e0e0e'); r(-2.1, -18.6, 4.2, 5.2, '#1a1a1a');
+  c.fillStyle = '#f6f4ef'; c.beginPath(); c.arc(bx - 1.0 * u, by - 16.2 * u, 0.55 * u, 0, 7); c.arc(bx + 1.0 * u, by - 16.2 * u, 0.55 * u, 0, 7); c.fill();
+  // constant red beam
+  const pulse = 0.75 + 0.25 * Math.sin(t * 6);
+  c.strokeStyle = 'rgba(180,20,20,' + pulse + ')'; c.lineWidth = Math.max(2, K * 0.12);
+  c.beginPath(); c.moveTo(bx, by - 16 * u); c.lineTo(rx, ry - K * 0.4); c.stroke();
+  c.strokeStyle = 'rgba(255,60,40,' + (pulse * 0.6) + ')'; c.lineWidth = Math.max(1, K * 0.05);
+  c.beginPath(); c.moveTo(bx, by - 16 * u); c.lineTo(rx, ry - K * 0.4); c.stroke();
+  c.fillStyle = '#ff3a28'; c.beginPath(); c.arc(rx, ry - K * 0.4, Math.max(3, K * 0.12), 0, 7); c.fill();
   // black agent at the house door
   const door = doorOf(AI), [ax, ay] = S3(door[0], door[1], 0), au = K / 14;
   c.fillStyle = '#0e0e0e'; c.beginPath(); c.arc(ax, ay - 6 * au, 2.2 * au, 0, 7); c.fill();
   c.fillRect(ax - 1.6 * au, ay - 4 * au, 3.2 * au, 4 * au);
-  // shots
-  for (let i = shots.length - 1; i >= 0; i--) {
-    const s = shots[i]; s.t += 0.016; if (s.t > s.life) { shots.splice(i, 1); continue; }
-    const k = s.t / s.life, [hx, hy] = S3(AI.cx, AI.cy, 1.5);
-    const px = X + (hx - X) * k, py = Y - 18 * u + (hy - (Y - 18 * u)) * k;
-    c.fillStyle = 'rgba(246,244,239,' + (1 - k * 0.4) + ')'; c.beginPath(); c.arc(px, py, Math.max(2, K * 0.08), 0, 7); c.fill();
-  }
 }
 function drawFrame(t, dt) {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
