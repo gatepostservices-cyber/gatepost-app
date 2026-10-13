@@ -9,7 +9,8 @@
 <meta name="apple-mobile-web-app-title" content="Gatepost">
 <meta name="theme-color" content="#0e0e0e">
 <title>Gatepost Property Services</title>
-<link rel="manifest" href="manifest.json?v=2">
+<meta name="app-version" content="2026-10-13-town-v2">
+<link rel="manifest" href="manifest.json?v=3">
 <link rel="icon" href="favicon.ico?v=2" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=2">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2">
@@ -77,6 +78,26 @@ button.ok { background:var(--ok); border:none; color:#fff; }
 .sheet textarea { width:100%; box-sizing:border-box; font-size:16px; }
 .sheet-actions { display:flex; gap:8px; padding:10px 16px; border-top:1px solid var(--line); background:var(--ink); } .sheet-actions button { flex:1; min-height:44px; }
 body.sheet-open { overflow:hidden; }
+.town-sub { font-size:.82rem; margin:-4px 0 10px; } .town-sub b { color:var(--paper); }
+.town-chip b.chat { background:#5f7a8a; } .town-chip.hq { border-color:#F6F4EF55; }
+.town-tabs { display:flex; gap:6px; margin-top:4px; } .town-tabs button { flex:1; width:auto; padding:9px 4px; border-radius:10px; border:1px solid var(--line); background:transparent; color:inherit; font-size:.82rem; }
+.town-tabs button.on { background:var(--paper); color:var(--ink); border-color:var(--paper); } .town-tabs b { background:#a85a52; color:#F6F4EF; border-radius:999px; padding:0 6px; font-size:.7rem; } .town-tabs b.chat { background:#5f7a8a; }
+.now-card { display:flex; flex-direction:column; gap:3px; margin-top:12px; padding:12px 14px; border-radius:14px; border:1px solid #5f7a8a; background:rgba(95,122,138,.12); } .now-card .muted { font-size:.74rem; }
+.timeline { list-style:none; margin:14px 0 0; padding:0 0 0 6px; border-left:2px solid var(--line); } .timeline li { display:flex; gap:10px; padding:0 0 14px 10px; position:relative; font-size:.88rem; } .timeline li.tap { cursor:pointer; }
+.timeline .tl-ico { position:absolute; left:-15px; top:0; width:22px; height:22px; border-radius:50%; background:var(--ink3); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; font-size:.7rem; } .timeline li > div { padding-left:10px; } .timeline .muted { font-size:.72rem; margin-top:2px; }
+.town-reqs { margin-top:10px; } .town-req .req-top, .town-req .req-title { cursor:pointer; }
+.mini-actions { display:flex; gap:6px; margin-top:10px; } .mini-actions button { flex:1; width:auto; min-height:38px; padding:6px 4px; font-size:.8rem; }
+.chat-log { display:flex; flex-direction:column; gap:10px; margin-top:14px; }
+.msg { display:flex; flex-direction:column; max-width:82%; } .msg.admin { align-self:flex-end; align-items:flex-end; } .msg.bot { align-self:flex-start; }
+.msg .bubble { padding:9px 12px; border-radius:16px; white-space:pre-wrap; line-height:1.4; font-size:.92rem; } .msg.admin .bubble { background:var(--paper); color:var(--ink); border-bottom-right-radius:5px; } .msg.bot .bubble { background:var(--ink3); border:1px solid var(--line); border-bottom-left-radius:5px; }
+.msg .meta { font-size:.68rem; opacity:.55; margin-top:3px; } .chat-hint { font-size:.7rem; text-align:center; margin-top:14px; }
+.chat-compose { align-items:flex-end; } .chat-compose textarea { flex:1; min-height:44px; max-height:120px; resize:none; font-size:16px; padding:10px 12px; border-radius:12px; } .chat-compose button { flex:none; width:auto; padding:0 18px; }
+.hq-ava { width:46px; height:46px; border-radius:12px; background:#F6F4EF; display:flex; align-items:center; justify-content:center; flex:none; } .hq-ava img { height:34px; }
+.hq-list { display:flex; flex-direction:column; gap:8px; margin-top:8px; }
+.hq-row { display:flex; align-items:center; gap:12px; width:100%; text-align:left; padding:12px 14px; border-radius:14px; border:1px solid var(--line); background:var(--ink2); color:inherit; min-height:58px; }
+.hq-ico { font-size:1.3rem; width:28px; text-align:center; } .hq-txt { display:flex; flex-direction:column; flex:1; min-width:0; } .hq-txt .muted { font-size:.78rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.hq-n { background:#a85a52; color:#F6F4EF; border-radius:999px; padding:1px 8px; font-size:.75rem; font-weight:700; }
+
 .team-row .team-top { display:flex; align-items:center; gap:6px; flex-wrap:wrap; } .segs { display:flex; gap:6px; margin-top:8px; }
 .seg { flex:1; width:auto; padding:8px 4px; font-size:.75rem; border-radius:10px; border:1px solid var(--line); background:transparent; color:inherit; min-height:38px; }
 .seg.on { background:var(--paper); color:var(--ink); border-color:var(--paper); opacity:1; } .seg:disabled:not(.on) { opacity:.4; }
@@ -122,11 +143,11 @@ window.addEventListener('unhandledrejection', function(e){ gpReportError(e.reaso
   <span id="user-label"></span>
 </header>
 <nav class="nav hidden" id="main-nav">
-  <button data-page="dashboard" class="active">Hub</button>
+  <button data-page="town" class="active">Town</button>
+  <button data-page="dashboard">Hub</button>
   <button data-page="estimate" data-admin>Estimate</button>
   <button data-page="calendar">Calendar</button>
   <button data-page="requests" data-admin>Requests</button>
-  <button data-page="town" data-admin>Town</button>
   <button data-page="admin" id="admin-tab" class="hidden" data-admin>Team</button>
 </nav>
 <main id="app"></main>
@@ -243,7 +264,7 @@ const API = {
 };
 
 const isAdmin = () => S.me && S.me.role === 'admin';
-const page = () => document.querySelector('.nav button.active')?.dataset.page || 'dashboard';
+const page = () => document.querySelector('.nav button.active')?.dataset.page || 'town';
 
 // ---------- Render ----------
 function render() {
@@ -257,7 +278,7 @@ function render() {
   if (!S.me.access) { nav.classList.add('hidden');
     main.innerHTML = `<div class="card"><h2>Access pending</h2><p class="muted">Your account is waiting for an admin to give you access. You will get in automatically once they do.</p><button class="secondary" onclick="logout()">Log out</button></div>`; return; }
   document.querySelectorAll('.nav button[data-admin]').forEach(b => b.classList.toggle('hidden', !isAdmin()));
-  if (!isAdmin() && document.querySelector('.nav button.active')?.hasAttribute('data-admin')) { document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('active', b.dataset.page === 'dashboard')); }
+  if (!isAdmin() && document.querySelector('.nav button.active')?.hasAttribute('data-admin')) { document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('active', b.dataset.page === 'town')); }
   const p = page();
   main.innerHTML = p === 'estimate' ? estimatePage() : p === 'calendar' ? calendarPage() : p === 'requests' ? requestsPage() : p === 'admin' ? adminPage() : p === 'town' && window.townPage ? townPage() : dashboard();
   renderSaved(); renderEvents(); renderRequests(); renderUsers();
@@ -454,6 +475,6 @@ document.getElementById('main-nav').addEventListener('click', e => {
 });
 API.init().then(()=>{ if (location.hash.length>1) document.querySelector(`.nav button[data-page="${location.hash.slice(1)}"]`)?.click(); render(); });
 </script>
-<script src="town.js?v=3"></script><!--roles-v1-->
+<script src="town.js?v=6"></script>
 </body>
 </html>

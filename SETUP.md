@@ -1,7 +1,7 @@
 # Gatepost sync setup (Supabase, free tier)
 
 1. Sign up at https://supabase.com (GitHub login works) -> New project (free, region US West). Save the DB password.
-2. SQL Editor -> paste `supabase-setup.sql` -> Run, then `supabase-roles.sql` -> Run (roles: admin / employee / pending).
+2. SQL Editor -> paste `supabase-setup.sql` -> Run, then `supabase-roles.sql`, `supabase-calendar-privacy.sql`, `supabase-bot-chat.sql`, `supabase-bot-activity.sql`, `supabase-resolve-request.sql` (roles, Outlook privacy, Town chat desks, activity log, bot request clearing).
 3. Authentication -> Sign In / Providers -> Email: keep enabled. For simplest onboarding turn OFF "Confirm email"
    (otherwise each new user must click an email link before logging in).
 4. Authentication -> URL Configuration -> Site URL: https://gatepostservices-cyber.github.io/gatepost-app/
