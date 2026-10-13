@@ -292,8 +292,8 @@ function castShadow(c, solids) { solids.forEach(s => { const h = hull(s.all.map(
   c.beginPath(); h.forEach((p, k) => { const q = S3(p[0], p[1], 0); k ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1]); }); c.closePath(); c.fill(); }); }
 function mkSprite(key, tap, solidsOrFn, bbox, after) {
   // bbox in world-screen px [x0,y0,x1,y1]
-  const [x0, y0, x1, y1] = bbox, w = Math.ceil(x1 - x0), h = Math.ceil(y1 - y0), cv2 = document.createElement('canvas'); cv2.width = Math.max(1, Math.ceil(w * dpr)); cv2.height = Math.max(1, Math.ceil(h * dpr));
-  const c = cv2.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, -x0 * dpr, -y0 * dpr); solidsOrFn(c);
+  const [x0, y0, x1, y1] = bbox, w = Math.ceil(x1 - x0), h = Math.ceil(y1 - y0), cv2 = document.createElement('canvas'); const sd = Math.min(3, dpr * 1.5); cv2.width = Math.max(1, Math.ceil(w * sd)); cv2.height = Math.max(1, Math.ceil(h * sd));
+  const c = cv2.getContext('2d'); c.setTransform(sd, 0, 0, sd, -x0 * sd, -y0 * sd); solidsOrFn(c);
   return { key, tap, img: cv2, x: x0, y: y0, w, h, after };
 }
 function solidsBBox(solids, extraZ = 0, pad = 0.6) { let a = 1e9, b = 1e9, c = -1e9, d = -1e9; solids.forEach(s => s.all.forEach(p => { const q = S3(p[0], p[1], p[2]), q2 = S3(p[0], p[1], p[2] + extraZ); a = Math.min(a, q[0], q2[0]); c = Math.max(c, q[0]); b = Math.min(b, q[1], q2[1]); d = Math.max(d, q[1]); })); return [a - pad * K, b - pad * K, c + pad * K, d + pad * K * 0.4]; }
@@ -462,12 +462,13 @@ function drawShip(c, t) {
 const clouds = [{ x: 3, y: 8, s: 3.6, v: 0.16 }, { x: 16, y: 20, s: 3.0, v: 0.12 }, { x: 9, y: 30, s: 2.6, v: 0.2 }, { x: 22, y: 4, s: 2.8, v: 0.14 }];
 const flies = Array.from({ length: 18 }, (_, k) => ({ x: (k * 7.3) % WX, y: 6 + (k * 11.7) % 28, p: k * 1.7 }));
 const puffs = [];
-function inView(x, y, w, h) { return x + w > cam.x - 20 && x < cam.x + W + 20 && y + h > cam.y - 20 && y < cam.y + H + 20; }
+let ZM = 1; const ZMIN = 0.5, ZMAX = 2.5, VW = () => W / ZM, VH = () => H / ZM;
+function inView(x, y, w, h) { return x + w > cam.x - 20 && x < cam.x + VW() + 20 && y + h > cam.y - 20 && y < cam.y + VH() + 20; }
 let LABELRECTS = [];
 function drawFrame(t, dt) {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.drawImage(ground, cam.x * gdpr, cam.y * gdpr, W * gdpr, H * gdpr, 0, 0, cv.width, cv.height);
-  ctx.setTransform(dpr, 0, 0, dpr, -cam.x * dpr, -cam.y * dpr);
+  { const sx = Math.max(0, cam.x), sy = Math.max(0, cam.y), sw = Math.min(WPX - sx, VW() - (sx - cam.x)), sh = Math.min(HPX - sy, VH() - (sy - cam.y)), k = dpr * ZM; if (cam.x < 0 || cam.y < 0 || sw < VW() || sh < VH()) { ctx.fillStyle = '#c9d2b6'; ctx.fillRect(0, 0, cv.width, cv.height); const wb = (HPX - cam.y) * k; if (wb < cv.height) { ctx.fillStyle = '#5f8ea3'; ctx.fillRect(0, wb, cv.width, cv.height - wb); } } ctx.drawImage(ground, sx * gdpr, sy * gdpr, sw * gdpr, sh * gdpr, (sx - cam.x) * k, (sy - cam.y) * k, sw * k, sh * k); }
+  ctx.setTransform(dpr * ZM, 0, 0, dpr * ZM, -cam.x * dpr * ZM, -cam.y * dpr * ZM);
   // water life
   ctx.strokeStyle = 'rgba(255,255,255,.45)'; ctx.lineWidth = Math.max(1, K / 22);
   for (let k = 0; k < 34; k++) { const dir = k % 2 ? 1 : -1, wx = (((k * 5.37) % WX) + t * 0.22 * dir + WX * 4) % WX, wy = 38.8 + ((k * 3.91) % 5), s = 0.25 + (k % 5) * 0.08; if (wx > PIER.x0 - 0.3 && wx < PIER.x1 + 0.3) continue; const [X, Y] = S3(wx, wy, 0); if (!inView(X - 20, Y - 10, 40, 20)) continue;
@@ -495,7 +496,7 @@ function drawFrame(t, dt) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   if (warm > 0) { ctx.fillStyle = `rgba(242,160,90,${warm})`; ctx.fillRect(0, 0, W, H); }
   if (dark > 0) { ctx.fillStyle = `rgba(14,18,46,${dark})`; ctx.fillRect(0, 0, W, H); }
-  ctx.setTransform(dpr, 0, 0, dpr, -cam.x * dpr, -cam.y * dpr);
+  ctx.setTransform(dpr * ZM, 0, 0, dpr * ZM, -cam.x * dpr * ZM, -cam.y * dpr * ZM);
   if (dark > 0.15) { const glow = (x, y, z, s) => { const [X, Y] = S3(x, y, z); if (!inView(X - s * K, Y - s * K, 2 * s * K, 2 * s * K)) return; const g = ctx.createRadialGradient(X, Y, 1, X, Y, K * s); g.addColorStop(0, `rgba(242,201,107,${dark * 0.55})`); g.addColorStop(1, 'rgba(242,201,107,0)'); ctx.fillStyle = g; ctx.fillRect(X - K * s, Y - K * s, 2 * K * s, 2 * K * s); };
     BOTS.forEach((bt, i) => { glow(bt.b.cx, bt.b.cy + bt.b.d / 2, 1.2, 2.4); if (!atWork(hour)) glow(bt.home.cx, bt.home.cy + 1, 0.8, 1.6); }); glow(HQ.cx, HQ.cy + HQ.d / 2, 1.3, 2.8);
     LAMPS.forEach(([x, y]) => glow(x, y, 1.75, 1.4)); LANTERNS.forEach(([x, y], k) => glow(x, y, 1.9, 1.3 * (0.9 + Math.sin(t * 7 + k * 2) * 0.08))); glow(ship.x + 1.85, SHIP_Y, 1.1, 1.2);
@@ -543,8 +544,8 @@ function update(dt) {
   updateShip(dt);
 }
 let camMoved = true, drag = null;
-function clampCam() { const mx = WPX - W, my = HPX - H; cam.x = mx < 0 ? mx / 2 : Math.max(0, Math.min(mx, cam.x)); cam.y = my < 0 ? my / 2 : Math.max(0, Math.min(my, cam.y)); }
-function focusOn(x, y, z = 1, instant) { const [X, Y] = S3(x, y, z); cam.tx = X - W / 2; cam.ty = Y - H * 0.45; if (instant) { cam.x = cam.tx; cam.y = cam.ty; cam.tx = cam.ty = null; clampCam(); } camMoved = true; }
+function clampCam() { const mx = WPX - VW(), my = HPX - VH(); cam.x = mx < 0 ? mx / 2 : Math.max(0, Math.min(mx, cam.x)); cam.y = my < 0 ? my / 2 : Math.max(0, Math.min(my, cam.y)); }
+function focusOn(x, y, z = 1, instant) { const [X, Y] = S3(x, y, z); cam.tx = X - VW() / 2; cam.ty = Y - VH() * 0.45; if (instant) { cam.x = cam.tx; cam.y = cam.ty; cam.tx = cam.ty = null; clampCam(); } camMoved = true; }
 function loop(ts) {
   if (!cv || !cv.isConnected || document.hidden) { stop(); return; }
   raf = requestAnimationFrame(loop);
@@ -558,7 +559,7 @@ function loop(ts) {
 }
 function stop() { if (raf) cancelAnimationFrame(raf); raf = null; }
 function drawMini() { const m = document.getElementById('town-mini'); if (!m || !miniImg) return; if (m.width !== miniImg.width) { m.width = miniImg.width; m.height = miniImg.height; }
-  const c = m.getContext('2d'), s = m.width / WPX; c.drawImage(miniImg, 0, 0); c.strokeStyle = '#141414'; c.lineWidth = 3; c.strokeRect(Math.max(1, cam.x * s), Math.max(1, cam.y * s), Math.min(m.width - 2, W * s), Math.min(m.height - 2, H * s)); c.strokeStyle = '#F6F4EF'; c.lineWidth = 1.5; c.strokeRect(Math.max(1, cam.x * s), Math.max(1, cam.y * s), Math.min(m.width - 2, W * s), Math.min(m.height - 2, H * s)); }
+  const c = m.getContext('2d'), s = m.width / WPX; c.drawImage(miniImg, 0, 0); c.strokeStyle = '#141414'; c.lineWidth = 3; c.strokeRect(Math.max(1, cam.x * s), Math.max(1, cam.y * s), Math.min(m.width - 2, VW() * s), Math.min(m.height - 2, VH() * s)); c.strokeStyle = '#F6F4EF'; c.lineWidth = 1.5; c.strokeRect(Math.max(1, cam.x * s), Math.max(1, cam.y * s), Math.min(m.width - 2, VW() * s), Math.min(m.height - 2, VH() * s)); }
 function layoutFull() { const full = document.getElementById('town-full'); if (!full) return; const hd = document.querySelector('header'), nav = document.getElementById('main-nav');
   full.style.top = Math.max(0, hd ? hd.getBoundingClientRect().bottom : 0) + 'px'; full.style.bottom = (nav && !nav.classList.contains('hidden') ? Math.max(0, window.innerHeight - nav.getBoundingClientRect().top) : 0) + 'px'; }
 function setup() {
@@ -567,19 +568,35 @@ function setup() {
   cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); ctx = cv.getContext('2d');
   if (!cam.init) { cam.init = true; focusOn(HQ.cx, HQ.cy, 1, true); } clampCam();
   hour = syncClock(); dark = darkness(hour); warm = warmth(hour); const nl = dark > 0.15, nh = nl && !atWork(hour); if (nl !== LIT || nh !== HOMELIT) { LIT = nl; HOMELIT = nh; spritesDirty = true; } clockT = 30; updateOverlay();
-  cv.onpointerdown = e => { if (drag && drag.id !== e.pointerId) return; cv.setPointerCapture(e.pointerId); drag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, lt: performance.now(), moved: false }; cam.vx = cam.vy = 0; cam.tx = cam.ty = null; };
-  cv.onpointermove = e => { if (!drag || drag.id !== e.pointerId) return; const dx = e.clientX - drag.lx, dy = e.clientY - drag.ly, now = performance.now(), dtm = Math.max(1, now - drag.lt) / 1000;
+  const pts = new Map(); let pinch = null;
+  const rel = e => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  const pinchState = () => { const [a, b2] = [...pts.values()]; return { d: Math.hypot(a[0] - b2[0], a[1] - b2[1]) || 1, mx: (a[0] + b2[0]) / 2, my: (a[1] + b2[1]) / 2 }; };
+  cv.onpointerdown = e => { try { cv.setPointerCapture(e.pointerId); } catch (_) {} pts.set(e.pointerId, rel(e)); cam.vx = cam.vy = 0; cam.tx = cam.ty = null;
+    if (pts.size === 2) { pinch = { ...pinchState(), z: ZM }; if (drag) drag.moved = true; return; }
+    if (pts.size === 1) drag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, lt: performance.now(), moved: false }; };
+  cv.onpointermove = e => { if (!pts.has(e.pointerId)) return; pts.set(e.pointerId, rel(e));
+    if (pinch && pts.size >= 2) { const p2 = pinchState(); zoomAt(pinch.z * p2.d / pinch.d, p2.mx, p2.my); cam.x -= (p2.mx - pinch.mx) / ZM; cam.y -= (p2.my - pinch.my) / ZM; pinch.mx = p2.mx; pinch.my = p2.my; clampCam(); camMoved = true; return; }
+    if (!drag || drag.id !== e.pointerId) return; const dx = e.clientX - drag.lx, dy = e.clientY - drag.ly, now = performance.now(), dtm = Math.max(1, now - drag.lt) / 1000;
     if (!drag.moved && Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) > 7) drag.moved = true;
-    if (drag.moved) { cam.x -= dx; cam.y -= dy; clampCam(); cam.vx = cam.vx * 0.6 + dx / dtm * 0.4; cam.vy = cam.vy * 0.6 + dy / dtm * 0.4; camMoved = true; }
+    if (drag.moved) { cam.x -= dx / ZM; cam.y -= dy / ZM; clampCam(); cam.vx = cam.vx * 0.6 + dx / ZM / dtm * 0.4; cam.vy = cam.vy * 0.6 + dy / ZM / dtm * 0.4; camMoved = true; }
     drag.lx = e.clientX; drag.ly = e.clientY; drag.lt = now; };
-  cv.onpointerup = cv.onpointercancel = e => { if (!drag || drag.id !== e.pointerId) return; const d = drag; drag = null; if (performance.now() - d.lt > 90) { cam.vx = cam.vy = 0; }
-    if (!d.moved && e.type === 'pointerup') { const r = cv.getBoundingClientRect(), h = hit(e.clientX - r.left, e.clientY - r.top); if (h === 'hq') openHQ(); else if (h === 'dock') openDock(); else if (h !== null && h >= 0) openBot(h); } };
-  cv.onwheel = e => { e.preventDefault(); const k = e.deltaMode === 1 ? 16 : 1; cam.x += (e.shiftKey && !e.deltaX ? e.deltaY : e.deltaX) * k; if (!e.shiftKey) cam.y += e.deltaY * k; cam.tx = cam.ty = null; clampCam(); camMoved = true; };
-  const m = document.getElementById('town-mini'); if (m) { const go = e => { const r = m.getBoundingClientRect(), fx = (e.clientX - r.left) / r.width, fy = (e.clientY - r.top) / r.height; cam.tx = fx * WPX - W / 2; cam.ty = fy * HPX - H / 2; cam.vx = cam.vy = 0; camMoved = true; };
+  cv.onpointerup = cv.onpointercancel = e => { pts.delete(e.pointerId);
+    if (pinch) { if (pts.size < 2) { pinch = null; drag = null; cam.vx = cam.vy = 0; } return; }
+    if (!drag || drag.id !== e.pointerId) return; const d = drag; drag = null; if (performance.now() - d.lt > 90) { cam.vx = cam.vy = 0; }
+    if (!d.moved && e.type === 'pointerup') { const [x, y] = rel(e), h = hit(x, y); if (h === 'hq') openHQ(); else if (h === 'dock') openDock(); else if (h !== null && h >= 0) openBot(h); } };
+  cv.onwheel = e => { e.preventDefault(); const [x, y] = rel(e), k = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1, dy = e.deltaY * k;
+    const mouseWheel = e.deltaMode !== 0 || (e.deltaX === 0 && Math.abs(e.deltaY) >= 50 && Number.isInteger(e.deltaY));
+    if (e.ctrlKey || e.metaKey || mouseWheel) { zoomAt(ZM * Math.exp(-dy * (e.ctrlKey && !mouseWheel ? 0.012 : 0.0018)), x, y); }
+    else { cam.x += (e.shiftKey && !e.deltaX ? dy : e.deltaX * k) / ZM; if (!e.shiftKey) cam.y += dy / ZM; }
+    cam.tx = cam.ty = null; clampCam(); camMoved = true; };
+  const m = document.getElementById('town-mini'); if (m) { const go = e => { const r = m.getBoundingClientRect(), fx = (e.clientX - r.left) / r.width, fy = (e.clientY - r.top) / r.height; cam.tx = fx * WPX - VW() / 2; cam.ty = fy * HPX - VH() / 2; cam.vx = cam.vy = 0; camMoved = true; };
     m.onpointerdown = e => { m.setPointerCapture(e.pointerId); m._d = 1; go(e); }; m.onpointermove = e => { if (m._d) go(e); }; m.onpointerup = m.onpointercancel = () => { m._d = 0; }; }
 }
+function zoomAt(z, sx, sy) { z = Math.max(ZMIN, Math.min(ZMAX, z)); if (z === ZM) return; const wx = sx / ZM + cam.x, wy = sy / ZM + cam.y; ZM = z; cam.x = wx - sx / ZM; cam.y = wy - sy / ZM; clampCam(); camMoved = true; }
+window.townZoomLevel = () => ZM;
+window.townZoom = f => { cam.tx = cam.ty = null; zoomAt(ZM * f, W / 2, H / 2); };
 function hit(sx, sy) {
-  const x = sx + cam.x, y = sy + cam.y, u = K / 12;
+  const x = sx / ZM + cam.x, y = sy / ZM + cam.y, u = K / 12;
   for (const ch of chars) { if (ch.where === 'home' && !ch.walking) continue; const [X, Y] = S3(ch.x, ch.y, 0); if (Math.abs(x - X) < 5 * u && y < Y + 3 * u && y > Y - 16 * u) return ch.i; }
   for (const l of LABELRECTS) if (x >= l.x && x <= l.x + l.w && y >= l.y && y <= l.y + l.h) return l.tap;
   const cand = SPRITES.filter(s => s.tap !== null && s.tap !== undefined && x >= s.x + s.w * 0.08 && x <= s.x + s.w * 0.92 && y >= s.y + s.h * 0.06 && y <= s.y + s.h).sort((a, b) => b.key - a.key);
@@ -636,7 +653,7 @@ window.townPage = () => { ADMIN = typeof isAdmin === 'function' && isAdmin();
     return `<button class="town-chip" onclick="townChip(${i})"><span class="dot" style="background:${bt.color}"></span>${esc(bt.short)}${s && s.pending ? ` <b>${s.pending}</b>` : ''}${u ? ` <b class="chat">${u}</b>` : ''}</button>`; }).join('');
   return `<div class="town-full" id="town-full"><canvas id="town-canvas" role="img" aria-label="Gatepost town map. Drag to look around; tap a building, a bot, HQ or the harbor."></canvas>
   <div class="town-top"><div class="town-title"><b>Gatepost Town</b><span id="town-clock"></span></div>${ADMIN ? '<div class="town-ticker" id="town-ticker"></div>' : ''}</div>
-  <div class="town-tools"><canvas id="town-mini" aria-label="Minimap: tap to jump"></canvas><button class="town-btn" onclick="townCenter()" aria-label="Center on HQ" title="Center on HQ">⌂</button></div>
+  <div class="town-tools"><canvas id="town-mini" aria-label="Minimap: tap to jump"></canvas><button class="town-btn" onclick="townZoom(1.25)" aria-label="Zoom in" title="Zoom in">+</button><button class="town-btn" onclick="townZoom(0.8)" aria-label="Zoom out" title="Zoom out">−</button><button class="town-btn" onclick="townCenter()" aria-label="Center on HQ" title="Center on HQ">⌂</button></div>
   <div class="town-legend"><button class="town-chip hq" onclick="townChip('hq')"><span class="dot" style="background:#F6F4EF"></span>HQ</button>${chips}<button class="town-chip" onclick="townChip('dock')"><span class="dot" style="background:#6f9aac"></span>Harbor</button></div></div>`; };
 window.townCenter = () => focusOn(HQ.cx, HQ.cy, 1);
 window.townChip = t => { if (t === 'hq') { focusOn(HQ.cx, HQ.cy, 1); openHQ(); } else if (t === 'dock') { focusOn(PIER.x0 - 1, 39.5, 0); openDock(); } else { const b = BOTS[t].b; focusOn(b.cx, b.cy, 1); openBot(t); } };
