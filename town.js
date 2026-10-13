@@ -11,7 +11,7 @@ const BOTS = [
   { name: 'Gatepost App', short: 'App', role: 'Builds and maintains this app', color: C.slate, place: 'Tech Garage', glyph: '</>', type: 'garage', at: [22.4, 22.4], work: 'In the tech garage, tinkering with the app.' },
 ];
 const HOME_AT = [[3.4, 31.2], [8.7, 33.6], [13.2, 30.6], [18.6, 33.2], [23.8, 30.4]];
-const WX = 28, WY = 44, TILT = 0.62, ZK = 0.82;
+const WX = 42, WY = 44, TILT = 0.62, ZK = 0.82;
 let ADMIN = false;
 
 // ---------- seeded layout (fixed seed: identical on every device and reload) ----------
@@ -21,7 +21,7 @@ const SIZES = { hall: [5.0, 3.4], tower: [2.6, 2.6], shop: [4.0, 3.0], kiosk: [3
 function mkB(type, at, extra) { const s = rr(0.92, 1.1), [w, d] = SIZES[type]; return Object.assign({ type, cx: at[0] + rr(-0.5, 0.5), cy: at[1] + rr(-0.5, 0.5), rot: rsign() * rr(0.17, 0.46), w: w * s, d: d * s, s }, extra || {}); }
 BOTS.forEach(bt => { bt.b = mkB(bt.type, bt.at); });
 const HQ = mkB('hq', [14.2, 19.6]); HQ.rot = rsign() * rr(0.1, 0.22);
-const AI = mkB('shop', [24.6, 12.4]); AI.rot = 0.1;
+const AI = mkB('shop', [36.4, 7.2]); AI.rot = 0.05; AI.black = true;
 BOTS.forEach((bt, i) => { bt.home = mkB('home', HOME_AT[i], { col: bt.color }); });
 const loc = (b, lx, ly) => { const c = Math.cos(b.rot), s = Math.sin(b.rot); return [b.cx + lx * c - ly * s, b.cy + lx * s + ly * c]; };
 const doorOf = b => loc(b, 0, b.d / 2 + 0.55);
@@ -40,6 +40,9 @@ function edge(a, b) { const A = N[a].p, B = N[b].p, mx = (A[0] + B[0]) / 2, my =
   let len = 0; for (let k = 1; k < pts.length; k++) len += Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]);
   const e = { a, b, pts, len, main: !/^h/.test(a + b) }; EDGES.push(e); N[a].e.push(e); N[b].e.push(e); }
 [['w1', 'L'], ['L', 'A'], ['w0', 'A'], ['A', 'B'], ['B', 'C'], ['w2', 'C'], ['B', 'hq'], ['A', 'D'], ['w3', 'D'], ['D', 'E'], ['hq', 'E'], ['E', 'F'], ['C', 'F'], ['w4', 'F'], ['h0', 'D'], ['h1', 'D'], ['h2', 'E'], ['h3', 'F'], ['h4', 'F'], ['E', 'G'], ['G', 'P'], ['P', 'dock']].forEach(([a, b]) => edge(a, b));
+nd('ai', doorOf(AI));
+edge('ai', 'C');
+const AI_EDGE = EDGES[EDGES.length - 1]; AI_EDGE.faint = true; AI_EDGE.main = false;
 function route(from, to) {
   if (from === to) return [N[to].p.slice()];
   const dist = { [from]: 0 }, prev = {}, todo = new Set(Object.keys(N));
@@ -246,11 +249,12 @@ function buildingSolids(bt, b) {
     out.push(hipS(b, 0, 0, 2.5, 2.5, 5.0, 1.4, bt.color, 0.25));
     const tp = loc(b, 0, 0); ex.beacon = [tp[0], tp[1], 6.55]; ex.top = 6.9;
   } else if (b.type === 'shop') {
-    out.push(boxS(b, 0, 0, w, d, 0, 2.3, C.wall, { front: (c, L, H) => { R2(c, 0.3, 0.45, 1.6, 1.0, C.ink); R2(c, 0.35, 0.5, 1.5, 0.9, lit ? C.lit : '#c9d6df'); c.strokeStyle = C.slate; c.lineWidth = 0.05; c.beginPath(); c.moveTo(0.5, 1.25); c.lineTo(1.7, 0.65); c.stroke();
-      doorW(c, L * 1.25, H, 0.75, 1.45); R2(c, L - 1.0, 0.25, 0.75, 0.42, C.paper); R2(c, L - 0.92, 0.42, 0.55, 0.05, C.tan); for (let k = 0; k < 2; k++) { R2(c, 0.3 + k * 0.8, H - 0.75, 0.7, 0.75, '#a9a79f'); R2(c, 0.55 + k * 0.8, H - 0.5, 0.2, 0.05, C.ink); } },
+    const wall = b.black ? '#1a1a1a' : C.wall, roof = b.black ? '#0e0e0e' : (bt ? bt.color : C.ink);
+    out.push(boxS(b, 0, 0, w, d, 0, 2.3, wall, { front: (c, L, H) => { R2(c, 0.3, 0.45, 1.6, 1.0, C.ink); R2(c, 0.35, 0.5, 1.5, 0.9, b.black ? '#2a2a2a' : (lit ? C.lit : '#c9d6df')); c.strokeStyle = C.slate; c.lineWidth = 0.05; c.beginPath(); c.moveTo(0.5, 1.25); c.lineTo(1.7, 0.65); c.stroke();
+      doorW(c, L * 1.25, H, 0.75, 1.45); if (!b.black) { R2(c, L - 1.0, 0.25, 0.75, 0.42, C.paper); R2(c, L - 0.92, 0.42, 0.55, 0.05, C.tan); } for (let k = 0; k < 2; k++) { R2(c, 0.3 + k * 0.8, H - 0.75, 0.7, 0.75, b.black ? '#2c2c2c' : '#a9a79f'); R2(c, 0.55 + k * 0.8, H - 0.5, 0.2, 0.05, C.ink); } },
       side: (c, L, H) => winW(c, L / 2 - 0.35, 0.55, 0.7, 0.75, lit) }));
-    out.push(gableS(b, 0, 0, w, d, 2.3, 1.3, bt.color, C.wall));
-    out.push(boxS(b, w * 0.28, -0.35, 0.4, 0.4, 2.4, 3.8, '#8a6d45'));
+    out.push(gableS(b, 0, 0, w, d, 2.3, 1.3, roof, wall));
+    out.push(boxS(b, w * 0.28, -0.35, 0.4, 0.4, 2.4, 3.8, b.black ? '#2a2a2a' : '#8a6d45'));
     const tp = loc(b, 0, 0); ex.top = 3.9;
   } else if (b.type === 'kiosk') {
     out.push(boxS(b, -w / 2 + 0.2, 0, 0.2, 0.2, 0, 2.4, '#6b5a43')); out.push(boxS(b, w / 2 - 0.2, 0, 0.2, 0.2, 0, 2.4, '#6b5a43'));
@@ -310,7 +314,7 @@ function buildSprites() {
       if (ex.pole) { const a = S3(ex.pole[0], ex.pole[1], ex.pole[2]), z = S3(ex.pole[0], ex.pole[1], ex.pole[3]); R2(c, a[0] - 1, z[1], 2, a[1] - z[1], C.ink); }
       if (ex.bushes) ex.bushes.forEach(p => { const q = S3(p[0], p[1], p[2]); c.fillStyle = C.tree2; c.beginPath(); c.arc(q[0], q[1], K * 0.3, 0, 7); c.fill(); c.fillStyle = C.tree; c.beginPath(); c.arc(q[0] - K * 0.06, q[1] - K * 0.06, K * 0.22, 0, 7); c.fill(); }); }, bb));
     b.screen = bb; };
-  BOTS.forEach((bt, i) => { add(bt, bt.b, i); add(bt, bt.home, i); }); add(null, HQ, 'hq'); add({ color: '#c4a574', name: 'AI' }, AI, 'ai');
+  BOTS.forEach((bt, i) => { add(bt, bt.b, i); add(bt, bt.home, i); }); add(null, HQ, 'hq'); add({ color: '#141414', name: 'AI' }, AI, 'ai');
   TREES.forEach(t => { const [X, Y] = S3(t.x, t.y, 0), r = t.r * K; SPRITES.push(mkSprite(t.y, null, c => treeDraw(c, t), [X - r * 1.3, Y - r * 3.4, X + r * 1.3, Y + 2])); });
   LAMPS.forEach(([x, y]) => { const [X, Y] = S3(x, y, 0), [, Yt] = S3(x, y, 1.6); SPRITES.push(mkSprite(y, null, c => lampDraw(c, x, y, 1.6), [X - K * 0.3, Yt - K * 0.5, X + K * 0.3, Y + 2])); });
   LANTERNS.forEach(([x, y]) => { const [X, Y] = S3(x, y, 0.3), [, Yt] = S3(x, y, 1.6); SPRITES.push(mkSprite(y, 'dock', c => lampDraw(c, x, y - 0.3 * ZK / TILT, 1.6, true), [X - K * 0.4, Yt - K * 0.6, X + K * 0.4, Y + 4])); });
@@ -348,9 +352,10 @@ function buildGround() {
   TREES.forEach(t => { const [X, Y] = S3(t.x + t.r * 0.9, t.y + 0.2, 0); c.beginPath(); c.ellipse(X, Y, t.r * K * 1.3, t.r * K * TILT * 0.9, 0, 0, 7); c.fill(); });
   // paths
   const stroke = (pts, wdt, col) => { c.strokeStyle = col; c.lineWidth = wdt; c.lineCap = 'round'; c.lineJoin = 'round'; c.beginPath(); pts.forEach((p, k) => { const q = S3(p[0], p[1], 0); k ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1]); }); c.stroke(); };
-  EDGES.forEach(e => { if (e.b === 'dock') return; stroke(e.pts, K * (e.main ? 0.95 : 0.62) + 3, C.dirt2); });
-  EDGES.forEach(e => { if (e.b === 'dock') return; stroke(e.pts, K * (e.main ? 0.95 : 0.62), C.dirt); });
-  EDGES.forEach(e => e.pts.forEach((p, k) => { if (k % 2 || e.b === 'dock') return; const [X, Y] = S3(p[0] + (r() - 0.5) * 0.6, p[1] + (r() - 0.5) * 0.4, 0); c.fillStyle = 'rgba(140,120,85,.35)'; c.fillRect(X, Y, 2, 1.5); }));
+  EDGES.forEach(e => { if (e.b === 'dock' || e.faint) return; stroke(e.pts, K * (e.main ? 0.95 : 0.62) + 3, C.dirt2); });
+  EDGES.forEach(e => { if (e.b === 'dock' || e.faint) return; stroke(e.pts, K * (e.main ? 0.95 : 0.62), C.dirt); });
+  EDGES.forEach(e => { if (!e.faint) return; stroke(e.pts, K * 0.28, 'rgba(160,145,115,.55)'); stroke(e.pts, K * 0.16, 'rgba(180,165,135,.7)'); });
+  EDGES.forEach(e => e.pts.forEach((p, k) => { if (k % 2 || e.b === 'dock' || e.faint) return; const [X, Y] = S3(p[0] + (r() - 0.5) * 0.6, p[1] + (r() - 0.5) * 0.4, 0); c.fillStyle = 'rgba(140,120,85,.35)'; c.fillRect(X, Y, 2, 1.5); }));
   // pier (deck at z 0.3, posts into the water)
   const deck = [[PIER.x0, PIER.y0], [PIER.x1, PIER.y0], [PIER.x1, PIER.y1], [PIER.x0, PIER.y1]].map(p => S3(p[0], p[1], 0.3));
   for (let y = PIER.y0 + 0.6; y <= PIER.y1; y += 1.1) [PIER.x0 + 0.05, PIER.x1 - 0.05].forEach(x => { const a = S3(x, y, 0.3), b2 = S3(x, y, -0.5); R2(c, a[0] - K * 0.08, a[1], K * 0.16, b2[1] - a[1], '#4a3622'); });
@@ -466,6 +471,32 @@ const puffs = [];
 let ZM = 1; const ZMIN = 0.5, ZMAX = 2.5, VW = () => W / ZM, VH = () => H / ZM;
 function inView(x, y, w, h) { return x + w > cam.x - 20 && x < cam.x + VW() + 20 && y + h > cam.y - 20 && y < cam.y + VH() + 20; }
 let LABELRECTS = [];
+
+// massive robot that fires orders at the AI house; black agent waits at the door
+const BOSS = { x: 39.2, y: 6.4 };
+const shots = [];
+function drawBoss(c, t) {
+  if (Math.random() < 0.012) shots.push({ t: 0, life: 1.6 });
+  const u = K / 10, [X, Y] = S3(BOSS.x, BOSS.y, 0);
+  c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(X, Y, u * 6, u * 1.6, 0, 0, 7); c.fill();
+  const r = (x, y, w, h, col) => { c.fillStyle = col; c.fillRect(X + x * u, Y + y * u, w * u, h * u); };
+  r(-3.2, -6, 2.2, 5.5, '#0e0e0e'); r(1.0, -6, 2.2, 5.5, '#0e0e0e');
+  r(-4.2, -14, 8.4, 8.5, '#141414'); r(-3.4, -13, 6.8, 6.5, '#1c1c1c');
+  r(-5.5, -12, 1.6, 5, '#0e0e0e'); r(3.9, -12, 1.6, 5, '#0e0e0e');
+  r(-3.6, -22, 7.2, 8, '#0e0e0e'); r(-2.8, -21, 5.6, 6, '#1a1a1a');
+  c.fillStyle = '#f6f4ef'; c.beginPath(); c.arc(X - 1.2 * u, Y - 18.5 * u, 0.7 * u, 0, 7); c.arc(X + 1.2 * u, Y - 18.5 * u, 0.7 * u, 0, 7); c.fill();
+  // black agent at the house door
+  const door = doorOf(AI), [ax, ay] = S3(door[0], door[1], 0), au = K / 14;
+  c.fillStyle = '#0e0e0e'; c.beginPath(); c.arc(ax, ay - 6 * au, 2.2 * au, 0, 7); c.fill();
+  c.fillRect(ax - 1.6 * au, ay - 4 * au, 3.2 * au, 4 * au);
+  // shots
+  for (let i = shots.length - 1; i >= 0; i--) {
+    const s = shots[i]; s.t += 0.016; if (s.t > s.life) { shots.splice(i, 1); continue; }
+    const k = s.t / s.life, [hx, hy] = S3(AI.cx, AI.cy, 1.5);
+    const px = X + (hx - X) * k, py = Y - 18 * u + (hy - (Y - 18 * u)) * k;
+    c.fillStyle = 'rgba(246,244,239,' + (1 - k * 0.4) + ')'; c.beginPath(); c.arc(px, py, Math.max(2, K * 0.08), 0, 7); c.fill();
+  }
+}
 function drawFrame(t, dt) {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   { const sx = Math.max(0, cam.x), sy = Math.max(0, cam.y), sw = Math.min(WPX - sx, VW() - (sx - cam.x)), sh = Math.min(HPX - sy, VH() - (sy - cam.y)), k = dpr * ZM; if (cam.x < 0 || cam.y < 0 || sw < VW() || sh < VH()) { ctx.fillStyle = '#c9d2b6'; ctx.fillRect(0, 0, cv.width, cv.height); const wb = (HPX - cam.y) * k; if (wb < cv.height) { ctx.fillStyle = '#5f8ea3'; ctx.fillRect(0, wb, cv.width, cv.height - wb); } } ctx.drawImage(ground, sx * gdpr, sy * gdpr, sw * gdpr, sh * gdpr, (sx - cam.x) * k, (sy - cam.y) * k, sw * k, sh * k); }
@@ -512,6 +543,7 @@ function drawFrame(t, dt) {
   const op = ADMIN ? otherPending() : 0, wq = ADMIN ? waitingQueue().length : 0;
   sign(HQ, ADMIN ? ['Christian\u2019s HQ', `${wq} waiting on you`] : ['Gatepost HQ'], 'hq', op ? [{ n: op, col: C.red, kind: 'count' }] : []);
   sign(AI, ['AI Desk'], 'ai');
+  drawBoss(ctx, t);
   chars.forEach(ch => drawRobotOver(ctx, ch, t));
   pops.forEach(p => { const k = p.t / 1.3, [X, Y] = S3(p.x, p.y, 1.6 + k * 0.9); ctx.globalAlpha = 1 - k; if (p.item) drawItem(ctx, p.item, X, Y, K / 14 * (1 - k * 0.5));
     ctx.fillStyle = C.sage; ctx.beginPath(); ctx.arc(X + K * 0.45, Y - K * 0.2, K * 0.24, 0, 7); ctx.fill(); ctx.fillStyle = C.cream; ctx.font = FONT(700, K * 0.3); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('✓', X + K * 0.45, Y - K * 0.2 + 0.5); ctx.globalAlpha = 1; });
