@@ -104,7 +104,8 @@ window.addEventListener('unhandledrejection', function(e){ gpReportError(e.reaso
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const CFG = window.GATEPOST_CONFIG || {};
 const CLOUD = !!(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY && window.supabase);
-const sb = CLOUD ? window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY) : null;
+const sb = CLOUD ? window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storage: window.localStorage, storageKey: 'gatepost-auth' } }) : null;
 
 // ---------- State (same shape in both modes) ----------
 let S = { me: null, users: [], estimates: [], events: [], requests: [] };
@@ -130,17 +131,20 @@ const API = {
   async init() {
     if (!CLOUD) { lsync(); return; }
     const { data: { session } } = await sb.auth.getSession();
-    if (session) { await API.refresh(); window.posthog && S.me && posthog.identify(S.me.id || S.me.email); }
+    if (session) { await API.refresh(session); window.posthog && S.me && posthog.identify(S.me.id || S.me.email); }
     let ch = null;
     const sub = async (token) => { if (ch) await sb.removeChannel(ch); if (token) sb.realtime.setAuth(token);
       ch = sb.channel('gp').on('postgres_changes', { event: '*', schema: 'public' }, () => API.refresh().then(render)).subscribe(); };
     sb.auth.onAuthStateChange((ev, s) => { if (ev === 'SIGNED_OUT') { S.me = null; render(); }
-      if (ev === 'SIGNED_IN' && s) setTimeout(() => sub(s.access_token), 0); });
+      if (ev === 'SIGNED_IN' && s) setTimeout(() => sub(s.access_token), 0);
+      if (ev === 'TOKEN_REFRESHED' && s) sb.realtime.setAuth(s.access_token); });
     await sub(session && session.access_token);
     document.addEventListener('visibilitychange', () => { if (!document.hidden && S.me) API.refresh().then(render); });
   },
-  async refresh() {
-    const { data: { user } } = await sb.auth.getUser();
+  async refresh(sess) {
+    let { data: { user }, error } = await sb.auth.getUser();
+    // Offline / network blip: keep the stored session instead of dropping to login.
+    if (!user && error && !/session|jwt|token/i.test(error.message || '')) user = (sess || (await sb.auth.getSession()).data.session)?.user || null;
     if (!user) { S.me = null; return; }
     const { data: prof } = await sb.from('profiles').select('*').eq('id', user.id).maybeSingle();
     S.me = prof || { email: user.email, role: 'employee', access: false };
@@ -222,8 +226,8 @@ function authScreen() {
       <h2>Sign in</h2>
       <p class="muted">Employees self-register. New accounts start with 0 access until an admin approves.</p>
       ${fileNote}
-      <label>Email</label><input id="email" type="email" autocomplete="email" placeholder="you@gatepost.services">
-      <label>Password</label><input id="password" type="password" autocomplete="current-password" placeholder="Create or enter password">
+      <label>Email</label><input id="email" type="email" name="username" autocomplete="username email" autocapitalize="none" placeholder="you@gatepost.services">
+      <label>Password</label><input id="password" name="password" type="password" autocomplete="current-password" placeholder="Create or enter password">
       <div class="row" style="margin-top:16px;">
         <button class="primary" onclick="doLogin()">Log in</button>
         <button class="secondary" onclick="doRegister()">Register</button>
