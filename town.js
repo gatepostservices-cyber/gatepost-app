@@ -77,15 +77,17 @@ const ALLB = BOTS.map(b => b.b).concat([HQ, AI], BOTS.map(b => b.home));
 const nearPath = (x, y, r) => EDGES.some(e => e.pts.some(p => Math.abs(p[0] - x) < r && Math.abs(p[1] - y) < r && Math.hypot(p[0] - x, p[1] - y) < r));
 const nearB = (x, y, pad) => ALLB.some(b => Math.hypot(b.cx - x, b.cy - y) < Math.max(b.w, b.d) / 2 + pad) || (x > HQ.cx - 5 && x < HQ.cx - 2.6 && y > HQ.cy && y < HQ.cy + 3);
 const inCamp = (x, y) => x > 33.0 && x < 40.2 && y > 4.4 && y < 10.6;
+const inCity = (x, y) => x > 29.5 && x < 64.5 && y > 13.5 && y < 34.5;
+const onRail = (x, y) => y > 10.8 && y < 12.6 && x > 7 && x < 63;
 const HILLS = [{ x: BOTS[1].b.cx + 0.3, y: BOTS[1].b.cy + 0.6, r: 3.6 }, { x: 25.2, y: 3.2, r: 3.0 }, { x: 15.0, y: 4.0, r: 2.6 }, { x: 1.6, y: 16.2, r: 2.4 }, { x: 26.0, y: 16.6, r: 2.2 }, { x: 11.2, y: 37.6, r: 1.6 }];
 const TREES = [], ROCKS = [], FLOWERS = [];
 for (let k = 0; k < 900 && TREES.length < 78; k++) { const x = rr(0.3, WX - 0.3), y = rr(0.6, 36), r = rr(0.42, 0.72);
-  if (inCamp(x, y) || y > shoreY(x) - 1.3 || nearB(x, y, 1.1 + r) || nearPath(x, y, 0.95 + r * 0.6) || TREES.some(t => Math.hypot(t.x - x, t.y - y) < t.r + r + 0.15)) continue;
+  if (inCamp(x, y) || inCity(x, y) || onRail(x, y) || y > shoreY(x) - 1.3 || nearB(x, y, 1.1 + r) || nearPath(x, y, 0.95 + r * 0.6) || TREES.some(t => Math.hypot(t.x - x, t.y - y) < t.r + r + 0.15)) continue;
   TREES.push({ x, y, r, pine: R() < 0.34, tone: R() }); }
 for (let k = 0; k < 500 && ROCKS.length < 34; k++) { const x = rr(0.3, WX - 0.3), y = rr(0.6, 38.5), r = rr(0.14, 0.4);
-  if (inCamp(x, y) || y > shoreY(x) + 0.5 || nearB(x, y, 0.8) || nearPath(x, y, 0.7) || TREES.some(t => Math.hypot(t.x - x, t.y - y) < t.r + 0.3)) continue;
+  if (inCamp(x, y) || inCity(x, y) || onRail(x, y) || y > shoreY(x) + 0.5 || nearB(x, y, 0.8) || nearPath(x, y, 0.7) || TREES.some(t => Math.hypot(t.x - x, t.y - y) < t.r + 0.3)) continue;
   ROCKS.push({ x, y, r, seed: R() * 99 }); }
-for (let k = 0; k < 400 && FLOWERS.length < 70; k++) { const x = rr(0.3, WX - 0.3), y = rr(0.6, 36); if (inCamp(x, y) || y > shoreY(x) - 1 || nearB(x, y, 0.5) || nearPath(x, y, 0.6)) continue; FLOWERS.push([x, y, Math.floor(R() * 3)]); }
+for (let k = 0; k < 400 && FLOWERS.length < 70; k++) { const x = rr(0.3, WX - 0.3), y = rr(0.6, 36); if (inCamp(x, y) || inCity(x, y) || onRail(x, y) || y > shoreY(x) - 1 || nearB(x, y, 0.5) || nearPath(x, y, 0.6)) continue; FLOWERS.push([x, y, Math.floor(R() * 3)]); }
 const LAMPS = [N.A.p, N.B.p, N.C.p, N.D.p, N.E.p, N.F.p].map(p => [p[0] + 0.55, p[1] - 0.25]);
 const LANTERNS = [[PIER.x0 - 0.05, 38.4], [PIER.x1 + 0.05, 39.9], [PIER.x0 - 0.05, 41.3]];
 const BOARD = (() => { const p = loc(HQ, -HQ.w / 2 - 1.1, HQ.d / 2 + 0.6); return { x: p[0], y: p[1] }; })();
@@ -423,23 +425,29 @@ function buildGround() {
   STREETS.forEach(st => { street(st.a, st.b, K * (st.main ? 2.4 : 1.7), '#3a3a3a'); street(st.a, st.b, K * (st.main ? 2.0 : 1.35), '#555'); });
   // sidewalks
   STREETS.forEach(st => street(st.a, st.b, K * 0.12, '#d9d3c4'));
-  // city blocks as simple buildings
+  // city blocks as 3D buildings with windows
+  const cityWin = (c, len, h) => { const n = Math.max(2, Math.floor(len / 1.1)); for (let i = 0; i < n; i++) { const x = 0.35 + i * (len - 0.7) / n; for (let r = 0; r < 2; r++) winW(c, x, 0.35 + r * 0.7, 0.45, 0.4, false); } };
   BLOCKS.forEach(b => {
-    const [X, Y] = S3(b.x, b.y, 0), hw = b.w * K * 0.5, hd = b.d * K * TILT * 0.5, hh = b.h * K * ZK;
-    c.fillStyle = 'rgba(0,0,0,.15)'; c.fillRect(X - hw + 4, Y - hd + 4, hw * 2, hd * 2);
-    c.fillStyle = b.col; c.fillRect(X - hw, Y - hd - hh, hw * 2, hd * 2 + hh);
-    c.fillStyle = b.roof; c.fillRect(X - hw, Y - hd - hh, hw * 2, hd * 0.6);
-    c.strokeStyle = '#2a2a2a'; c.lineWidth = 1; c.strokeRect(X - hw, Y - hd - hh, hw * 2, hd * 2 + hh);
-    // windows
-    c.fillStyle = '#c9d6df';
-    for (let wy = 0; wy < 2; wy++) for (let wx = 0; wx < 3; wx++) c.fillRect(X - hw + 6 + wx * (hw * 2 - 12) / 3, Y - hd - hh + 8 + wy * 10, 6, 6);
+    const bb = { cx: b.x, cy: b.y, rot: 0 };
+    const solid = boxS(bb, 0, 0, b.w, b.d, 0, b.h, b.col, { front: cityWin, side: cityWin, topCol: b.roof });
+    drawSolid(c, solid);
+    const roof = boxS(bb, 0, 0, b.w + 0.2, b.d + 0.2, b.h, b.h + 0.15, b.roof);
+    drawSolid(c, roof);
   });
-  // rail
-  c.strokeStyle = '#6b5a43'; c.lineWidth = K * 0.7; c.lineCap = 'butt'; c.beginPath();
+  // rail bed + rails + ties
+  c.strokeStyle = '#5a4a38'; c.lineWidth = K * 1.1; c.lineCap = 'butt'; c.beginPath();
   RAIL.forEach((p, k) => { const q = S3(p[0], p[1], 0); k ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1]); }); c.stroke();
-  c.strokeStyle = '#c4b18a'; c.lineWidth = K * 0.1;
-  [-0.22, 0.22].forEach(off => { c.beginPath(); RAIL.forEach((p, k) => { const q = S3(p[0], p[1] + off, 0); k ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1]); }); c.stroke(); });
-  STATIONS.forEach(st => { const [X, Y] = S3(st.x, st.y + 0.7, 0); c.fillStyle = '#efe9dc'; c.fillRect(X - K * 1.1, Y - K * 0.2, K * 2.2, K * 0.4); c.fillStyle = '#141414'; c.font = '700 ' + Math.round(K * 0.32) + 'px sans-serif'; c.textAlign = 'center'; c.fillText(st.name, X, Y - K * 0.4); });
+  for (let i = 0; i < RAIL.length; i += 4) { const [X, Y] = S3(RAIL[i][0], RAIL[i][1], 0); c.fillStyle = '#6b5a43'; c.fillRect(X - 1, Y - K * 0.28, 2, K * 0.56); }
+  c.strokeStyle = '#d4cfc3'; c.lineWidth = Math.max(2, K * 0.12);
+  [-0.28, 0.28].forEach(off => { c.beginPath(); RAIL.forEach((p, k) => { const q = S3(p[0], p[1] + off, 0.04); k ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1]); }); c.stroke(); });
+  // station platforms + full names
+  STATIONS.forEach(st => {
+    const [X, Y] = S3(st.x, st.y + 0.85, 0);
+    c.fillStyle = '#efe9dc'; c.fillRect(X - K * 1.4, Y - K * 0.22, K * 2.8, K * 0.44);
+    c.strokeStyle = '#141414'; c.lineWidth = 1; c.strokeRect(X - K * 1.4, Y - K * 0.22, K * 2.8, K * 0.44);
+    c.fillStyle = '#141414'; c.font = '700 ' + Math.round(K * 0.42) + 'px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'bottom';
+    c.fillText(st.name, X, Y - K * 0.35);
+  });
   // minimap thumbnail
   miniImg = document.createElement('canvas'); miniImg.width = 176; miniImg.height = Math.round(176 * HPX / WPX); miniImg.getContext('2d').drawImage(ground, 0, 0, miniImg.width, miniImg.height);
   const mc = miniImg.getContext('2d'), ms = miniImg.width / WPX; ALLB.forEach(b => { const q = S3(b.cx, b.cy, 0); mc.fillStyle = b === HQ ? '#141414' : b.type === 'home' ? '#8a8172' : '#3a332a'; mc.fillRect(q[0] * ms - 3, q[1] * ms - 3, b.type === 'home' ? 4 : 6, b.type === 'home' ? 4 : 6); });
