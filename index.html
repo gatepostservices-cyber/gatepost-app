@@ -1,1 +1,45 @@
-FULL_CONTENT_HERE
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gatepost</title>
+<style>
+body { font-family: -apple-system, sans-serif; background: #0f1410; color: #f4f1ea; margin: 0; padding: 16px; }
+.card { background: #1a211c; border: 1px solid #2e382f; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+button { width: 100%; padding: 12px; margin-top: 8px; border-radius: 8px; border: none; background: #4a7c59; color: white; font-size: 1rem; }
+input { width: 100%; padding: 12px; margin: 4px 0; border-radius: 8px; border: 1px solid #2e382f; background: #242c26; color: #f4f1ea; box-sizing: border-box; }
+</style>
+</head>
+<body>
+<div class="card">
+<h1>Gatepost</h1>
+<p>Internal hub. First account becomes admin.</p>
+<label>Email</label>
+<input id="email" type="email" placeholder="you@gatepost.services">
+<label>Password</label>
+<input id="password" type="password">
+<button onclick="reg()">Register / Log in</button>
+<p id="msg"></p>
+</div>
+<script>
+let state = JSON.parse(localStorage.getItem('gp') || '{"users":[],"me":null}');
+function save() { localStorage.setItem('gp', JSON.stringify(state)); }
+function reg() {
+  const email = document.getElementById('email').value.trim().toLowerCase();
+  const password = document.getElementById('password').value;
+  if (!email || !password) { document.getElementById('msg').textContent = 'Need email and password'; return; }
+  let u = state.users.find(x => x.email === email);
+  if (!u) {
+    u = { email, password, access: state.users.length === 0, role: state.users.length === 0 ? 'admin' : 'employee' };
+    state.users.push(u);
+  } else if (u.password !== password) {
+    document.getElementById('msg').textContent = 'Wrong password'; return;
+  }
+  state.me = email;
+  save();
+  document.getElementById('msg').textContent = u.access ? 'Logged in as ' + (u.role || 'employee') : 'Access pending';
+}
+</script>
+</body>
+</html>
