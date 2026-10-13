@@ -1,0 +1,8 @@
+{
+  "name": "Gatepost",
+  "short_name": "Gatepost",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0f1410",
+  "theme_color": "#0f1410"
+}
