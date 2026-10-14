@@ -618,7 +618,10 @@ function drawShip(c, t) { // delivery shuttle: hovers on the pad, launches when 
 const clouds = [{ x: 3, y: 8, s: 3.6, v: 0.16 }, { x: 16, y: 20, s: 3.0, v: 0.12 }, { x: 9, y: 30, s: 2.6, v: 0.2 }, { x: 22, y: 4, s: 2.8, v: 0.14 }];
 const flies = Array.from({ length: 48 }, (_, k) => ({ x: (k * 7.3) % WX, y: 4 + (k * 11.7) % 74, p: k * 1.7 }));
 const puffs = [];
-let ZM = 1; const ZMIN = 0.3, ZMAX = 2.5, VW = () => W / ZM, VH = () => H / ZM;
+let ZM = 1; const ZMAX = 2.5, VW = () => W / ZM, VH = () => H / ZM;
+// far zoom: zFit = whole world just fits; min zoom leaves the world ~40% of the screen's short side (lots of space around it)
+const zFit = () => Math.min(W / WPX, H / HPX), zMin = () => Math.min(0.3, zFit() * 0.42), zOver = () => zFit() * 0.62;
+let FAR = false, ZANIM = null, lastTap = null; const isFar = () => (W < 600 ? 13.5 : W < 1000 ? 12.5 : 11.5) / (K * 0.38 * ZM) > 2.8;
 function inView(x, y, w, h) { return x + w > cam.x - 20 && x < cam.x + VW() + 20 && y + h > cam.y - 20 && y < cam.y + VH() + 20; }
 let LABELRECTS = [];
 
@@ -654,6 +657,7 @@ function drawBoss(c, t) { // the AI core: a floating, pulsing sphere above a pyl
   c.fillStyle = '#ff4d6d'; c.fillRect(ax - 1.4 * au, ay - 6.5 * au, 2.8 * au, 0.8 * au);
 }
 function drawFrame(t, dt) {
+  FAR = isFar();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   drawSky(t);
   { const k = dpr * ZM, x0 = Math.max(0, Math.floor(cam.x / TSW)), y0 = Math.max(0, Math.floor(cam.y / TSW)), x1 = Math.min(Math.ceil(WPX / TSW) - 1, Math.floor((cam.x + VW()) / TSW)), y1 = Math.min(Math.ceil(HPX / TSW) - 1, Math.floor((cam.y + VH()) / TSW));
@@ -662,21 +666,24 @@ function drawFrame(t, dt) {
   ctx.setTransform(dpr * ZM, 0, 0, dpr * ZM, -cam.x * dpr * ZM, -cam.y * dpr * ZM);
   drawFalls(t); drawStreams(t, dt); drawTabIsles(t);
   // data streams along the paths (packets of light)
+  if (!FAR) {
   ctx.fillStyle = 'rgba(160,250,255,.9)';
   for (let n = 0; n < EDGES.length; n++) { const e = EDGES[n], P = e.pts; if (e.b === 'dock' || P.length < 2) continue; const cnt = e.faint ? 3 : 2;
     for (let j = 0; j < cnt; j++) { let f = ((t * (e.faint ? 0.35 : 0.12) + j / cnt + n * 0.137) % 1); if (n % 2) f = 1 - f; const fi = f * (P.length - 1), i0 = Math.floor(fi), a = P[i0], b2 = P[Math.min(P.length - 1, i0 + 1)], q = fi - i0, [X, Y] = S3(a[0] + (b2[0] - a[0]) * q, a[1] + (b2[1] - a[1]) * q, 0.05);
       if (!inView(X - 6, Y - 6, 12, 12)) continue; ctx.fillStyle = e.faint ? 'rgba(255,120,140,.9)' : 'rgba(160,250,255,.9)'; ctx.fillRect(X - K * 0.07, Y - K * 0.04, K * 0.14, K * 0.08); ctx.fillStyle = e.faint ? 'rgba(255,77,109,.2)' : 'rgba(95,243,255,.18)'; ctx.fillRect(X - K * 0.22, Y - K * 0.1, K * 0.44, K * 0.2); } }
   // real-event pulses
   for (let k = PULSES.length - 1; k >= 0; k--) { const p = PULSES[k]; p.t += dt; if (p.t > 2.4) { PULSES.splice(k, 1); continue; } const [X, Y] = S3(p.x, p.y, 0.05), rr2 = K * (0.6 + p.t * 2.2); ctx.strokeStyle = p.col + (1 - p.t / 2.4) * 0.9 + ')'; ctx.lineWidth = Math.max(1.5, K / 12); ctx.beginPath(); ctx.ellipse(X, Y, rr2, rr2 * TILT, 0, 0, 7); ctx.stroke(); }
+  }
   if (pulseT > 0) pulseT -= dt;
   // water life
+  if (!FAR)
   ctx.strokeStyle = 'rgba(95,243,255,.35)'; ctx.lineWidth = Math.max(1, K / 22);
   for (let k = 0; k < 80; k++) { const dir = k % 2 ? 1 : -1, wx = (((k * 5.37) % WX) + t * 0.22 * dir + WX * 4) % WX, wy = 82.8 + ((k * 3.91) % 9), s = 0.25 + (k % 5) * 0.08; if (wx > PIER.x0 - 0.3 && wx < PIER.x1 + 0.3) continue; const [X, Y] = S3(wx, wy, 0); if (!inView(X - 20, Y - 10, 40, 20)) continue;
     ctx.beginPath(); ctx.moveTo(X - s * K, Y); ctx.quadraticCurveTo(X, Y - K * (0.1 + Math.sin(t * 2 + k) * 0.04), X + s * K, Y); ctx.stroke(); }
   // depth-sorted world objects
   const list = [];
   SPRITES.forEach(s => { if (inView(s.x, s.y, s.w, s.h)) list.push({ k: s.key, s }); });
-  chars.forEach(ch => { if (ch.where === 'home' && !ch.walking) return; list.push({ k: ch.y + 0.01, ch }); });
+  if (!FAR) chars.forEach(ch => { if (ch.where === 'home' && !ch.walking) return; list.push({ k: ch.y + 0.01, ch }); });
   list.push({ k: SHIP_Y, ship: 1 });
   pierCrates.forEach((it, k) => list.push({ k: PIER.y0 + 3.9 + k * 0.01, crate: [PIER.x0 + 0.3 + (k % 2) * 0.5, PIER.y0 + 3.8 - Math.floor(k / 2) * 0.45, it] }));
   list.sort((a, b) => a.k - b.k).forEach(o => {
@@ -690,6 +697,7 @@ function drawFrame(t, dt) {
   const bc = BOTS[1].b.ex; if (bc) { const [X, Y] = S3(...bc.beacon), on = (Math.sin(t * 3) + 1) / 2; ctx.fillStyle = `rgba(34,255,138,${0.4 + on * 0.6})`; ctx.beginPath(); ctx.arc(X, Y, K * (0.12 + on * 0.06), 0, 7); ctx.fill(); ctx.strokeStyle = `rgba(34,255,138,${0.6 * (1 - (t * 0.6 % 1))})`; ctx.lineWidth = 1.5; const rr3 = K * (0.3 + (t * 0.6 % 1) * 3); ctx.beginPath(); ctx.ellipse(X, Y, rr3, rr3 * 0.4, 0, 0, 7); ctx.stroke(); }
   const hk = BOTS[4].b.ex; if (hk) { const [X, Y] = S3(...hk.hook), sx = X + Math.sin(t * 1.3) * K * 0.25; ctx.strokeStyle = C.lit; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(X, Y); ctx.lineTo(sx, Y + K * 1.2); ctx.stroke(); ctx.fillStyle = C.tan; ctx.fillRect(sx - K * 0.12, Y + K * 1.2, K * 0.24, K * 0.18); }
   if (Math.random() < dt * 2.0) { const i = Math.floor(Math.random() * BOTS.length), e = BOTS[i].home.ex; if (e && (chars[i].where === 'home' || Math.random() < 0.3)) puffs.push({ p: S3(...e.chimney), a: 1, r: 0.12 }); }
+  if (FAR) puffs.length = 0;
   for (let k = puffs.length - 1; k >= 0; k--) { const p = puffs[k]; p.p[1] -= dt * K * 0.45; p.p[0] += dt * K * 0.15; p.r += dt * 0.12; p.a -= dt * 0.45; if (p.a <= 0) { puffs.splice(k, 1); continue; } ctx.fillStyle = `rgba(95,243,255,${p.a * 0.5})`; ctx.fillRect(p.p[0] - p.r * K * 0.3, p.p[1] - p.r * K * 0.3, p.r * K * 0.6, p.r * K * 0.6); }
   if (false) { clouds.forEach(cl => { cl.x += cl.v * dt; if (cl.x > WX + cl.s) cl.x = -cl.s; const [X, Y] = S3(cl.x, cl.y, 0); ctx.fillStyle = 'rgba(60,70,60,.06)'; ctx.beginPath(); ctx.ellipse(X, Y, cl.s * K, cl.s * K * 0.4, 0, 0, 7); ctx.fill(); ctx.beginPath(); ctx.ellipse(X + cl.s * K * 0.5, Y - cl.s * K * 0.12, cl.s * K * 0.6, cl.s * K * 0.3, 0, 0, 7); ctx.fill(); });
     for (let k = 0; k < 3; k++) { const a = t * (0.3 + k * 0.08) + k * 2, [X, Y] = S3(9 + k * 5 + Math.cos(a) * 3, 40 + Math.sin(a) * 1.2, 2.5), f = Math.sin(t * 6 + k) * K * 0.1; ctx.strokeStyle = C.ink; ctx.lineWidth = Math.max(1, K / 26); ctx.beginPath(); ctx.moveTo(X - K * 0.25, Y - f); ctx.quadraticCurveTo(X - K * 0.1, Y - K * 0.12, X, Y); ctx.quadraticCurveTo(X + K * 0.1, Y - K * 0.12, X + K * 0.25, Y - f); ctx.stroke(); } }
@@ -701,11 +709,12 @@ function drawFrame(t, dt) {
   if (dark > 0.15) { const glow = (x, y, z, s) => { const [X, Y] = S3(x, y, z); if (!inView(X - s * K, Y - s * K, 2 * s * K, 2 * s * K)) return; const g = ctx.createRadialGradient(X, Y, 1, X, Y, K * s); g.addColorStop(0, `rgba(95,243,255,${dark * 0.6})`); g.addColorStop(1, 'rgba(95,243,255,0)'); ctx.fillStyle = g; ctx.fillRect(X - K * s, Y - K * s, 2 * K * s, 2 * K * s); };
     BOTS.forEach((bt, i) => { glow(bt.b.cx, bt.b.cy + bt.b.d / 2, 1.2, 2.4); if (!atWork(hour)) glow(bt.home.cx, bt.home.cy + 1, 0.8, 1.6); }); glow(HQ.cx, HQ.cy + HQ.d / 2, 1.3, 2.8);
     LAMPS.forEach(([x, y]) => glow(x, y, 1.75, 1.4)); LANTERNS.forEach(([x, y], k) => glow(x, y, 1.9, 1.3 * (0.9 + Math.sin(t * 7 + k * 2) * 0.08))); glow(ship.x + 1.85, SHIP_Y, 1.1, 1.2);
-    flies.forEach(f => { const a = (Math.sin(t * 2 + f.p) + 1) / 2, [X, Y] = S3(f.x + Math.sin(t * 0.5 + f.p) * 0.8, f.y + Math.cos(t * 0.4 + f.p) * 0.5, 0.6); ctx.fillStyle = `rgba(160,250,255,${a * 0.8})`; ctx.fillRect(X - 1, Y - 1, Math.max(1.5, K * 0.05), Math.max(1.5, K * 0.05)); }); }
+    if (!FAR) flies.forEach(f => { const a = (Math.sin(t * 2 + f.p) + 1) / 2, [X, Y] = S3(f.x + Math.sin(t * 0.5 + f.p) * 0.8, f.y + Math.cos(t * 0.4 + f.p) * 0.5, 0.6); ctx.fillStyle = `rgba(160,250,255,${a * 0.8})`; ctx.fillRect(X - 1, Y - 1, Math.max(1.5, K * 0.05), Math.max(1.5, K * 0.05)); }); }
   // floating signs: place name + live counts (admins), badges
   LABELRECTS = []; labelScale();
   const sign = (b, lines, tap, badges, edge) => { const [X, Y] = S3(b.cx, b.cy, (b.ex && b.ex.top || 3) + 0.35 + Math.sin(t * 1.3 + b.cx) * 0.05), p0 = pill(lines, { pin: true, edge }), p = { img: p0.img, w: p0.w * LS, h: p0.h * LS }; const x = X - p.w / 2, y = Y - p.h; if (!inView(x, y, p.w, p.h)) return;
     ctx.globalAlpha = 0.86 + 0.14 * Math.sin(t * 9 + b.cy * 3) * (Math.sin(t * 0.7 + b.cx) > 0.93 ? 1 : 0.15); ctx.drawImage(p.img, x, y, p.w, p.h); ctx.globalAlpha = 1; LABELRECTS.push({ x, y, w: p.w, h: p.h, tap }); (badges || []).forEach((bd, k) => badge(ctx, k ? x + 2 : x + p.w - 2, y + 2, bd.n, bd.col, t + k, bd.kind)); };
+  if (FAR) { farLabels(t); drawHUD(t); return; }
   BOTS.forEach((bt, i) => { const s = ADMIN ? stats(bt.name) : null, u = ADMIN ? unread(bt.name) : 0;
     const line2 = ADMIN ? signLine(i, s) : null;
     sign(bt.b, line2 ? [bt.glyph + '  ' + bt.place, line2] : [bt.glyph + '  ' + bt.place], i, ADMIN ? [s.pending && { n: s.pending, col: C.red, kind: 'count' }, u && { n: u, col: C.slate, kind: 'chat' }].filter(Boolean) : [], bt.color); });
@@ -732,9 +741,9 @@ function buildNebula() { const w = Math.ceil(W * 1.4 / 2), h = Math.ceil(H * 1.4
 function bakeSky(ctx, t) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0); const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#010208'); g.addColorStop(1, '#04061a'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   if (nebKey !== W + 'x' + H) buildNebula(); const sx = cam.x * ZM, sy = cam.y * ZM;
-  ctx.drawImage(NEB, -Math.min(W * 0.4, sx * 0.03) - W * 0.05, -Math.min(H * 0.4, sy * 0.03) - H * 0.05, W * 1.4, H * 1.4);
+  const tri = (v, m) => { const q = ((v % (2 * m)) + 2 * m) % (2 * m); return q > m ? 2 * m - q : q; }; ctx.drawImage(NEB, -tri(sx * 0.03, W * 0.35) - W * 0.02, -tri(sy * 0.03, H * 0.35) - H * 0.02, W * 1.4, H * 1.4);
   STARS.forEach(s => { const x = ((s.x * W * 1.5 - sx * s.z) % (W * 1.5) + W * 1.5) % (W * 1.5) - W * 0.25, y = ((s.y * H * 1.4 - sy * s.z) % (H * 1.4) + H * 1.4) % (H * 1.4) - H * 0.2; ctx.fillStyle = `rgba(${s.c},${0.3 + 0.55 * Math.abs(Math.sin(s.p))})`; ctx.fillRect(x, y, s.s, s.s); });
-  PLANETS.forEach(pl => { const X = ((pl.x * W * 1.6 - sx * pl.z) % (W * 1.6) + W * 1.6) % (W * 1.6) - W * 0.3, Y = pl.y * H - sy * pl.z * 0.6, R0 = pl.r * Math.min(1.4, Math.max(0.7, W / 900)); if (Y < -R0 * 3 || Y > H + R0 * 3) return;
+  PLANETS.forEach(pl => { const X = ((pl.x * W * 1.6 - sx * pl.z) % (W * 1.6) + W * 1.6) % (W * 1.6) - W * 0.3, Y = ((pl.y * H * 1.6 - sy * pl.z * 0.6) % (H * 1.6) + H * 1.6) % (H * 1.6) - H * 0.3, R0 = pl.r * Math.min(1.4, Math.max(0.7, W / 900)); if (Y < -R0 * 3 || Y > H + R0 * 3) return;
     if (!pl.img || pl.R0 !== R0) { pl.R0 = R0; const S0 = Math.ceil(R0 * 4), cc = document.createElement('canvas'); cc.width = cc.height = Math.ceil(S0 * dpr); const x = cc.getContext('2d'); x.scale(dpr, dpr); x.translate(S0 / 2, S0 / 2);
       const hg = x.createRadialGradient(0, 0, R0 * 0.8, 0, 0, R0 * 1.8); hg.addColorStop(0, pl.c1 + '44'); hg.addColorStop(1, pl.c1 + '00'); x.fillStyle = hg; x.fillRect(-S0 / 2, -S0 / 2, S0, S0);
       const pg = x.createRadialGradient(-R0 * 0.4, -R0 * 0.4, R0 * 0.1, 0, 0, R0); pg.addColorStop(0, pl.c1); pg.addColorStop(1, pl.c2); x.fillStyle = pg; x.beginPath(); x.arc(0, 0, R0, 0, 7); x.fill();
@@ -827,6 +836,7 @@ function drawTabIsles(t) { TABHITS = []; const now = performance.now(); if (!dra
     ctx.strokeStyle = `rgba(${rgb},${ok ? 0.35 : 0.15})`; ctx.lineWidth = Math.max(2, K * 0.16); ctx.beginPath(); ctx.moveTo(lx, ly); ctx.quadraticCurveTo((lx + bx) / 2, (ly + by) / 2 + K * 1.5, bx, by + bob); ctx.stroke();
     ctx.setLineDash([K * 0.25, K * 0.5]); ctx.lineDashOffset = t * K * 1.5; ctx.strokeStyle = `rgba(${rgb},${ok ? 0.95 : 0.3})`; ctx.lineWidth = Math.max(1, K * 0.06); ctx.stroke(); ctx.setLineDash([]);
     if (!inView(spr.x, spr.y + bob, spr.w, spr.h)) return; ctx.globalAlpha = ok ? 1 : 0.42; ctx.drawImage(spr.img, spr.x, spr.y + bob, spr.w, spr.h); ctx.globalAlpha = 1;
+    if (FAR) { TABHITS.push({ x: spr.x, y: spr.y + bob, w: spr.w, h: spr.h, page: tb.page }); return; }
     const fl = LOCKFLASH[tb.page] > 0 ? (LOCKFLASH[tb.page] -= 1 / 60) : 0;
     const p0 = pill([(ok ? tb.icon : '🔒') + '  ' + tb.name.toUpperCase(), drawTabIsles.c[k][1]], { bg: ok ? tb.col : 'rgba(20,26,40,.95)', fg: ok ? '#03070e' : '#8aa0b8', fg2: ok ? 'rgba(3,7,14,.8)' : (fl > 0 ? '#ff4d6d' : '#6a7f96'), edge: ok ? '#fff' : 'rgba(138,160,184,.6)' }), pw = p0.w * LS * 1.1, ph = p0.h * LS * 1.1, [sx, sy] = S3(tb.x, tb.y, tb.z + 4.4), x = sx - pw / 2, y = sy - ph + bob;
     ctx.drawImage(p0.img, x, y, pw, ph); TABHITS.push({ x: Math.min(x, spr.x), y: y, w: Math.max(pw, spr.w), h: spr.y + bob + spr.h - y, page: tb.page }); });
@@ -841,6 +851,7 @@ function drawCity(t, dt) {
   // district glows (brighter when that bot is really working)
   DISTRICTS.forEach(d => { const act = districtActive(d); d.act = (d.act || 0) + (act - (d.act || 0)) * Math.min(1, dt * 2); const [X, Y] = S3(d.cx, d.cy, 0), rx = d.R * K; if (!inView(X - rx, Y - rx * TILT, rx * 2, rx * 2 * TILT)) return;
     const a = 0.03 + d.act * (0.12 + 0.05 * Math.sin(t * 3)); if (a < 0.035 && !d.act) return; const g = ctx.createRadialGradient(X, Y, 0, X, Y, rx); const rgb = rgbOf(d.col).join(','); g.addColorStop(0, `rgba(${rgb},${a})`); g.addColorStop(1, `rgba(${rgb},0)`); ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(X, Y, rx, rx * TILT, 0, 0, 7); ctx.fill(); });
+  if (FAR) return;
   // workers carry packets out of active districts (only when real activity says so)
   if ((workerT -= dt) <= 0) { workerT = 0.9; DISTRICTS.forEach(d => { if ((d.act || 0) < 0.5 || WORKERS.length > 40 || !d.props.length || Math.random() > d.act) return; const from = d.lm || { cx: d.cx, cy: d.cy }, to = d.props[Math.floor(Math.random() * d.props.length)]; WORKERS.push({ x0: from.cx, y0: from.cy, x1: to.cx, y1: to.cy, t: 0, col: d.col }); }); }
   for (let k = WORKERS.length - 1; k >= 0; k--) { const w = WORKERS[k]; w.t += dt / 2.6; if (w.t >= 1) { WORKERS.splice(k, 1); continue; } const f = w.t < 0.5 ? w.t * 2 : 2 - w.t * 2, x = w.x0 + (w.x1 - w.x0) * f, y = w.y0 + (w.y1 - w.y0) * f, [X, Y] = S3(x, y, 1.6 + Math.sin(f * Math.PI) * 1.4); if (!inView(X - 10, Y - 10, 20, 20)) continue;
@@ -897,6 +908,19 @@ function cityDetails(t) {
     const hx = X + Math.sign(S3(b2[0], b2[1], 0)[0] - S3(a[0], a[1], 0)[0] || 1) * (cr.dir) * K * 0.4; ctx.fillStyle = 'rgba(255,250,220,.95)'; ctx.fillRect(hx - 1.5, Y - 1, 3, 2); });
   MOTES.forEach(m => { const d = DISTRICTS[m.d]; if (!d) return; const f = ((t * 0.18 + m.p) % 1), x = d.cx + Math.cos(m.a) * d.R * m.r, y = d.cy + Math.sin(m.a) * d.R * m.r * 0.8, [X, Y] = S3(x, y, 0.3 + f * 4); if (!inView(X - 4, Y - 4, 8, 8)) return; ctx.globalAlpha = Math.sin(f * Math.PI) * 0.85; ctx.fillStyle = d.col; ctx.fillRect(X - 1.2, Y - 1.2, Math.max(2.4, K * 0.07), Math.max(2.4, K * 0.07)); ctx.globalAlpha = 1; });
 }
+// far-zoom label LOD: only district names + big landmarks, fixed screen size, no overlaps
+function farLabels(t) { ctx.setTransform(dpr, 0, 0, dpr, 0, 0); const fs = W < 600 ? 11 : 12, placed = [], items = [];
+  items.push({ p: S3(HQ.cx, HQ.cy, 3), txt: ADMIN ? 'CHRISTIAN\u2019S HQ' : 'GATEPOST HQ', col: '#F6F4EF', tap: 'hq', pri: 3 });
+  items.push({ p: S3(FALLS.cx, LIP_Y + 3, 0), txt: 'DATA FALLS', col: '#5ff3ff', tap: null, pri: 2 });
+  items.push({ p: S3(AI.cx, AI.cy, 3), txt: 'AI CORE', col: '#ff4d6d', tap: 'ai', pri: 2 });
+  DISTRICTS.forEach(d => items.push({ p: S3(d.cx, d.cy, 1), txt: d.name.toUpperCase(), col: d.col, tap: 'D:' + d.key, pri: 1, act: ADMIN && (d.act || 0) > 0.5 }));
+  items.sort((a, b) => b.pri - a.pri); ctx.font = `700 ${fs}px ui-monospace, SFMono-Regular, Menlo, monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  items.forEach(it => { const X = (it.p[0] - cam.x) * ZM, Y = (it.p[1] - cam.y) * ZM, w = ctx.measureText(it.txt).width + 14 + (it.act ? 10 : 0), h = fs + 9, r = { x: X - w / 2, y: Y - h / 2, w, h };
+    if (r.x + w < 0 || r.x > W || r.y + h < 0 || r.y > H) return; if (placed.some(q => r.x < q.x + q.w + 4 && r.x + w + 4 > q.x && r.y < q.y + q.h + 3 && r.y + h + 3 > q.y)) return; placed.push(r);
+    ctx.fillStyle = 'rgba(3,8,18,.78)'; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(r.x, r.y, w, h, h / 2) : ctx.rect(r.x, r.y, w, h); ctx.fill(); ctx.strokeStyle = it.col; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = it.col; ctx.fillText(it.txt, X + (it.act ? 5 : 0), Y + 0.5); if (it.act) { ctx.fillStyle = (t % 1.2) < 0.7 ? '#22ff8a' : 'rgba(34,255,138,.3)'; ctx.beginPath(); ctx.arc(r.x + 9, Y, 3, 0, 7); ctx.fill(); }
+    if (it.tap) LABELRECTS.push({ x: r.x / ZM + cam.x, y: r.y / ZM + cam.y, w: w / ZM, h: h / ZM, tap: it.tap }); });
+}
 // district name signs (tappable) drawn with the other labels
 function districtSigns(t) { DISTRICTS.forEach(d => { const [X, Y] = S3(d.cx, d.cy - d.R * 0.92, 2.8); const st = ADMIN ? ((d.act || 0) > 0.5 ? '● ACTIVE' : (d.act || 0) > 0.05 ? 'recently active' : 'quiet') : null; const p = pill(st ? [d.name.toUpperCase(), st] : [d.name.toUpperCase()], { edge: d.col, fg: '#03070e', fg2: 'rgba(3,7,14,.8)', bg: d.col }), pw = p.w * LS, ph = p.h * LS; const x = X - pw / 2, y = Y - ph; if (!inView(x, y, pw, ph)) return; ctx.drawImage(p.img, x, y, pw, ph); LABELRECTS.push({ x, y, w: pw, h: ph, tap: 'D:' + d.key }); }); }
 let scanPat = null, vign = null, vignKey = '', HUDC = null, HUDR = null, HUD_BOT = 64; const SAFE = { l: 0, r: 0 };
@@ -951,16 +975,20 @@ function update(dt) {
   updateShip(dt);
 }
 let camMoved = true, drag = null;
-function clampCam() { const mx = WPX - VW(), my = HPX - VH(); cam.x = mx < 0 ? mx / 2 : Math.max(0, Math.min(mx, cam.x)); cam.y = my < 0 ? my / 2 : Math.max(0, Math.min(my, cam.y)); }
-function focusOn(x, y, z = 1, instant) { const [X, Y] = S3(x, y, z); cam.tx = X - VW() / 2; cam.ty = Y - VH() * 0.45; if (instant) { cam.x = cam.tx; cam.y = cam.ty; cam.tx = cam.ty = null; clampCam(); } camMoved = true; }
+function clampCam() { const ax = (m, v, V) => { if (m >= 0) return Math.max(0, Math.min(m, v)); const s = -m * 0.5; return Math.max(m - s, Math.min(s, v)); }; cam.x = ax(WPX - VW(), cam.x); cam.y = ax(HPX - VH(), cam.y); }
+function animZoom(z, wx, wy) { z = Math.max(zMin(), Math.min(ZMAX, z)); ZANIM = { z0: ZM, z1: z, x0: cam.x + VW() / 2, y0: cam.y + VH() / 2, x1: wx, y1: wy, t: 0 }; cam.tx = cam.ty = null; cam.vx = cam.vy = 0; }
+window.townOverview = () => animZoom(zOver(), WPX / 2, HPX / 2);
+function focusOn(x, y, z = 1, instant, fy = 0.45) { const [X, Y] = S3(x, y, z); cam.tx = X - VW() / 2; cam.ty = Y - VH() * fy; if (instant) { cam.x = cam.tx; cam.y = cam.ty; cam.tx = cam.ty = null; clampCam(); } camMoved = true; }
 function loop(ts) {
   if (!cv || !cv.isConnected || document.hidden) { stop(); return; }
   raf = requestAnimationFrame(loop);
-  const dt = Math.min(0.05, last ? (ts - last) / 1000 : 0.016); last = ts;
+  if (document.body.classList.contains('in-screen')) { if (last && ts - last < 66) return; } // ~15fps behind an open screen (battery)
+  const dt = Math.min(0.08, last ? (ts - last) / 1000 : 0.016); last = ts;
   if ((clockT -= dt) <= 0) { clockT = 30; const pl = LIT, ph = HOMELIT; hour = syncClock(); dark = darkness(hour); warm = warmth(hour); LIT = dark > 0.15; HOMELIT = LIT && !atWork(hour);
     if (pl !== LIT || ph !== HOMELIT) spritesDirty = true; updateOverlay(); }
   if (spritesDirty || !ground) { buildSprites(); buildGround(); camMoved = true; }
-  if (cam.tx !== null && !drag) { const k = Math.min(1, dt * 6); cam.x += (cam.tx - cam.x) * k; cam.y += (cam.ty - cam.y) * k; if (Math.abs(cam.tx - cam.x) < 0.5 && Math.abs(cam.ty - cam.y) < 0.5) cam.tx = cam.ty = null; clampCam(); camMoved = true; }
+  if (ZANIM && !drag) { const a = ZANIM; a.t = Math.min(1, a.t + dt / 0.55); const e = a.t * a.t * (3 - 2 * a.t); ZM = Math.exp(Math.log(a.z0) + (Math.log(a.z1) - Math.log(a.z0)) * e); cam.x = a.x0 + (a.x1 - a.x0) * e - VW() / 2; cam.y = a.y0 + (a.y1 - a.y0) * e - VH() / 2; clampCam(); camMoved = true; if (a.t >= 1) ZANIM = null; }
+  else if (cam.tx !== null && !drag) { const k = Math.min(1, dt * 6); cam.x += (cam.tx - cam.x) * k; cam.y += (cam.ty - cam.y) * k; if (Math.abs(cam.tx - cam.x) < 0.5 && Math.abs(cam.ty - cam.y) < 0.5) cam.tx = cam.ty = null; clampCam(); camMoved = true; }
   else if (!drag && (Math.abs(cam.vx) > 5 || Math.abs(cam.vy) > 5)) { cam.x -= cam.vx * dt; cam.y -= cam.vy * dt; const f = Math.pow(0.9, dt * 60); cam.vx *= f; cam.vy *= f; clampCam(); camMoved = true; }
   update(dt); drawFrame(ts / 1000, dt); if (camMoved) { drawMini(); camMoved = false; }
 }
@@ -968,7 +996,7 @@ function stop() { if (raf) cancelAnimationFrame(raf); raf = null; }
 function drawMini() { const m = document.getElementById('town-mini'); if (!m || !miniImg || !m.offsetWidth) return; if (m.width !== miniImg.width) { m.width = miniImg.width; m.height = miniImg.height; }
   const c = m.getContext('2d'), s = m.width / WPX; c.drawImage(miniImg, 0, 0); c.strokeStyle = '#141414'; c.lineWidth = 3; c.strokeRect(Math.max(1, cam.x * s), Math.max(1, cam.y * s), Math.min(m.width - 2, VW() * s), Math.min(m.height - 2, VH() * s)); c.strokeStyle = '#F6F4EF'; c.lineWidth = 1.5; c.strokeRect(Math.max(1, cam.x * s), Math.max(1, cam.y * s), Math.min(m.width - 2, VW() * s), Math.min(m.height - 2, VH() * s)); }
 function layoutFull() { const full = document.getElementById('town-full'); if (!full) return; const hd = document.querySelector('header'), nav = document.getElementById('main-nav');
-  full.classList.toggle('nonav', !(nav && !nav.classList.contains('hidden'))); full.style.top = Math.max(0, hd ? hd.getBoundingClientRect().bottom : 0) + 'px'; full.style.bottom = (nav && !nav.classList.contains('hidden') ? Math.max(0, window.innerHeight - nav.getBoundingClientRect().top) : 0) + 'px'; }
+  const navOn = !!(nav && nav.offsetHeight); full.classList.toggle('nonav', !navOn); full.style.top = Math.max(0, hd ? hd.getBoundingClientRect().bottom : 0) + 'px'; full.style.bottom = (navOn ? Math.max(0, window.innerHeight - nav.getBoundingClientRect().top) : 0) + 'px'; }
 function setup() {
   layoutFull(); W = Math.max(200, Math.floor(cv.clientWidth)); H = Math.max(200, Math.floor(cv.clientHeight)); const nd2 = Math.max(1, Math.min(2, window.devicePixelRatio || 1, Math.sqrt(4.6e6 / (W * H)))), nk = Math.round(Math.max(26, Math.min(34, W / 13)));
   if (nk !== K || nd2 !== dpr) { K = T = nk; dpr = nd2; OY = 7 * K; WPX = Math.round(WX * K); HPX = Math.round(OY + WY * TILT * K + ABY_T * K); pillCache.clear(); spritesDirty = true; ground = null; if (cam.init) cam.init = false; }
@@ -981,7 +1009,7 @@ function setup() {
   const pts = new Map(); let pinch = null;
   const rel = e => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
   const pinchState = () => { const [a, b2] = [...pts.values()]; return { d: Math.hypot(a[0] - b2[0], a[1] - b2[1]) || 1, mx: (a[0] + b2[0]) / 2, my: (a[1] + b2[1]) / 2 }; };
-  cv.onpointerdown = e => { try { cv.setPointerCapture(e.pointerId); } catch (_) {} pts.set(e.pointerId, rel(e)); cam.vx = cam.vy = 0; cam.tx = cam.ty = null;
+  cv.onpointerdown = e => { ZANIM = null; try { cv.setPointerCapture(e.pointerId); } catch (_) {} pts.set(e.pointerId, rel(e)); cam.vx = cam.vy = 0; cam.tx = cam.ty = null;
     if (pts.size === 2) { pinch = { ...pinchState(), z: ZM }; if (drag) drag.moved = true; return; }
     if (pts.size === 1) drag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, lt: performance.now(), moved: false }; };
   cv.onpointermove = e => { if (!pts.has(e.pointerId)) return; pts.set(e.pointerId, rel(e));
@@ -993,7 +1021,7 @@ function setup() {
   cv.onpointerup = cv.onpointercancel = e => { pts.delete(e.pointerId);
     if (pinch) { if (pts.size < 2) { pinch = null; drag = null; cam.vx = cam.vy = 0; const rest = [...pts.entries()][0]; if (rest) { const r = cv.getBoundingClientRect(), cx = rest[1][0] + r.left, cy = rest[1][1] + r.top; drag = { id: rest[0], x0: cx, y0: cy, lx: cx, ly: cy, lt: performance.now(), moved: true }; } } return; }
     if (!drag || drag.id !== e.pointerId) return; const d = drag; drag = null; if (performance.now() - d.lt > 90) { cam.vx = cam.vy = 0; }
-    if (!d.moved && e.type === 'pointerup') { const [x, y] = rel(e); if (HUDR && x >= HUDR.x && x <= HUDR.x + HUDR.w && y >= HUDR.y && y <= HUDR.y + HUDR.h) { HUDC = !HUDC; return; } const h = hit(x, y); if (typeof h === 'string' && h.startsWith('T:')) { const pg = h.slice(2); if (canTab(pg)) townGo(pg); else flashLock(pg); } else if (typeof h === 'string' && h.startsWith('D:')) townFly(h.slice(2), true); else if (h === 'hq') openHQ(); else if (h === 'dock') openDock(); else if (h === 'ai') { if (window.openGatepostAI) window.openGatepostAI(); } else if (h !== null && h >= 0) openBot(h); } };
+    if (!d.moved && e.type === 'pointerup') { const [x, y] = rel(e); if (HUDR && x >= HUDR.x && x <= HUDR.x + HUDR.w && y >= HUDR.y && y <= HUDR.y + HUDR.h) { HUDC = !HUDC; return; } const h = hit(x, y); const now = performance.now(), dbl = lastTap && now - lastTap.t < 320 && Math.hypot(x - lastTap.x, y - lastTap.y) < 30; lastTap = dbl ? null : { t: now, x, y }; if (h === null && dbl) { if (ZM > zOver() * 1.15) townOverview(); else animZoom(Math.max(1, zFit() * 2), x / ZM + cam.x, y / ZM + cam.y); return; } if (typeof h === 'string' && h.startsWith('T:')) { const pg = h.slice(2); if (canTab(pg)) townGo(pg); else flashLock(pg); } else if (typeof h === 'string' && h.startsWith('D:')) townFly(h.slice(2), true); else if (h === 'hq') openHQ(); else if (h === 'dock') openDock(); else if (h === 'ai') { if (window.openGatepostAI) window.openGatepostAI(); } else if (h !== null && h >= 0) openBot(h); } };
   cv.onwheel = e => { e.preventDefault(); const [x, y] = rel(e), k = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1, dy = e.deltaY * k;
     const mouseWheel = e.deltaMode !== 0 || (e.deltaX === 0 && Math.abs(e.deltaY) >= 50 && Number.isInteger(e.deltaY));
     if (e.ctrlKey || e.metaKey || mouseWheel) { zoomAt(ZM * Math.exp(-dy * (e.ctrlKey && !mouseWheel ? 0.012 : 0.0018)), x, y); }
@@ -1002,7 +1030,7 @@ function setup() {
   const m = document.getElementById('town-mini'); if (m) { const go = e => { const r = m.getBoundingClientRect(), fx = (e.clientX - r.left) / r.width, fy = (e.clientY - r.top) / r.height; cam.tx = fx * WPX - VW() / 2; cam.ty = fy * HPX - VH() / 2; cam.vx = cam.vy = 0; camMoved = true; };
     m.onpointerdown = e => { m.setPointerCapture(e.pointerId); m._d = 1; go(e); }; m.onpointermove = e => { if (m._d) go(e); }; m.onpointerup = m.onpointercancel = () => { m._d = 0; }; }
 }
-function zoomAt(z, sx, sy) { z = Math.max(ZMIN, Math.min(ZMAX, z)); if (z === ZM) return; const wx = sx / ZM + cam.x, wy = sy / ZM + cam.y; ZM = z; cam.x = wx - sx / ZM; cam.y = wy - sy / ZM; clampCam(); camMoved = true; }
+function zoomAt(z, sx, sy) { ZANIM = null; z = Math.max(zMin(), Math.min(ZMAX, z)); if (z === ZM) return; const wx = sx / ZM + cam.x, wy = sy / ZM + cam.y; ZM = z; cam.x = wx - sx / ZM; cam.y = wy - sy / ZM; clampCam(); camMoved = true; }
 window.townZoomLevel = () => ZM;
 window.townZoom = f => { cam.tx = cam.ty = null; zoomAt(ZM * f, W / 2, H / 2); };
 function hit(sx, sy) {
@@ -1064,20 +1092,21 @@ window.townPage = () => { ADMIN = typeof isAdmin === 'function' && isAdmin();
     return `<button class="town-chip" style="border-color:${bt.color}!important;box-shadow:0 0 10px ${bt.color}55" onclick="townChip(${i})"><span class="dot" style="background:${bt.color}"></span><b style="background:none;color:${bt.color};padding:0">${esc(bt.glyph)}</b> ${esc(bt.short)}${s && s.pending ? ` <b>${s.pending}</b>` : ''}${u ? ` <b class="chat">${u}</b>` : ''}</button>`; }).join('');
   return `<div class="town-full${window.innerWidth >= 1100 ? ' mini-open' : ''}" id="town-full"><canvas id="town-canvas" role="img" aria-label="Gatepost town map. Drag to look around; tap a building, a bot, HQ or the launch pad."></canvas>
   <div class="town-top"><div class="town-title"><b>Gatepost AI Grid</b><span id="town-clock"></span></div>${ADMIN ? '<div class="town-ticker" id="town-ticker"></div>' : ''}</div>
-  <div class="town-tools"><canvas id="town-mini" aria-label="Minimap: tap to jump"></canvas><button class="town-btn mini-tg" onclick="townMini()" aria-label="Toggle minimap" title="Minimap">▦</button><button class="town-btn zm" onclick="townZoom(1.25)" aria-label="Zoom in" title="Zoom in">+</button><button class="town-btn zm" onclick="townZoom(0.8)" aria-label="Zoom out" title="Zoom out">−</button><button class="town-btn" onclick="townCenter()" aria-label="Center on HQ" title="Center on HQ">⌂</button><button class="town-btn" onclick="townJump()" aria-label="Districts" title="Fly to a district">◎</button></div>
-  <div class="town-jump" id="town-jump">${DISTRICTS.map(d => `<button onclick="townFly('${d.key}')"><span class="dot" style="background:${d.col}"></span>${esc(d.name)}</button>`).join('')}</div>
-  <div class="town-legend"><button class="town-chip hq" onclick="townChip('hq')"><span class="dot" style="background:#F6F4EF"></span>HQ</button>${chips}<button class="town-chip" onclick="townChip('dock')"><span class="dot" style="background:#ff6bd6"></span>Launch Pad</button><button class="town-chip" onclick="townFalls()"><span class="dot" style="background:#5ff3ff"></span>Data Falls &amp; app screens</button></div></div>`; };
+  <div class="town-tools"><canvas id="town-mini" aria-label="Minimap: tap to jump"></canvas><button class="town-btn mini-tg" onclick="townMini()" aria-label="Toggle minimap" title="Minimap">▦</button><button class="town-btn zm" onclick="townZoom(1.25)" aria-label="Zoom in" title="Zoom in">+</button><button class="town-btn zm" onclick="townZoom(0.8)" aria-label="Zoom out" title="Zoom out">−</button><button class="town-btn" onclick="townOverview()" aria-label="Zoom out to see the whole town" title="Whole town (or double-tap empty space)">⤢</button><button class="town-btn" onclick="townCenter()" aria-label="Center on HQ" title="Center on HQ">⌂</button><button class="town-btn" onclick="townJump()" aria-label="Districts" title="Fly to a district">◎</button></div>
+  <div class="town-jump" id="town-jump"><button onclick="townJump();townChip('hq')"><span class="dot" style="background:#F6F4EF"></span>HQ</button>${chips.replace(/class="town-chip"/g, 'onclick-wrap="1"').replace(/onclick="townChip\((\d)\)"/g, 'onclick="townJump();townChip($1)"')}<button onclick="townJump();townChip('dock')"><span class="dot" style="background:#ff6bd6"></span>Launch Pad</button><button onclick="townJump();townFalls()"><span class="dot" style="background:#5ff3ff"></span>Data Falls &amp; app screens</button>${DISTRICTS.map(d => `<button onclick="townFly('${d.key}')"><span class="dot" style="background:${d.col}"></span>${esc(d.name)}</button>`).join('')}</div>
+  <div class="town-legend town-dock">${TABS.map(tb => { const ok = canTab(tb.page); return `<button class="town-chip app${ok ? '' : ' locked'}" style="--c:${tb.col}" onclick="townApp('${tb.page}')" aria-label="${esc(tb.name)}${ok ? '' : ' (admin only)'}"><span class="ic">${ok ? tb.icon : '🔒'}</span><span class="nm">${esc(tb.name)}</span></button>`; }).join('')}<button class="town-chip app more" onclick="townJump()" aria-label="Places: districts, bots, HQ"><span class="ic">◎</span><span class="nm">Places</span></button></div></div>`; };
 window.townMini = () => { const f = document.getElementById('town-full'); if (!f) return; f.classList.toggle('mini-open'); camMoved = true; setTimeout(drawMini, 0); };
 window.townTabHits = () => TABHITS.map(r => ({ page: r.page, x: (r.x - cam.x) * ZM + r.w * ZM / 2, y: (r.y - cam.y) * ZM + r.h * ZM / 2 }));
 window.townFalls = () => { if (ZM > 0.9) zoomAt(0.8, W / 2, H / 2); focusOn(FALLS.cx - 10, LIP_Y + 13, 0); };
 window.townCenter = () => focusOn(HQ.cx, HQ.cy, 1);
 window.townFly = (key, open) => { const d = DISTRICTS.find(x => x.key === key); if (!d) return; if (ZM < 0.8) zoomAt(1, W / 2, H / 2); focusOn(d.cx, d.cy, 1); const j = document.getElementById('town-jump'); if (j) j.classList.remove('on');
   if (open) { if (d.bot === 'hq') openHQ(); else if (d.bot === 'dock') openDock(); else if (d.bot === 'ai') { if (window.openGatepostAI) window.openGatepostAI(); } else openBot(d.bot); } };
+window.townApp = pg => { if (canTab(pg)) townGo(pg); else { flashLock(pg); const tb = TABS.find(x => x.page === pg); if (tb) { if (ZM > 0.9) zoomAt(0.8, W / 2, H / 2); focusOn(tb.x, tb.y, tb.z); } } };
 window.townJump = () => { const j = document.getElementById('town-jump'); if (j) j.classList.toggle('on'); };
 window.townChip = t => { if (t === 'hq') { focusOn(HQ.cx, HQ.cy, 1); openHQ(); } else if (t === 'dock') { focusOn(PIER.x0 - 1, PIER.y0 + 3, 0); openDock(); } else { const b = BOTS[t].b; focusOn(b.cx, b.cy, 1); openBot(t); } };
 
 // ---------- sheets ----------
-window.openBot = i => { OPEN = { kind: 'bot', i, tab: ADMIN ? (unread(BOTS[i].name) && !stats(BOTS[i].name).pending ? 'chat' : 'requests') : 'about' }; renderSheet(true); if (OPEN.tab === 'chat') markRead(BOTS[i].name); };
+window.openBot = i => { if (cv && W) { if (ZM < 0.8) zoomAt(1, W / 2, H / 2); const b = BOTS[i].b; focusOn(b.cx, b.cy, 1, false, 0.2); } OPEN = { kind: 'bot', i, tab: ADMIN ? (unread(BOTS[i].name) && !stats(BOTS[i].name).pending ? 'chat' : 'requests') : 'about' }; renderSheet(true); if (OPEN.tab === 'chat') markRead(BOTS[i].name); };
 window.openHQ = () => { OPEN = { kind: 'hq' }; renderSheet(true); };
 window.openDock = () => { OPEN = { kind: 'dock' }; renderSheet(true); };
 window.closeBot = () => { OPEN = null; document.getElementById('bot-sheet')?.remove(); if (!document.getElementById('req-sheet')) document.body.classList.remove('sheet-open'); };
@@ -1185,7 +1214,7 @@ window.townAfterRender = () => {
   if (ADMIN) queueChat(); else { MSGS = []; ACTS = []; BOARDS = []; }
   const el = document.getElementById('town-canvas');
   if (!el) { document.body.classList.remove('town-mode'); stop(); cv = null; if (OPEN && !document.getElementById('req-sheet')) closeBot(); return; }
-  document.body.classList.add('town-mode'); if (window.scrollY) window.scrollTo(0, 0);
+  const scr = document.body.classList.contains('in-screen'); document.body.classList.toggle('town-mode', !scr); if (!scr && window.scrollY) window.scrollTo(0, 0);
   if (el !== cv) { cv = el; setup(); }
   if (!raf) { last = 0; raf = requestAnimationFrame(loop); }
   if (OPEN && !(document.activeElement && document.activeElement.id === 'chat-text')) renderSheet(false);
@@ -1193,6 +1222,8 @@ window.townAfterRender = () => {
 let rsT = 0; const reSetup = d => { clearTimeout(rsT); rsT = setTimeout(() => { if (cv && cv.isConnected) { setup(); camMoved = true; } }, d); };
 window.addEventListener('resize', () => reSetup(60)); window.addEventListener('orientationchange', () => { reSetup(120); reSetup(400); });
 if (window.visualViewport) window.visualViewport.addEventListener('resize', () => reSetup(80));
+// keep chat input above the iOS keyboard: lift open sheets by the obscured height
+if (window.visualViewport) { const kb = () => { const vv = window.visualViewport, off = Math.max(0, window.innerHeight - vv.height - vv.offsetTop); document.querySelectorAll('.sheet').forEach(el => el.style.setProperty('bottom', off + 'px', 'important')); }; window.visualViewport.addEventListener('resize', kb); window.visualViewport.addEventListener('scroll', kb); }
 document.addEventListener('gesturestart', e => { if (document.body.classList.contains('town-mode')) e.preventDefault(); }, { passive: false });
 (() => { const st = document.createElement('style'); st.id = 'town-future-css'; st.textContent = `
 .town-full{background:#070c16!important}
@@ -1213,7 +1244,9 @@ document.addEventListener('gesturestart', e => { if (document.body.classList.con
 .town-full .town-chip{min-height:44px;padding:0 14px;font-size:.86rem;white-space:nowrap}
 .town-full.nonav .town-legend{bottom:calc(8px + env(safe-area-inset-bottom))}.town-full.nonav .town-tools{bottom:calc(66px + env(safe-area-inset-bottom))}
 .town-full #town-mini{display:none;width:120px;background:#02050c}.town-full.mini-open #town-mini{display:block}.town-full.mini-open .mini-tg{border-color:#5ff3ff!important;color:#5ff3ff!important}
-.town-jump{right:calc(max(8px,env(safe-area-inset-right)) + 54px);bottom:66px}.town-jump button{min-height:44px}
+.town-jump{right:calc(max(8px,env(safe-area-inset-right)) + 54px);bottom:66px}
+.town-full .town-dock{justify-content:center;gap:6px}.town-full .town-chip.app{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-width:52px;min-height:50px;padding:4px 6px;font-size:.66rem;border-color:var(--c,#5ff3ff)!important;box-shadow:0 0 10px color-mix(in srgb,var(--c,#5ff3ff) 35%,transparent)!important}.town-chip.app .ic{font-size:1.05rem;line-height:1;color:var(--c,#5ff3ff)}.town-chip.app .nm{letter-spacing:.04em}.town-chip.app.locked{opacity:.55}.town-chip.app.more{--c:#dffcff}
+@media (max-width:420px){.town-full .town-chip.app{min-width:0;flex:1 1 0;padding:4px 2px;font-size:.6rem}.town-full .town-dock{gap:4px;-webkit-mask-image:none;mask-image:none}}.town-jump button{min-height:44px}
 @media (max-width:599px){.town-full .town-btn.zm{display:none}.town-full .town-ticker{font-size:.66rem}.town-full .town-title{padding:8px 12px}}
 @media (min-width:700px){.town-full #town-mini{width:160px}.town-full .town-ticker{max-width:min(60%,560px)}}`; document.head.appendChild(st); })();
 document.addEventListener('visibilitychange', () => { if (!document.hidden && cv && cv.isConnected && !raf) { last = 0; raf = requestAnimationFrame(loop); } });

@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="Gatepost">
 <meta name="theme-color" content="#0e0e0e">
 <title>Gatepost Property Services</title>
-<meta name="app-version" content="2026-10-14-town-space-v3">
+<meta name="app-version" content="2026-10-14-town-space-v4">
 <link rel="manifest" href="manifest.json?v=9">
 <link rel="icon" href="favicon.ico?v=4" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=4">
@@ -38,7 +38,26 @@ header .word small { display:block; font-size:.58rem; letter-spacing:.32em; colo
 #sync-dot.on { background:var(--ok); }
 .nav { position:fixed; left:0; right:0; bottom:0; z-index:20; display:flex; gap:2px; padding:6px 6px calc(env(safe-area-inset-bottom) + 6px); background:rgba(14,14,14,.96); border-top:1px solid var(--line); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); }
 .nav button { flex:1 1 0; min-width:0; width:auto; background:transparent; border:1px solid transparent; color:var(--mute); padding:10px 2px; border-radius:10px; font-size:.68rem; letter-spacing:.06em; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-body.has-nav { padding-bottom:calc(env(safe-area-inset-bottom) + 64px); }
+body.has-nav { padding-bottom:calc(env(safe-area-inset-bottom) + 16px); }
+/* the town is home: app screens are buildings in town, so the bottom tab bar stays hidden (kept in DOM for routing) */
+#main-nav { display:none !important; }
+#back-town { display:none; flex:0 0 auto; height:44px; min-width:44px; width:auto; padding:0 14px 0 10px; border-radius:22px; background:rgba(3,10,20,.85); color:#dffcff; border:1px solid rgba(95,243,255,.55); box-shadow:0 0 12px rgba(95,243,255,.2); font-size:.85rem; letter-spacing:.06em; white-space:nowrap; }
+/* app screens float as frosted glass over the live town */
+body.in-screen .town-full { top:0 !important; bottom:0 !important; pointer-events:none; }
+body.in-screen .town-full > :not(canvas) { display:none !important; }
+body.in-screen main { position:relative; z-index:6; }
+body.in-screen header { background:rgba(8,10,16,.55); -webkit-backdrop-filter:blur(14px) saturate(1.2); backdrop-filter:blur(14px) saturate(1.2); border-bottom-color:rgba(95,243,255,.22); }
+body.in-screen .card { background:rgba(12,14,22,.66); -webkit-backdrop-filter:blur(16px) saturate(1.25); backdrop-filter:blur(16px) saturate(1.25); border:1px solid rgba(95,243,255,.22); box-shadow:0 0 0 1px rgba(255,255,255,.03) inset, 0 0 22px rgba(95,243,255,.08), 0 10px 30px rgba(0,0,0,.35); }
+body.in-screen .card .card, body.in-screen input, body.in-screen select, body.in-screen textarea { background:rgba(8,10,16,.86); }
+body.in-screen .muted { color:#b4b1a9; }
+/* chat desks + Ask AI: frosted glass over the live town */
+.sheet { bottom:0 !important; }
+body.town-mode .sheet.town-sheet { background:rgba(10,12,20,.64); -webkit-backdrop-filter:blur(18px) saturate(1.25); backdrop-filter:blur(18px) saturate(1.25); border-top:1px solid rgba(95,243,255,.35) !important; box-shadow:0 -10px 30px rgba(0,0,0,.35), 0 0 24px rgba(95,243,255,.1); height:min(68dvh, 640px) !important; padding-bottom:env(safe-area-inset-bottom); }
+body.town-mode .town-sheet .sheet-actions, body.town-mode .town-sheet .chat-compose { background:rgba(8,10,16,.82); position:sticky; bottom:0; padding-bottom:calc(10px + env(safe-area-inset-bottom)); }
+.town-sheet .msg.bot .bubble, body.in-screen .ask-msg { background:rgba(26,30,42,.9); color:#f6f4ef; }
+.town-sheet .msg.admin .bubble { background:rgba(246,244,239,.96); }
+body.in-screen .ask-msg.user { background:rgba(246,244,239,.94); color:#0e0e0e; }
+body.in-screen #back-town { display:inline-flex; align-items:center; gap:6px; } body.in-screen header .plaque { display:none; }
 .nav button.active { background:var(--paper); color:var(--ink); }
 main { flex:1; padding:16px max(16px, env(safe-area-inset-right)) 16px max(16px, env(safe-area-inset-left)); max-width:640px; width:100%; margin:0 auto; }
 .card { background:var(--ink2); border:1px solid var(--line); border-radius:var(--r); padding:18px; margin-bottom:14px; }
@@ -162,7 +181,7 @@ window.addEventListener('unhandledrejection', function(e){ gpReportError(e.reaso
 </script>
 </head>
 <body>
-<header>
+<header><button id="back-town" onclick="townGo ? townGo('town') : null" aria-label="Back to town">‹ Town</button>
   <span class="plaque"><img src="arch-mark.png" alt="Gatepost"></span>
   <div class="word">Gatepost<small>Property Services</small></div>
   <span id="user-label"></span>
@@ -176,7 +195,7 @@ window.addEventListener('unhandledrejection', function(e){ gpReportError(e.reaso
   <button data-page="ask" data-admin>Ask AI</button>
   <button data-page="admin" id="admin-tab" class="hidden" data-admin>Team</button>
 </nav>
-<main id="app"></main>
+<div id="town-bg"></div><main id="app"></main>
 <footer>Gatepost Property Services · Internal · (505) 750-3019</footer>
 
 <script>
@@ -321,8 +340,9 @@ function render() {
     main.innerHTML = `<div class="card"><h2>Access pending</h2><p class="muted">Your account is waiting for an admin to give you access. You will get in automatically once they do.</p><button class="secondary" onclick="logout()">Log out</button></div>`; return; }
   document.querySelectorAll('.nav button[data-admin]').forEach(b => b.classList.toggle('hidden', !isAdmin()));
   if (!isAdmin() && document.querySelector('.nav button.active')?.hasAttribute('data-admin')) { document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('active', b.dataset.page === 'town')); }
-  const p = page();
-  main.innerHTML = p === 'estimate' ? estimatePage() : p === 'calendar' ? calendarPage() : p === 'requests' ? requestsPage() : p === 'admin' ? adminPage() : p === 'ask' ? askPage() : p === 'town' && window.townPage ? townPage() : dashboard();
+  const p = page(); document.body.classList.toggle('in-screen', p !== 'town'); if ((location.hash.slice(1) || 'town') !== p) history.replaceState(null, '', p === 'town' ? location.pathname + location.search : '#' + p);
+  const tbg = document.getElementById('town-bg'); if (tbg && window.townPage && (p === 'town' || !tbg.querySelector('#town-canvas'))) tbg.innerHTML = townPage();
+  main.innerHTML = p === 'town' ? '' : p === 'estimate' ? estimatePage() : p === 'calendar' ? calendarPage() : p === 'requests' ? requestsPage() : p === 'admin' ? adminPage() : p === 'ask' ? askPage() : dashboard();
   renderSaved(); renderEvents(); renderRequests(); renderUsers();
   if (OPEN_REQ && !REQ_EDIT) renderReqDetail();
   window.townAfterRender && townAfterRender();
@@ -588,9 +608,10 @@ document.getElementById('main-nav').addEventListener('click', e => {
   document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
   e.target.classList.add('active'); render();
 });
+window.addEventListener('hashchange', () => { const pg = location.hash.slice(1) || 'town'; if (pg !== page()) document.querySelector(`.nav button[data-page="${pg}"]`)?.click(); });
 API.init().then(()=>{ if (location.hash.length>1) document.querySelector(`.nav button[data-page="${location.hash.slice(1)}"]`)?.click(); render(); });
 </script>
-<script src="town.js?v=31"></script>
+<script src="town.js?v=32"></script>
 <script src="chat.js?v=5"></script>
 <script src="pwa.js?v=1"></script>
 </body>
