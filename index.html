@@ -9,8 +9,8 @@
 <meta name="apple-mobile-web-app-title" content="Gatepost">
 <meta name="theme-color" content="#0e0e0e">
 <title>Gatepost Property Services</title>
-<meta name="app-version" content="2026-10-13-town-v3e">
-<link rel="manifest" href="manifest.json?v=5">
+<meta name="app-version" content="2026-10-14-customers-v1">
+<link rel="manifest" href="manifest.json?v=6">
 <link rel="icon" href="favicon.ico?v=2" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=2">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2">
@@ -145,6 +145,9 @@ body.town-mode .sheet.town-sheet { top:auto; height:min(76dvh, 680px); border-ra
 .result { background:var(--ink3); border-radius:12px; padding:14px; border:1px solid var(--line); }
 footer { padding:14px; text-align:center; font-size:.72rem; letter-spacing:.08em; color:var(--mute); }
 .ask-log { max-height:55vh; overflow-y:auto; margin:10px 0; display:flex; flex-direction:column; gap:8px; } .ask-msg { padding:9px 11px; border-radius:12px; border:1px solid var(--line); font-size:.88rem; line-height:1.4; } .ask-msg.me { align-self:flex-end; background:var(--paper); color:var(--ink); max-width:85%; } .ask-msg.ai { align-self:flex-start; } .ask-cite, .ask-src { font-size:.72rem; opacity:.7; } .ask-src { margin-top:6px; }
+.cu-photos { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; } .cu-photos a { width:56px; height:56px; border-radius:8px; overflow:hidden; border:1px solid var(--line); } .cu-photos img { width:100%; height:100%; object-fit:cover; }
+.req-top .badge { flex:none; } .badge.urgent { color:#e08b80; border-color:#e08b8066; } .cu-due { font-size:.75rem; color:#e08b80; } .cu-due.late { font-weight:700; }
+.cu-sel { padding:8px 10px; font-size:.85rem; margin-top:6px; }
 </style>
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -184,7 +187,7 @@ const sb = CLOUD ? window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_A
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storage: window.localStorage, storageKey: 'gatepost-auth' } }) : null;
 
 // ---------- State (same shape in both modes) ----------
-let S = { me: null, users: [], estimates: [], events: [], requests: [] };
+let S = { me: null, users: [], estimates: [], events: [], requests: [], cust: { reqs: [], visits: [], people: [] } };
 
 // ---------- Local-only fallback (single device, as before) ----------
 const APP_KEY = 'gatepost_app_v1';
@@ -235,7 +238,21 @@ const API = {
     }
     S.events = evs.sort((a,b) => (a.date || '').localeCompare(b.date || '') || (a.time || '').localeCompare(b.time || ''));
     S.requests = it.filter(i => i.kind === 'request').map(i => ({ ...i.data, _data: i.data, id: i.id, status: i.status, decidedBy: i.decided_by, decidedAt: i.decided_at, createdAt: i.created_at, createdBy: i.created_by }));
-    if (S.me.role === 'admin') { const { data: us } = await sb.from('profiles').select('*').order('created_at'); S.users = us || []; }
+    if (S.me.role === 'admin') { const { data: us } = await sb.from('profiles').select('*').order('created_at'); S.users = us || []; await API.loadCustomers(); }
+  },
+  // Gatepost Home customers (admin only; RLS returns nothing to anyone else).
+  async loadCustomers() {
+    const [r, v, p] = await Promise.all([sb.from('customer_requests').select('*').order('created_at', { ascending: false }),
+      sb.from('customer_visits').select('*').order('scheduled_for'), sb.from('customer_profiles').select('*')]);
+    const rows = r.data || [], paths = rows.flatMap(x => x.photos || []), urls = {};
+    if (paths.length) { const { data } = await sb.storage.from('customer-photos').createSignedUrls(paths, 3600); (data || []).forEach(x => { if (x.signedUrl) urls[x.path] = x.signedUrl; }); }
+    const profs = Object.fromEntries((p.data || []).map(x => [x.id, x]));
+    S.cust = { reqs: rows.map(x => ({ ...x, photoUrls: (x.photos || []).map(q => urls[q]).filter(Boolean) })), visits: v.data || [],
+      people: S.users.filter(u => u.role === 'customer').map(u => ({ id: u.id, email: u.email, ...(profs[u.id] || {}) })) };
+  },
+  async custUpdate(table, id, patch) {
+    const { error } = await sb.from(table).update(patch).eq('id', id);
+    if (error) { gpReportError(error, { op: table }); alert(error.message); } await API.loadCustomers();
   },
   async register(email, password) {
     if (!CLOUD) {
@@ -298,6 +315,8 @@ function render() {
   nav.classList.remove('hidden');
   label.innerHTML = `<span id="sync-dot" class="${CLOUD ? 'on' : ''}" title="${CLOUD ? 'Synced' : 'This device only'}"></span>${esc(S.me.email.split('@')[0])}`;
   document.getElementById('admin-tab').classList.toggle('hidden', !isAdmin());
+  if (S.me.role === 'customer') { nav.classList.add('hidden'); document.body.classList.remove('has-nav');
+    main.innerHTML = `<div class="card"><h2>Customer account</h2><p class="muted">This is the Gatepost team hub. Your account lives in Gatepost Home.</p><p><a href="customer/" style="color:inherit;">Open Gatepost Home ›</a></p><button class="secondary" onclick="logout()">Log out</button></div>`; return; }
   if (!S.me.access) { nav.classList.add('hidden');
     main.innerHTML = `<div class="card"><h2>Access pending</h2><p class="muted">Your account is waiting for an admin to give you access. You will get in automatically once they do.</p><button class="secondary" onclick="logout()">Log out</button></div>`; return; }
   document.querySelectorAll('.nav button[data-admin]').forEach(b => b.classList.toggle('hidden', !isAdmin()));
@@ -409,7 +428,7 @@ async function addEvent() { const date = document.getElementById('ev-date').valu
 function renderEvents() { const el = document.getElementById('event-list'); if (!el) return;
   el.innerHTML = S.events.length ? S.events.map(e => `<div class="item"><strong>${esc(e.date)}</strong>${e.time && !e.allDay ? ` <span class="muted">${esc(e.time)}</span>` : ''} — ${esc(e.title)}${e.location ? `<div class="muted" style="font-size:.85rem;">📍 ${esc(e.location)}</div>` : ''}${e.notes ? `<div style="margin-top:4px;font-size:.88rem;white-space:pre-wrap;">${esc(e.notes)}</div>` : ''}<div class="muted">${esc(e.source === 'outlook' ? 'Outlook' : e.by)}</div></div>`).join('') : '<p class="muted">No events.</p>'; }
 
-function requestsPage() { return `<div class="card"><h2>Agent requests</h2><p class="muted">Tap a request to see details, then approve, decline or add a note.</p><div id="req-list"></div></div>`; }
+function requestsPage() { return (isAdmin() && CLOUD ? customersCard() : '') + `<div class="card"><h2>Agent requests</h2><p class="muted">Tap a request to see details, then approve, decline or add a note.</p><div id="req-list"></div></div>`; }
 function renderRequests() { const el = document.getElementById('req-list'); if (!el) return;
   const order = { pending: 0 }; let list = [...S.requests].sort((a, b) => (order[a.status] ?? 1) - (order[b.status] ?? 1));
   if (REQ_FILTER) list = list.filter(r => r.from === REQ_FILTER || (r.sources || []).includes(REQ_FILTER));
@@ -469,7 +488,45 @@ async function saveReqEdit() {
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && OPEN_REQ) closeReq(); });
 async function decide(id, status) { await API.decide(id, status); renderRequests(); }
 
-const roleLabel = r => ({ admin: 'Admin', employee: 'Employee', pending: 'No access (pending)' })[r] || r;
+// ---------- Customers (Gatepost Home) admin section ----------
+const CU_ST = { new: 'Received', reviewing: 'Reviewing', scheduled: 'Scheduled', done: 'Done', closed: 'Closed' };
+const CU_TYPE = { repair: 'Repair', urgent: 'Urgent', addon: 'Add-on', cancel: 'Cancel' };
+const CV_ST = { scheduled: 'Scheduled', done: 'Done', canceled: 'Canceled' };
+const VISIT_TYPES = ['AC filter change', 'Swamp cooler startup', 'Swamp cooler turnover', 'Seasonal maintenance', 'Other'];
+const cuName = id => { const p = S.cust.people.find(x => x.id === id); return p ? (p.full_name || p.email) : 'Customer'; };
+const cuDue = r => { if (!r.due_at || ['done', 'closed'].includes(r.status)) return ''; const ms = Date.parse(r.due_at) - Date.now(), h = Math.floor(Math.abs(ms) / 3600e3), m = Math.floor(Math.abs(ms) % 3600e3 / 60e3);
+  return `<span class="cu-due ${ms < 0 ? 'late' : ''}">${ms < 0 ? `Overdue ${h}h ${m}m` : `${h}h ${m}m left`}</span>`; };
+const cuSel = (opts, cur, on) => `<select class="cu-sel" onchange="${on}">${Object.entries(opts).map(([k, v]) => `<option value="${k}" ${cur === k ? 'selected' : ''}>${v}</option>`).join('')}</select>`;
+function customersCard() {
+  const open = r => !['done', 'closed'].includes(r.status);
+  const reqs = [...S.cust.reqs].sort((a, b) => (open(b) - open(a)) || ((b.priority === 'urgent' && open(b)) - (a.priority === 'urgent' && open(a))) || b.created_at.localeCompare(a.created_at)); // TODO: then by plan tier once plans exist
+  const now = Date.now() - 12 * 3600e3, visits = S.cust.visits.filter(v => Date.parse(v.scheduled_for) >= now || v.status === 'scheduled');
+  return `<div class="card"><h2>Customers</h2><p class="muted">Gatepost Home requests (urgent first) and maintenance visits. ${S.cust.people.length} customer${S.cust.people.length === 1 ? '' : 's'}.</p>
+    <h3 style="font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;opacity:.7;margin:14px 0 4px;">Requests</h3>
+    ${reqs.length ? reqs.map(r => `<div class="item"><div class="req-top">${r.priority === 'urgent' ? '<span class="badge urgent">Urgent</span>' : `<span class="badge">${esc(CU_TYPE[r.type] || r.type)}</span>`} <strong>${esc(cuName(r.customer_id))}</strong> ${cuDue(r)}<span class="muted" style="margin-left:auto;font-size:.72rem;">${esc(fmtDate(r.created_at))}</span></div>
+      <div style="margin-top:4px;white-space:pre-wrap;font-size:.9rem;">${esc(r.description)}</div>${r.address ? `<div class="muted" style="font-size:.8rem;">📍 ${esc(r.address)}</div>` : ''}
+      ${r.photoUrls.length ? `<div class="cu-photos">${r.photoUrls.map(u => `<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt="Photo" loading="lazy"></a>`).join('')}</div>` : ''}
+      ${cuSel(CU_ST, r.status, `custSet('customer_requests',${Number(r.id)},{status:this.value})`)}</div>`).join('') : '<p class="muted">No customer requests yet.</p>'}
+    <h3 style="font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;opacity:.7;margin:18px 0 4px;">Visits</h3>
+    ${visits.length ? visits.map(v => `<div class="item"><div class="req-top"><strong>${esc(v.type)}</strong> · ${esc(cuName(v.customer_id))}<span class="muted" style="margin-left:auto;font-size:.75rem;">${esc(fmtDate(v.scheduled_for))}</span></div>
+      ${v.notes ? `<div class="muted" style="font-size:.8rem;">${esc(v.notes)}</div>` : ''}${cuSel(CV_ST, v.status, `custSet('customer_visits',${Number(v.id)},{status:this.value})`)}</div>`).join('') : '<p class="muted">No visits scheduled.</p>'}
+    ${S.cust.people.length ? `<details style="margin-top:10px;"><summary class="muted" style="cursor:pointer;">Schedule a visit</summary>
+      <label>Customer</label><select id="cv-cust">${S.cust.people.map(p => `<option value="${esc(p.id)}">${esc(p.full_name ? p.full_name + ' · ' + p.email : p.email)}</option>`).join('')}</select>
+      <label>Type</label><select id="cv-type">${VISIT_TYPES.map(t => `<option>${esc(t)}</option>`).join('')}</select>
+      <label>When</label><input id="cv-when" type="datetime-local">
+      <label>Notes (optional)</label><input id="cv-notes" placeholder="Gate code, filter size…">
+      <button class="primary" style="margin-top:12px;" onclick="addVisit()">Add visit</button></details>` : ''}</div>`;
+}
+async function custSet(table, id, patch) { await API.custUpdate(table, id, patch); render(); }
+async function addVisit() {
+  const customer_id = document.getElementById('cv-cust').value, type = document.getElementById('cv-type').value, when = document.getElementById('cv-when').value, notes = document.getElementById('cv-notes').value.trim();
+  if (!customer_id || !when) { alert('Pick a customer and a time.'); return; }
+  const { error } = await sb.from('customer_visits').insert({ customer_id, type, scheduled_for: new Date(when).toISOString(), notes: notes || null });
+  if (error) { gpReportError(error, { op: 'customer_visits' }); alert(error.message); return; }
+  await API.loadCustomers(); render();
+}
+
+const roleLabel = r => ({ admin: 'Admin', employee: 'Employee', pending: 'No access (pending)', customer: 'Customer' })[r] || r;
 const OWNER = 'moseley0christian@icloud.com';
 function adminPage() { if (!isAdmin()) return '<div class="card">Admin only.</div>';
   const pend = S.users.filter(u => u.role === 'pending').length;
@@ -477,7 +534,7 @@ function adminPage() { if (!isAdmin()) return '<div class="card">Admin only.</di
     ${pend ? `<p style="margin-top:10px;"><span class="badge pending">${pend} waiting for access</span></p>` : ''}<div id="user-list"></div></div>`; }
 function renderUsers() { const el = document.getElementById('user-list'); if (!el) return;
   const order = { pending: 0, employee: 1, admin: 2 };
-  el.innerHTML = [...S.users].sort((a, b) => order[a.role] - order[b.role] || a.email.localeCompare(b.email)).map(u => {
+  el.innerHTML = S.users.filter(u => u.role !== 'customer').sort((a, b) => order[a.role] - order[b.role] || a.email.localeCompare(b.email)).map(u => {
     const me = S.me && u.id === S.me.id, owner = u.email === OWNER, locked = me || owner;
     const opt = (r, label) => `<button class="seg ${u.role === r ? 'on' : ''}" ${locked || u.role === r ? 'disabled' : ''} onclick="setRole('${esc(u.id)}','${r}')">${label}</button>`;
     return `<div class="item team-row"><div class="team-top"><strong>${esc(u.email)}</strong>${owner ? ' <span class="badge approved">Owner</span>' : me ? ' <span class="badge">You</span>' : ''}</div>
@@ -533,7 +590,7 @@ document.getElementById('main-nav').addEventListener('click', e => {
 });
 API.init().then(()=>{ if (location.hash.length>1) document.querySelector(`.nav button[data-page="${location.hash.slice(1)}"]`)?.click(); render(); });
 </script>
-<script src="town.js?v=23"></script>
-<script src="chat.js?v=3"></script>
+<script src="town.js?v=24"></script>
+<script src="chat.js?v=4"></script>
 </body>
 </html>
