@@ -10,9 +10,8 @@ const TYPE = { repair: 'Repair', urgent: 'Urgent', addon: 'Add-on', cancel: 'Can
 const fmtDay = d => new Date(d).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
 const fmtDT = d => new Date(d).toLocaleString([], { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 
-// Billing hook: Stripe is not wired up yet. When it is, set BILLING.enabled and implement startCheckout()
-// (e.g. call a Supabase edge function that creates a Checkout Session and stores the id in customer_profiles.stripe_customer_id).
-const BILLING = { enabled: false };
+// Billing (Stripe TEST mode): the create-checkout edge function makes a Checkout Session or a Customer Portal session.
+// The stripe-webhook function writes plan/subscription status back to customer_profiles.
 async function startCheckout(/* planId */) { throw new Error('Billing is not set up yet'); }
 
 let S = { user: null, role: null, prof: null, reqs: [], visits: [], contracts: [] };
@@ -120,7 +119,8 @@ function homeView() {
   <button class="urgent" onclick="openRequest('urgent')"><b>Get us out — within 24 hours</b><span>Something urgent? Tell us what happened. We aim to be there within 24 hours.</span></button>
   <div class="card"><div class="top"><h2 style="margin:0;">Your plan</h2></div>
     <p style="margin:8px 0 4px;"><strong>${planName() ? esc(planName()) : 'Plan: not selected'}</strong></p>
-    <p class="muted small" style="margin:0;">${planName() ? 'Ask us anytime about changing your plan.' : 'Pick a plan below and we will follow up to set it up.'}</p></div>
+    <p class="muted small" style="margin:0;">${hasSub() ? (S.prof.cancel_at_period_end ? 'Cancels at the end of this billing period' + (S.prof.current_period_end ? ' (' + esc(fmtDay(S.prof.current_period_end)) + ')' : '') + '. No partial-month refunds.' : (S.prof.subscription_status === 'past_due' ? 'Payment is past due. Please update your card.' : 'Renews monthly' + (S.prof.current_period_end ? ' on ' + esc(fmtDay(S.prof.current_period_end)) : '') + '. Call us to change plans.')) : planName() ? 'Ask us anytime about changing your plan.' : 'Pick a plan below to subscribe.'}</p>
+    ${S.prof && S.prof.stripe_customer_id ? '<button class="secondary" style="margin-top:10px;" onclick="openBillingPortal()">Manage billing</button>' : ''}</div>
   ${plansCard()}
   <div class="card"><h2>Next visit</h2>${nv ? `<p style="margin:0;"><strong>${esc(nv.type)}</strong></p><p class="muted" style="margin:4px 0 0;">${esc(fmtDT(nv.scheduled_for))}</p>${nv.notes ? `<p class="muted small">${esc(nv.notes)}</p>` : ''}` : '<p class="muted" style="margin:0;">No visits scheduled yet.</p>'}
     <button class="link" onclick="go('schedule')">See full schedule ›</button></div>
@@ -145,7 +145,13 @@ function plansCard() {
   return `<div class="card"><h2>Plans</h2><p class="muted small" style="margin-top:0;">Monthly prices, before NM gross receipts tax. Included work is done on one visit each month. Members get outside window cleaning ($179 for a typical home when not included in the plan). Repair parts are billed at cost + 20%, less your plan's materials discount. Included filters are no charge. Handyman work does not include electrical, plumbing or gas work.</p>
     ${PLANS.map(p => `<div class="item"><div class="top"><strong>${esc(p.name)}</strong><span class="right"><strong>$${p.price}</strong><span class="muted small">/mo</span></span></div>
     <ul class="muted small" style="margin:6px 0 8px;padding-left:18px;">${p.items.map(i => `<li>${esc(i)}</li>`).join('')}</ul>
-    <button class="secondary" onclick="requestPlan('${p.key}')">${planName() === p.name ? 'Your current plan' : 'Ask about ' + esc(p.name)}</button></div>`).join('')}</div>`;
+    ${hasSub() ? (planName() === p.name ? '<button class="secondary" disabled>Your current plan</button>' : `<button class="secondary" onclick="requestPlan('${p.key}')">Ask about switching to ${esc(p.name)}</button>`) : `<button onclick="subscribePlan('${p.key}')">Subscribe to ${esc(p.name)}</button>`}</div>`).join('')}</div>`;
+}
+async function subscribePlan(key) {
+  if (BUSY) return; const p = PLANS.find(x => x.key === key); if (!p) return;
+  BUSY = true;
+  try { await startCheckout(key); }
+  catch (e) { BUSY = false; if (e.status === 503) return requestPlan(key); toast(e.message); }
 }
 async function requestPlan(key) {
   if (BUSY) return; const p = PLANS.find(x => x.key === key); if (!p) return;
@@ -257,4 +263,12 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet()
 document.addEventListener('visibilitychange', () => { if (!document.hidden && S.user) load().then(render); });
 sb.auth.onAuthStateChange((ev, s) => { if (ev === 'SIGNED_OUT') { S.user = null; render(); } if (ev === 'TOKEN_REFRESHED' && s) sb.realtime.setAuth(s.access_token); });
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
-(async () => { await load(); if (S.user) await subscribe(); render(); })();
+(async () => {
+  await load(); if (S.user) await subscribe(); render();
+  const ck = new URLSearchParams(location.search).get('checkout');
+  if (ck) {
+    history.replaceState(null, '', location.pathname);
+    if (ck === 'success') { toast('Thanks! Your plan is being set up.'); setTimeout(() => load().then(render), 4000); }
+    else toast('Checkout canceled. You were not charged.');
+  }
+})();
