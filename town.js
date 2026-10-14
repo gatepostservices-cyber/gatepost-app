@@ -438,8 +438,8 @@ function buildGround() {
   // dirt path from village
   const pathLine = (a, b, w, col) => { const A = S3(a[0], a[1], 0), B = S3(b[0], b[1], 0); c.strokeStyle = col; c.lineWidth = w; c.lineCap = 'round'; c.beginPath(); c.moveTo(A[0], A[1]); c.lineTo(B[0], B[1]); c.stroke(); };
   pathLine([20.4, 14.2], [30, 22], K * 1.1, '#c4b18a');
-  // paved streets matching the village path weight
-  STREETS.forEach(st => { pathLine(st.a, st.b, K * (st.main ? 1.4 : 1.0), '#4a4a4a'); pathLine(st.a, st.b, K * (st.main ? 1.0 : 0.7), '#5c5c5c'); if (st.main) { c.setLineDash([K * 0.3, K * 0.2]); pathLine(st.a, st.b, Math.max(1, K * 0.05), '#f2c96b'); c.setLineDash([]); } });
+  // city streets as dirt paths, same as the village
+  STREETS.forEach(st => { pathLine(st.a, st.b, K * (st.main ? 0.95 : 0.62) + 3, C.dirt2); pathLine(st.a, st.b, K * (st.main ? 0.95 : 0.62), C.dirt); });
   // rail
   pathLine(RAIL[0], RAIL[RAIL.length - 1], K * 0.9, '#6b5a43');
   for (let i = 0; i < RAIL.length; i += 3) { const [X, Y] = S3(RAIL[i][0], RAIL[i][1], 0); c.fillStyle = '#5a4a38'; c.fillRect(X - 1, Y - K * 0.22, 2, K * 0.44); }
@@ -593,13 +593,6 @@ function drawCar(c, x, y, col, face) {
   c.fillStyle = face > 0 ? '#f2c96b' : '#ff5a4a'; c.fillRect(face > 0 ? X + 2.7 * u : X - 3.2 * u, Y - 2.0 * u, 0.45 * u, 0.5 * u);
 }
 function drawCityTraffic(c, t) {
-  // ambient cars
-  CARS.forEach(car => {
-    car.t = (car.t + car.speed * 0.016) % 1;
-    const a = car.path.a, b = car.path.b, k = car.face > 0 ? car.t : 1 - car.t;
-    const x = a[0] + (b[0] - a[0]) * k, y = a[1] + (b[1] - a[1]) * k + 0.25;
-    drawCar(c, x, y, car.col, car.face);
-  });
   // train on the rail
   trainT = (trainT + 0.004) % 1;
   const ri = Math.min(RAIL.length - 2, Math.floor(trainT * (RAIL.length - 1)));
@@ -614,18 +607,6 @@ function drawCityTraffic(c, t) {
   CITY_BLDGS.forEach(b => { const [X, Y] = S3(b.cx, b.cy, 2.6); const p = pill([b.role], { bg: 'rgba(20,20,20,.8)' }); c.drawImage(p.img, X - p.w / 2, Y - p.h, p.w, p.h); });
   // bots riding for long trips
   chars.forEach(ch => { if (ch.riding) drawCar(c, ch.x, ch.y, BOTS[ch.i].color, ch.face || 1); });
-  // city agents walking the sidewalks
-  CITY_AGENTS.forEach(ag => {
-    ag.t = (ag.t + ag.speed * 0.016) % 1;
-    const a = ag.path.a, b = ag.path.b;
-    const x = a[0] + (b[0] - a[0]) * ag.t, y = a[1] + (b[1] - a[1]) * ag.t + ag.side;
-    const [X, Y] = S3(x, y, 0), u = K / 13, bob = Math.abs(Math.sin(ag.t * 36)) * u * 0.5, sw = Math.sin(ag.t * 36) * u * 0.4;
-    c.fillStyle = 'rgba(0,0,0,.16)'; c.beginPath(); c.ellipse(X, Y, u * 1.8, u * 0.55, 0, 0, 7); c.fill();
-    c.fillStyle = '#141414'; c.fillRect(X - u * 0.45 + sw, Y - u * 1.6 - bob, u * 0.5, u * 1.6); c.fillRect(X + sw * -0.3, Y - u * 1.6 - bob, u * 0.5, u * 1.6);
-    c.fillStyle = '#1a1a1a'; c.beginPath(); c.roundRect ? c.roundRect(X - u * 1.1, Y - u * 3.4 - bob, u * 2.2, u * 2.0, u * 0.4) : c.rect(X - u * 1.1, Y - u * 3.4 - bob, u * 2.2, u * 2.0); c.fill();
-    c.fillStyle = ag.col; c.beginPath(); c.arc(X, Y - u * 4.2 - bob, u * 1.15, 0, 7); c.fill();
-    c.fillStyle = 'rgba(255,255,255,.3)'; c.beginPath(); c.arc(X - u * 0.3, Y - u * 4.5 - bob, u * 0.35, 0, 7); c.fill();
-  });
 }
 function drawFrame(t, dt) {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
