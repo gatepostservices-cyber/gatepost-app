@@ -430,31 +430,46 @@ function buildGround() {
     c.fillStyle = '#1a1a1a'; c.fillRect(X - K * 0.42, Yt - K * 0.16, K * 0.84, K * 0.18);
   });
 
-  // transition: dirt path from village into the city
-  const dirtIn = (a, b) => { const A = S3(a[0], a[1], 0), B = S3(b[0], b[1], 0); c.strokeStyle = '#c4b18a'; c.lineWidth = K * 1.1; c.lineCap = 'round'; c.beginPath(); c.moveTo(A[0], A[1]); c.lineTo(B[0], B[1]); c.stroke(); };
-  dirtIn([20.4, 14.2], [30, 22]);
-  // paved city streets with sidewalks
-  const street = (a, b, wdt, col) => { const A = S3(a[0], a[1], 0), B = S3(b[0], b[1], 0); c.strokeStyle = col; c.lineWidth = wdt; c.lineCap = 'butt'; c.beginPath(); c.moveTo(A[0], A[1]); c.lineTo(B[0], B[1]); c.stroke(); };
-  STREETS.forEach(st => { street(st.a, st.b, K * (st.main ? 2.2 : 1.5), '#4a4a4a'); street(st.a, st.b, K * (st.main ? 1.7 : 1.1), '#5c5c5c'); });
-  // city blocks as village-style buildings sitting in the blocks
-  const cityWin = (c, len, h) => { const n = Math.max(2, Math.floor(len / 1.2)); for (let i = 0; i < n; i++) { const x = 0.4 + i * (len - 0.8) / Math.max(1, n); for (let r = 0; r < Math.min(2, Math.floor(h / 0.8)); r++) winW(c, x, 0.3 + r * 0.65, 0.4, 0.35, false); } };
-  BLOCKS.forEach(b => {
-    const bb = { cx: b.x, cy: b.y, rot: 0.02 };
-    drawSolid(c, boxS(bb, 0, 0, b.w, b.d, 0, b.h, b.col, { front: cityWin, side: cityWin }));
-    if (b.h > 3) drawSolid(c, boxS(bb, 0, 0, b.w + 0.15, b.d + 0.15, b.h, b.h + 0.12, b.roof));
-    else drawSolid(c, gableS(bb, 0, 0, b.w, b.d, b.h, 0.7, b.roof, '#2a2a2a'));
+  // city ground pad so grass doesn't show through the grid
+  c.fillStyle = '#c8c2b4'; c.beginPath();
+  [[29.6, 13.6], [64.4, 13.6], [64.4, 34.4], [29.6, 34.4]].forEach((p, k) => { const q = S3(p[0], p[1], 0); k ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1]); }); c.closePath(); c.fill();
+  // dirt path from village into the city
+  const pathLine = (a, b, w, col) => { const A = S3(a[0], a[1], 0), B = S3(b[0], b[1], 0); c.strokeStyle = col; c.lineWidth = w; c.lineCap = 'round'; c.beginPath(); c.moveTo(A[0], A[1]); c.lineTo(B[0], B[1]); c.stroke(); };
+  pathLine([20.4, 14.2], [30, 22], K * 1.3, '#c4b18a');
+  pathLine([20.4, 14.2], [30, 22], K * 0.9, '#d4c4a0');
+  // paved streets: curb, asphalt, center line
+  STREETS.forEach(st => {
+    pathLine(st.a, st.b, K * (st.main ? 2.6 : 1.9), '#3a3a3a');
+    pathLine(st.a, st.b, K * (st.main ? 2.2 : 1.55), '#4e4e4e');
+    if (st.main) { c.setLineDash([K * 0.35, K * 0.25]); pathLine(st.a, st.b, Math.max(1.5, K * 0.06), '#f2c96b'); c.setLineDash([]); }
   });
-  // rail bed + rails + ties
-  c.strokeStyle = '#5a4a38'; c.lineWidth = K * 1.1; c.lineCap = 'butt'; c.beginPath();
-  RAIL.forEach((p, k) => { const q = S3(p[0], p[1], 0); k ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1]); }); c.stroke();
-  for (let i = 0; i < RAIL.length; i += 4) { const [X, Y] = S3(RAIL[i][0], RAIL[i][1], 0); c.fillStyle = '#6b5a43'; c.fillRect(X - 1, Y - K * 0.28, 2, K * 0.56); }
-  c.strokeStyle = '#d4cfc3'; c.lineWidth = Math.max(2, K * 0.12);
-  [-0.28, 0.28].forEach(off => { c.beginPath(); RAIL.forEach((p, k) => { const q = S3(p[0], p[1] + off, 0.04); k ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1]); }); c.stroke(); });
-  // station platforms + full names
+  // sidewalks
+  STREETS.forEach(st => { const off = st.main ? 1.5 : 1.1; const a = st.a, b = st.b, dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1, nx = -dy / L * off, ny = dx / L * off;
+    pathLine([a[0] + nx, a[1] + ny], [b[0] + nx, b[1] + ny], K * 0.28, '#d9d3c4');
+    pathLine([a[0] - nx, a[1] - ny], [b[0] - nx, b[1] - ny], K * 0.28, '#d9d3c4'); });
+  // buildings: foundation, walls with windows and a door, proper roof
+  const cityWin = (c, len, h) => {
+    const cols = Math.max(2, Math.floor(len / 0.9)), rows = Math.max(1, Math.floor(h / 0.75));
+    for (let i = 0; i < cols; i++) for (let r = 0; r < rows; r++) winW(c, 0.25 + i * (len - 0.5) / cols, 0.22 + r * (h - 0.4) / rows, 0.38, 0.32, false);
+  };
+  const cityDoor = (c, len, h) => { doorW(c, len, h, 0.55, 0.9, '#3a332a'); };
+  BLOCKS.forEach(b => {
+    const bb = { cx: b.x, cy: b.y, rot: 0 };
+    drawSolid(c, boxS(bb, 0, 0, b.w + 0.3, b.d + 0.3, -0.08, 0.06, '#8a8172'));
+    drawSolid(c, boxS(bb, 0, 0, b.w, b.d, 0, b.h, b.col, { front: (c, len, h) => { cityWin(c, len, h); cityDoor(c, len, h); }, side: cityWin }));
+    if (b.h > 2.8) drawSolid(c, boxS(bb, 0, 0, b.w + 0.18, b.d + 0.18, b.h, b.h + 0.14, b.roof));
+    else drawSolid(c, gableS(bb, 0, 0, b.w, b.d, b.h, 0.65, b.roof, '#2a2a2a', 0.12));
+  });
+  // rail: ballast, ties, rails
+  pathLine(RAIL[0], RAIL[RAIL.length - 1], K * 1.15, '#6b5a43');
+  for (let i = 0; i < RAIL.length; i += 3) { const [X, Y] = S3(RAIL[i][0], RAIL[i][1], 0); c.fillStyle = '#5a4a38'; c.fillRect(X - 1.5, Y - K * 0.32, 3, K * 0.64); }
+  c.strokeStyle = '#cfc8b8'; c.lineWidth = Math.max(2, K * 0.1); c.lineCap = 'butt';
+  [-0.3, 0.3].forEach(off => { c.beginPath(); RAIL.forEach((p, k) => { const q = S3(p[0], p[1] + off, 0.05); k ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1]); }); c.stroke(); });
+  // station platforms
   STATIONS.forEach(st => {
-    const [X, Y] = S3(st.x, st.y - 0.6, 0);
-    const sp = pill([st.name], { bg: 'rgba(20,20,20,.85)', fg: '#F6F4EF' });
-    c.drawImage(sp.img, X - sp.w / 2, Y - sp.h - 4, sp.w, sp.h);
+    const [X, Y] = S3(st.x, st.y + 0.55, 0);
+    c.fillStyle = '#efe9dc'; c.fillRect(X - K * 1.6, Y - K * 0.18, K * 3.2, K * 0.36);
+    c.strokeStyle = '#141414'; c.lineWidth = 1; c.strokeRect(X - K * 1.6, Y - K * 0.18, K * 3.2, K * 0.36);
   });
   // minimap thumbnail
   miniImg = document.createElement('canvas'); miniImg.width = 176; miniImg.height = Math.round(176 * HPX / WPX); miniImg.getContext('2d').drawImage(ground, 0, 0, miniImg.width, miniImg.height);
@@ -593,12 +608,13 @@ function drawBoss(c, t) {
 }
 
 function drawCar(c, x, y, col, face) {
-  const [X, Y] = S3(x, y, 0), u = K / 10;
-  c.fillStyle = 'rgba(0,0,0,.2)'; c.beginPath(); c.ellipse(X, Y, u * 3.2, u * 1.1, 0, 0, 7); c.fill();
-  c.fillStyle = col; c.beginPath(); c.roundRect ? c.roundRect(X - 3.2 * u, Y - 2.4 * u, 6.4 * u, 2.2 * u, u * 0.4) : c.rect(X - 3.2 * u, Y - 2.4 * u, 6.4 * u, 2.2 * u); c.fill();
-  c.fillStyle = '#c9d6df'; c.fillRect(X - 1.6 * u, Y - 2.2 * u, 3.2 * u, 1.1 * u);
-  c.fillStyle = '#1a1a1a'; c.beginPath(); c.arc(X - 2.1 * u, Y - 0.3 * u, 0.7 * u, 0, 7); c.arc(X + 2.1 * u, Y - 0.3 * u, 0.7 * u, 0, 7); c.fill();
-  c.fillStyle = face > 0 ? '#f2c96b' : '#a85a52'; c.fillRect(face > 0 ? X + 2.6 * u : X - 3.2 * u, Y - 1.6 * u, 0.5 * u, 0.6 * u);
+  const [X, Y] = S3(x, y, 0), u = K / 11;
+  c.fillStyle = 'rgba(0,0,0,.18)'; c.beginPath(); c.ellipse(X + 1, Y + 2, u * 3.4, u * 1.2, 0, 0, 7); c.fill();
+  c.fillStyle = '#1a1a1a'; c.beginPath(); c.roundRect ? c.roundRect(X - 3.4 * u, Y - 1.6 * u, 6.8 * u, 1.6 * u, u * 0.3) : c.rect(X - 3.4 * u, Y - 1.6 * u, 6.8 * u, 1.6 * u); c.fill();
+  c.fillStyle = col; c.beginPath(); c.roundRect ? c.roundRect(X - 3.1 * u, Y - 2.8 * u, 6.2 * u, 1.8 * u, u * 0.5) : c.rect(X - 3.1 * u, Y - 2.8 * u, 6.2 * u, 1.8 * u); c.fill();
+  c.fillStyle = '#b9c6cb'; c.fillRect(X - 1.4 * u, Y - 2.5 * u, 2.8 * u, 0.9 * u);
+  c.fillStyle = '#0e0e0e'; c.beginPath(); c.arc(X - 2.0 * u, Y - 0.2 * u, 0.65 * u, 0, 7); c.arc(X + 2.0 * u, Y - 0.2 * u, 0.65 * u, 0, 7); c.fill();
+  c.fillStyle = face > 0 ? '#f2c96b' : '#ff5a4a'; c.fillRect(face > 0 ? X + 2.7 * u : X - 3.2 * u, Y - 2.0 * u, 0.45 * u, 0.5 * u);
 }
 function drawCityTraffic(c, t) {
   // ambient cars
@@ -611,11 +627,13 @@ function drawCityTraffic(c, t) {
   // train on the rail
   trainT = (trainT + 0.004) % 1;
   const ri = Math.min(RAIL.length - 2, Math.floor(trainT * (RAIL.length - 1)));
-  const [tx, ty] = RAIL[ri], [X, Y] = S3(tx, ty, 0), u = K / 9;
-  c.fillStyle = '#2b2b2b'; c.fillRect(X - 4 * u, Y - 3.2 * u, 8 * u, 2.4 * u);
-  c.fillStyle = '#f6f4ef'; c.fillRect(X - 3.4 * u, Y - 2.9 * u, 6.8 * u, 1.2 * u);
-  c.fillStyle = '#a85a52'; c.fillRect(X + 3.2 * u, Y - 3.2 * u, 0.8 * u, 2.4 * u);
-  c.fillStyle = '#1a1a1a'; c.beginPath(); c.arc(X - 2.4 * u, Y - 0.6 * u, 0.55 * u, 0, 7); c.arc(X + 2.4 * u, Y - 0.6 * u, 0.55 * u, 0, 7); c.fill();
+  const [tx, ty] = RAIL[ri], [X, Y] = S3(tx, ty, 0), u = K / 8;
+  c.fillStyle = 'rgba(0,0,0,.15)'; c.beginPath(); c.ellipse(X, Y + 2, u * 4.2, u * 1.1, 0, 0, 7); c.fill();
+  c.fillStyle = '#1a1a1a'; c.beginPath(); c.roundRect ? c.roundRect(X - 4.2 * u, Y - 2.2 * u, 8.4 * u, 2.0 * u, u * 0.3) : c.rect(X - 4.2 * u, Y - 2.2 * u, 8.4 * u, 2.0 * u); c.fill();
+  c.fillStyle = '#2b2b2b'; c.beginPath(); c.roundRect ? c.roundRect(X - 3.8 * u, Y - 3.6 * u, 7.6 * u, 1.8 * u, u * 0.4) : c.rect(X - 3.8 * u, Y - 3.6 * u, 7.6 * u, 1.8 * u); c.fill();
+  c.fillStyle = '#c9d6df'; for (let w = 0; w < 4; w++) c.fillRect(X - 3.2 * u + w * 1.7 * u, Y - 3.3 * u, 1.1 * u, 0.9 * u);
+  c.fillStyle = '#a85a52'; c.fillRect(X + 3.4 * u, Y - 3.6 * u, 0.7 * u, 1.8 * u);
+  c.fillStyle = '#0e0e0e'; c.beginPath(); c.arc(X - 2.6 * u, Y - 0.4 * u, 0.5 * u, 0, 7); c.arc(X + 2.6 * u, Y - 0.4 * u, 0.5 * u, 0, 7); c.fill();
   // bots riding for long trips
   chars.forEach(ch => { if (ch.riding) drawCar(c, ch.x, ch.y, BOTS[ch.i].color, ch.face || 1); });
   // city agents walking the sidewalks
@@ -623,10 +641,12 @@ function drawCityTraffic(c, t) {
     ag.t = (ag.t + ag.speed * 0.016) % 1;
     const a = ag.path.a, b = ag.path.b;
     const x = a[0] + (b[0] - a[0]) * ag.t, y = a[1] + (b[1] - a[1]) * ag.t + ag.side;
-    const [X, Y] = S3(x, y, 0), u = K / 14, bob = Math.abs(Math.sin(ag.t * 40)) * u * 0.4;
-    c.fillStyle = 'rgba(0,0,0,.18)'; c.beginPath(); c.ellipse(X, Y, u * 1.6, u * 0.5, 0, 0, 7); c.fill();
-    c.fillStyle = '#0e0e0e'; c.fillRect(X - u * 0.7, Y - u * 2.2 - bob, u * 1.4, u * 2.2);
-    c.fillStyle = ag.col; c.beginPath(); c.arc(X, Y - u * 3.2 - bob, u * 1.1, 0, 7); c.fill();
+    const [X, Y] = S3(x, y, 0), u = K / 13, bob = Math.abs(Math.sin(ag.t * 36)) * u * 0.5, sw = Math.sin(ag.t * 36) * u * 0.4;
+    c.fillStyle = 'rgba(0,0,0,.16)'; c.beginPath(); c.ellipse(X, Y, u * 1.8, u * 0.55, 0, 0, 7); c.fill();
+    c.fillStyle = '#141414'; c.fillRect(X - u * 0.45 + sw, Y - u * 1.6 - bob, u * 0.5, u * 1.6); c.fillRect(X + sw * -0.3, Y - u * 1.6 - bob, u * 0.5, u * 1.6);
+    c.fillStyle = '#1a1a1a'; c.beginPath(); c.roundRect ? c.roundRect(X - u * 1.1, Y - u * 3.4 - bob, u * 2.2, u * 2.0, u * 0.4) : c.rect(X - u * 1.1, Y - u * 3.4 - bob, u * 2.2, u * 2.0); c.fill();
+    c.fillStyle = ag.col; c.beginPath(); c.arc(X, Y - u * 4.2 - bob, u * 1.15, 0, 7); c.fill();
+    c.fillStyle = 'rgba(255,255,255,.3)'; c.beginPath(); c.arc(X - u * 0.3, Y - u * 4.5 - bob, u * 0.35, 0, 7); c.fill();
   });
   // role signs on buildings
   BLOCKS.forEach(b => { const [X, Y] = S3(b.x, b.y, b.h + 0.4); const p = pill([b.role], { bg: 'rgba(20,20,20,.8)' }); c.drawImage(p.img, X - p.w / 2, Y - p.h, p.w, p.h); });
