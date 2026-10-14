@@ -120,7 +120,8 @@ function homeView() {
   <button class="urgent" onclick="openRequest('urgent')"><b>Get us out — within 24 hours</b><span>Something urgent? Tell us what happened. We aim to be there within 24 hours.</span></button>
   <div class="card"><div class="top"><h2 style="margin:0;">Your plan</h2></div>
     <p style="margin:8px 0 4px;"><strong>${planName() ? esc(planName()) : 'Plan: not selected'}</strong></p>
-    <p class="muted small" style="margin:0;">${planName() ? 'Ask us anytime about changing your plan.' : 'Plan options are coming soon. We will reach out when they are ready.'}</p></div>
+    <p class="muted small" style="margin:0;">${planName() ? 'Ask us anytime about changing your plan.' : 'Pick a plan below and we will follow up to set it up.'}</p></div>
+  ${plansCard()}
   <div class="card"><h2>Next visit</h2>${nv ? `<p style="margin:0;"><strong>${esc(nv.type)}</strong></p><p class="muted" style="margin:4px 0 0;">${esc(fmtDT(nv.scheduled_for))}</p>${nv.notes ? `<p class="muted small">${esc(nv.notes)}</p>` : ''}` : '<p class="muted" style="margin:0;">No visits scheduled yet.</p>'}
     <button class="link" onclick="go('schedule')">See full schedule ›</button></div>
   <div class="card"><div class="top"><h2 style="margin:0;">My requests</h2></div>
@@ -135,13 +136,30 @@ function scheduleView() {
   <div class="card"><h2>Upcoming visits</h2>${up.length ? up.map(row).join('') : '<p class="muted">No visits scheduled yet. Maintenance like AC and furnace filter changes, weeding and gutter checks will show up here once booked.</p>'}</div>
   ${past.length ? `<div class="card"><h2>Past visits</h2>${past.map(row).join('')}</div>` : ''}`;
 }
+const PLANS = [
+  { key: 'oncall', name: 'On-Call', price: 29, items: ['One 1-hour handyman visit a year', 'Extra hand weeding at 10% off: $40.50/hr, $67.50 minimum (no minimum when added to a booked visit)'] },
+  { key: 'keepup', name: 'Keep-Up', price: 89, items: ['1 hour of hand weeding every month', '1-hour handyman visit every quarter', 'Extra hand weeding at 15% off: $38.25/hr, $63.75 minimum for a separate trip'] },
+  { key: 'fullcare', name: 'Full Care', price: 169, items: ['1.5 hours of hand weeding every month', '1.5-hour handyman visit every quarter', '2-hour pressure wash every quarter', 'Outside window cleaning twice a year', 'Extra hand weeding at 20% off: $36/hr, $60 minimum for a separate trip'] },
+  { key: 'landlord', name: 'Landlord', price: 245, items: ['1-hour handyman visit every month', '2 hours of hand weeding every month', '2-hour pressure wash every quarter', 'Outside window cleaning four times a year', 'Extra hand weeding at 20% off: $36/hr, $60 minimum for a separate trip'] }];
+function plansCard() {
+  return `<div class="card"><h2>Plans</h2><p class="muted small" style="margin-top:0;">Monthly prices, before NM gross receipts tax. Included work is done on one visit each month. Members get outside window cleaning ($179 for a typical home when not included in the plan). Filters and repair parts are billed at cost + 20%. Handyman work does not include electrical, plumbing or gas work.</p>
+    ${PLANS.map(p => `<div class="item"><div class="top"><strong>${esc(p.name)}</strong><span class="right"><strong>$${p.price}</strong><span class="muted small">/mo</span></span></div>
+    <ul class="muted small" style="margin:6px 0 8px;padding-left:18px;">${p.items.map(i => `<li>${esc(i)}</li>`).join('')}</ul>
+    <button class="secondary" onclick="requestPlan('${p.key}')">${planName() === p.name ? 'Your current plan' : 'Ask about ' + esc(p.name)}</button></div>`).join('')}</div>`;
+}
+async function requestPlan(key) {
+  if (BUSY) return; const p = PLANS.find(x => x.key === key); if (!p) return;
+  if (!confirm(`Ask about the ${p.name} plan ($${p.price}/mo)? We will contact you to set it up. You will not be charged now.`)) return;
+  BUSY = true; const err = await createRequest({ type: 'addon', description: `Plan request: ${p.name} ($${p.price}/mo)`, address: S.prof && S.prof.address }); BUSY = false;
+  toast(err ? err : 'Request sent. We will be in touch.'); render();
+}
 const ADDONS = [
-  { key: 'windows', ico: '🪟', name: 'Window cleaning', text: 'Inside and out, screens and tracks.' },
+  { key: 'windows', ico: '🪟', name: 'Window cleaning', text: 'Outside windows. About $179 for a typical home.' },
   { key: 'pressure', ico: '💦', name: 'Pressure washing', text: 'Driveways, walkways, patios and walls.' },
   { key: 'weeding', ico: '🌿', name: 'Weeding', text: 'Beds, gravel and yard cleanup.' },
   { key: 'gutters', ico: '🏠', name: 'Gutter check', text: 'Clear and check gutters and downspouts.' },
   { key: 'acfilter', ico: '🌬️', name: 'AC / furnace filters', text: 'Filter changes on a regular schedule.' },
-  { key: 'upgrade', ico: '⬆️', name: 'Upgrade my plan', text: 'More visits or more coverage. Options are coming soon.', wide: true }];
+  { key: 'upgrade', ico: '⬆️', name: 'Upgrade my plan', text: 'On-Call $29, Keep-Up $89, Full Care $169, Landlord $245 a month. See Plans on the Home tab.', wide: true }];
 function addonsView() {
   return `<h1>Add-ons</h1><p class="muted">Tap “Request this” and we will follow up with details and timing.</p>
   <div class="addons">${ADDONS.map(a => `<div class="addon${a.wide ? ' wide' : ''}"><span class="ico">${a.ico}</span><b>${esc(a.name)}</b><span class="muted">${esc(a.text)}</span>
