@@ -11,7 +11,7 @@ const BOTS = [
   { name: 'Gatepost App', short: 'App', role: 'Builds and maintains this app', color: C.slate, place: 'Tech Garage', glyph: '</>', type: 'garage', at: [22.4, 22.4], work: 'In the tech garage, tinkering with the app.' },
 ];
 const HOME_AT = [[3.4, 31.2], [8.7, 33.6], [13.2, 30.6], [18.6, 33.2], [23.8, 30.4]];
-const WX = 28, WY = 44, TILT = 0.62, ZK = 0.82;
+const WX = 42, WY = 44, TILT = 0.62, ZK = 0.82;
 let ADMIN = false;
 
 // ---------- seeded layout (fixed seed: identical on every device and reload) ----------
@@ -21,6 +21,7 @@ const SIZES = { hall: [5.0, 3.4], tower: [2.6, 2.6], shop: [4.0, 3.0], kiosk: [3
 function mkB(type, at, extra) { const s = rr(0.92, 1.1), [w, d] = SIZES[type]; return Object.assign({ type, cx: at[0] + rr(-0.5, 0.5), cy: at[1] + rr(-0.5, 0.5), rot: rsign() * rr(0.17, 0.46), w: w * s, d: d * s, s }, extra || {}); }
 BOTS.forEach(bt => { bt.b = mkB(bt.type, bt.at); });
 const HQ = mkB('hq', [14.2, 19.6]); HQ.rot = rsign() * rr(0.1, 0.22);
+const AI = mkB('shop', [36.4, 7.2]); AI.rot = 0.05; AI.black = true;
 BOTS.forEach((bt, i) => { bt.home = mkB('home', HOME_AT[i], { col: bt.color }); });
 const loc = (b, lx, ly) => { const c = Math.cos(b.rot), s = Math.sin(b.rot); return [b.cx + lx * c - ly * s, b.cy + lx * s + ly * c]; };
 const doorOf = b => loc(b, 0, b.d / 2 + 0.55);
@@ -39,6 +40,9 @@ function edge(a, b) { const A = N[a].p, B = N[b].p, mx = (A[0] + B[0]) / 2, my =
   let len = 0; for (let k = 1; k < pts.length; k++) len += Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]);
   const e = { a, b, pts, len, main: !/^h/.test(a + b) }; EDGES.push(e); N[a].e.push(e); N[b].e.push(e); }
 [['w1', 'L'], ['L', 'A'], ['w0', 'A'], ['A', 'B'], ['B', 'C'], ['w2', 'C'], ['B', 'hq'], ['A', 'D'], ['w3', 'D'], ['D', 'E'], ['hq', 'E'], ['E', 'F'], ['C', 'F'], ['w4', 'F'], ['h0', 'D'], ['h1', 'D'], ['h2', 'E'], ['h3', 'F'], ['h4', 'F'], ['E', 'G'], ['G', 'P'], ['P', 'dock']].forEach(([a, b]) => edge(a, b));
+nd('ai', doorOf(AI));
+edge('ai', 'C');
+const AI_EDGE = EDGES[EDGES.length - 1]; AI_EDGE.faint = true; AI_EDGE.main = false;
 function route(from, to) {
   if (from === to) return [N[to].p.slice()];
   const dist = { [from]: 0 }, prev = {}, todo = new Set(Object.keys(N));
@@ -48,18 +52,19 @@ function route(from, to) {
   const out = []; legs.forEach(l => l.forEach((p, j) => { if (j || !out.length) out.push(p.slice()); })); return out;
 }
 // terrain: hills, trees, rocks, flowers (rejection sampling against buildings, paths and water)
-const ALLB = BOTS.map(b => b.b).concat([HQ], BOTS.map(b => b.home));
+const ALLB = BOTS.map(b => b.b).concat([HQ, AI], BOTS.map(b => b.home));
 const nearPath = (x, y, r) => EDGES.some(e => e.pts.some(p => Math.abs(p[0] - x) < r && Math.abs(p[1] - y) < r && Math.hypot(p[0] - x, p[1] - y) < r));
 const nearB = (x, y, pad) => ALLB.some(b => Math.hypot(b.cx - x, b.cy - y) < Math.max(b.w, b.d) / 2 + pad) || (x > HQ.cx - 5 && x < HQ.cx - 2.6 && y > HQ.cy && y < HQ.cy + 3);
+const inCamp = (x, y) => x > 33.0 && x < 40.2 && y > 4.4 && y < 10.6;
 const HILLS = [{ x: BOTS[1].b.cx + 0.3, y: BOTS[1].b.cy + 0.6, r: 3.6 }, { x: 25.2, y: 3.2, r: 3.0 }, { x: 15.0, y: 4.0, r: 2.6 }, { x: 1.6, y: 16.2, r: 2.4 }, { x: 26.0, y: 16.6, r: 2.2 }, { x: 11.2, y: 37.6, r: 1.6 }];
 const TREES = [], ROCKS = [], FLOWERS = [];
 for (let k = 0; k < 900 && TREES.length < 78; k++) { const x = rr(0.3, WX - 0.3), y = rr(0.6, 36), r = rr(0.42, 0.72);
-  if (y > shoreY(x) - 1.3 || nearB(x, y, 1.1 + r) || nearPath(x, y, 0.95 + r * 0.6) || TREES.some(t => Math.hypot(t.x - x, t.y - y) < t.r + r + 0.15)) continue;
+  if (inCamp(x, y) || y > shoreY(x) - 1.3 || nearB(x, y, 1.1 + r) || nearPath(x, y, 0.95 + r * 0.6) || TREES.some(t => Math.hypot(t.x - x, t.y - y) < t.r + r + 0.15)) continue;
   TREES.push({ x, y, r, pine: R() < 0.34, tone: R() }); }
 for (let k = 0; k < 500 && ROCKS.length < 34; k++) { const x = rr(0.3, WX - 0.3), y = rr(0.6, 38.5), r = rr(0.14, 0.4);
-  if (y > shoreY(x) + 0.5 || nearB(x, y, 0.8) || nearPath(x, y, 0.7) || TREES.some(t => Math.hypot(t.x - x, t.y - y) < t.r + 0.3)) continue;
+  if (inCamp(x, y) || y > shoreY(x) + 0.5 || nearB(x, y, 0.8) || nearPath(x, y, 0.7) || TREES.some(t => Math.hypot(t.x - x, t.y - y) < t.r + 0.3)) continue;
   ROCKS.push({ x, y, r, seed: R() * 99 }); }
-for (let k = 0; k < 400 && FLOWERS.length < 70; k++) { const x = rr(0.3, WX - 0.3), y = rr(0.6, 36); if (y > shoreY(x) - 1 || nearB(x, y, 0.5) || nearPath(x, y, 0.6)) continue; FLOWERS.push([x, y, Math.floor(R() * 3)]); }
+for (let k = 0; k < 400 && FLOWERS.length < 70; k++) { const x = rr(0.3, WX - 0.3), y = rr(0.6, 36); if (inCamp(x, y) || y > shoreY(x) - 1 || nearB(x, y, 0.5) || nearPath(x, y, 0.6)) continue; FLOWERS.push([x, y, Math.floor(R() * 3)]); }
 const LAMPS = [N.A.p, N.B.p, N.C.p, N.D.p, N.E.p, N.F.p].map(p => [p[0] + 0.55, p[1] - 0.25]);
 const LANTERNS = [[PIER.x0 - 0.05, 38.4], [PIER.x1 + 0.05, 39.9], [PIER.x0 - 0.05, 41.3]];
 const BOARD = (() => { const p = loc(HQ, -HQ.w / 2 - 1.1, HQ.d / 2 + 0.6); return { x: p[0], y: p[1] }; })();
@@ -245,11 +250,12 @@ function buildingSolids(bt, b) {
     out.push(hipS(b, 0, 0, 2.5, 2.5, 5.0, 1.4, bt.color, 0.25));
     const tp = loc(b, 0, 0); ex.beacon = [tp[0], tp[1], 6.55]; ex.top = 6.9;
   } else if (b.type === 'shop') {
-    out.push(boxS(b, 0, 0, w, d, 0, 2.3, C.wall, { front: (c, L, H) => { R2(c, 0.3, 0.45, 1.6, 1.0, C.ink); R2(c, 0.35, 0.5, 1.5, 0.9, lit ? C.lit : '#c9d6df'); c.strokeStyle = C.slate; c.lineWidth = 0.05; c.beginPath(); c.moveTo(0.5, 1.25); c.lineTo(1.7, 0.65); c.stroke();
-      doorW(c, L * 1.25, H, 0.75, 1.45); R2(c, L - 1.0, 0.25, 0.75, 0.42, C.paper); R2(c, L - 0.92, 0.42, 0.55, 0.05, C.tan); for (let k = 0; k < 2; k++) { R2(c, 0.3 + k * 0.8, H - 0.75, 0.7, 0.75, '#a9a79f'); R2(c, 0.55 + k * 0.8, H - 0.5, 0.2, 0.05, C.ink); } },
+    const wall = b.black ? '#1a1a1a' : C.wall, roof = b.black ? '#0e0e0e' : (bt ? bt.color : C.ink);
+    out.push(boxS(b, 0, 0, w, d, 0, 2.3, wall, { front: (c, L, H) => { R2(c, 0.3, 0.45, 1.6, 1.0, C.ink); R2(c, 0.35, 0.5, 1.5, 0.9, b.black ? '#2a2a2a' : (lit ? C.lit : '#c9d6df')); c.strokeStyle = C.slate; c.lineWidth = 0.05; c.beginPath(); c.moveTo(0.5, 1.25); c.lineTo(1.7, 0.65); c.stroke();
+      doorW(c, L * 1.25, H, 0.75, 1.45); if (!b.black) { R2(c, L - 1.0, 0.25, 0.75, 0.42, C.paper); R2(c, L - 0.92, 0.42, 0.55, 0.05, C.tan); } for (let k = 0; k < 2; k++) { R2(c, 0.3 + k * 0.8, H - 0.75, 0.7, 0.75, b.black ? '#2c2c2c' : '#a9a79f'); R2(c, 0.55 + k * 0.8, H - 0.5, 0.2, 0.05, C.ink); } },
       side: (c, L, H) => winW(c, L / 2 - 0.35, 0.55, 0.7, 0.75, lit) }));
-    out.push(gableS(b, 0, 0, w, d, 2.3, 1.3, bt.color, C.wall));
-    out.push(boxS(b, w * 0.28, -0.35, 0.4, 0.4, 2.4, 3.8, '#8a6d45'));
+    out.push(gableS(b, 0, 0, w, d, 2.3, 1.3, roof, wall));
+    out.push(boxS(b, w * 0.28, -0.35, 0.4, 0.4, 2.4, 3.8, b.black ? '#2a2a2a' : '#8a6d45'));
     const tp = loc(b, 0, 0); ex.top = 3.9;
   } else if (b.type === 'kiosk') {
     out.push(boxS(b, -w / 2 + 0.2, 0, 0.2, 0.2, 0, 2.4, '#6b5a43')); out.push(boxS(b, w / 2 - 0.2, 0, 0.2, 0.2, 0, 2.4, '#6b5a43'));
@@ -309,7 +315,7 @@ function buildSprites() {
       if (ex.pole) { const a = S3(ex.pole[0], ex.pole[1], ex.pole[2]), z = S3(ex.pole[0], ex.pole[1], ex.pole[3]); R2(c, a[0] - 1, z[1], 2, a[1] - z[1], C.ink); }
       if (ex.bushes) ex.bushes.forEach(p => { const q = S3(p[0], p[1], p[2]); c.fillStyle = C.tree2; c.beginPath(); c.arc(q[0], q[1], K * 0.3, 0, 7); c.fill(); c.fillStyle = C.tree; c.beginPath(); c.arc(q[0] - K * 0.06, q[1] - K * 0.06, K * 0.22, 0, 7); c.fill(); }); }, bb));
     b.screen = bb; };
-  BOTS.forEach((bt, i) => { add(bt, bt.b, i); add(bt, bt.home, i); }); add(null, HQ, 'hq');
+  BOTS.forEach((bt, i) => { add(bt, bt.b, i); add(bt, bt.home, i); }); add(null, HQ, 'hq'); add({ color: '#141414', name: 'AI' }, AI, 'ai');
   TREES.forEach(t => { const [X, Y] = S3(t.x, t.y, 0), r = t.r * K; SPRITES.push(mkSprite(t.y, null, c => treeDraw(c, t), [X - r * 1.3, Y - r * 3.4, X + r * 1.3, Y + 2])); });
   LAMPS.forEach(([x, y]) => { const [X, Y] = S3(x, y, 0), [, Yt] = S3(x, y, 1.6); SPRITES.push(mkSprite(y, null, c => lampDraw(c, x, y, 1.6), [X - K * 0.3, Yt - K * 0.5, X + K * 0.3, Y + 2])); });
   LANTERNS.forEach(([x, y]) => { const [X, Y] = S3(x, y, 0.3), [, Yt] = S3(x, y, 1.6); SPRITES.push(mkSprite(y, 'dock', c => lampDraw(c, x, y - 0.3 * ZK / TILT, 1.6, true), [X - K * 0.4, Yt - K * 0.6, X + K * 0.4, Y + 4])); });
@@ -347,9 +353,10 @@ function buildGround() {
   TREES.forEach(t => { const [X, Y] = S3(t.x + t.r * 0.9, t.y + 0.2, 0); c.beginPath(); c.ellipse(X, Y, t.r * K * 1.3, t.r * K * TILT * 0.9, 0, 0, 7); c.fill(); });
   // paths
   const stroke = (pts, wdt, col) => { c.strokeStyle = col; c.lineWidth = wdt; c.lineCap = 'round'; c.lineJoin = 'round'; c.beginPath(); pts.forEach((p, k) => { const q = S3(p[0], p[1], 0); k ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1]); }); c.stroke(); };
-  EDGES.forEach(e => { if (e.b === 'dock') return; stroke(e.pts, K * (e.main ? 0.95 : 0.62) + 3, C.dirt2); });
-  EDGES.forEach(e => { if (e.b === 'dock') return; stroke(e.pts, K * (e.main ? 0.95 : 0.62), C.dirt); });
-  EDGES.forEach(e => e.pts.forEach((p, k) => { if (k % 2 || e.b === 'dock') return; const [X, Y] = S3(p[0] + (r() - 0.5) * 0.6, p[1] + (r() - 0.5) * 0.4, 0); c.fillStyle = 'rgba(140,120,85,.35)'; c.fillRect(X, Y, 2, 1.5); }));
+  EDGES.forEach(e => { if (e.b === 'dock' || e.faint) return; stroke(e.pts, K * (e.main ? 0.95 : 0.62) + 3, C.dirt2); });
+  EDGES.forEach(e => { if (e.b === 'dock' || e.faint) return; stroke(e.pts, K * (e.main ? 0.95 : 0.62), C.dirt); });
+  EDGES.forEach(e => { if (!e.faint) return; stroke(e.pts, K * 0.28, 'rgba(160,145,115,.55)'); stroke(e.pts, K * 0.16, 'rgba(180,165,135,.7)'); });
+  EDGES.forEach(e => e.pts.forEach((p, k) => { if (k % 2 || e.b === 'dock' || e.faint) return; const [X, Y] = S3(p[0] + (r() - 0.5) * 0.6, p[1] + (r() - 0.5) * 0.4, 0); c.fillStyle = 'rgba(140,120,85,.35)'; c.fillRect(X, Y, 2, 1.5); }));
   // pier (deck at z 0.3, posts into the water)
   const deck = [[PIER.x0, PIER.y0], [PIER.x1, PIER.y0], [PIER.x1, PIER.y1], [PIER.x0, PIER.y1]].map(p => S3(p[0], p[1], 0.3));
   for (let y = PIER.y0 + 0.6; y <= PIER.y1; y += 1.1) [PIER.x0 + 0.05, PIER.x1 - 0.05].forEach(x => { const a = S3(x, y, 0.3), b2 = S3(x, y, -0.5); R2(c, a[0] - K * 0.08, a[1], K * 0.16, b2[1] - a[1], '#4a3622'); });
@@ -366,6 +373,29 @@ function buildGround() {
     c.fillStyle = 'rgba(40,34,24,.18)'; c.beginPath(); c.ellipse(X + rx * 0.35, Y + ry * 0.2, rx, ry * 0.5, 0, 0, 7); c.fill();
     c.fillStyle = '#b4ad9e'; c.beginPath(); pts.forEach((p, k) => k ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.closePath(); c.fill(); c.strokeStyle = 'rgba(20,20,20,.6)'; c.lineWidth = 1; c.stroke();
     c.fillStyle = '#d4cfc3'; c.beginPath(); c.ellipse(X - rx * 0.25, Y - ry * 0.85, rx * 0.4, ry * 0.3, -0.3, 0, 7); c.fill(); });
+
+  // black house compound: mud yard, barbed wire, corner towers
+  const camp = [[33.2, 4.6], [39.9, 4.6], [39.9, 10.4], [33.2, 10.4]];
+  c.fillStyle = '#b7a88a'; c.beginPath();
+  camp.forEach((p, k) => { const q = S3(p[0], p[1], 0); k ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1]); }); c.closePath(); c.fill();
+  for (let k = 0; k < 40; k++) { const [X, Y] = S3(33.4 + (k * 1.7 % 6.2), 4.8 + (k * 1.3 % 5.2), 0); c.fillStyle = 'rgba(90,70,45,.25)'; c.beginPath(); c.ellipse(X, Y, K * 0.35, K * 0.12, 0, 0, 7); c.fill(); }
+  const wire = (a, b) => {
+    const n = 10; for (let i = 0; i <= n; i++) {
+      const t = i / n, x = a[0] + (b[0] - a[0]) * t, y = a[1] + (b[1] - a[1]) * t, [X, Y] = S3(x, y, 0);
+      if (i % 2 === 0) { c.fillStyle = '#4a4034'; c.fillRect(X - 1.5, Y - K * 0.55, 3, K * 0.55); }
+    }
+    [[0.22, '#2a2a2a'], [0.42, '#3a3a3a']].forEach(([h, col]) => {
+      c.strokeStyle = col; c.lineWidth = Math.max(1, K / 28); c.beginPath();
+      for (let i = 0; i <= n; i++) { const t = i / n, x = a[0] + (b[0] - a[0]) * t, y = a[1] + (b[1] - a[1]) * t, [X, Y] = S3(x, y, h); i ? c.lineTo(X, Y) : c.moveTo(X, Y); } c.stroke();
+      for (let i = 1; i < n; i++) { const t = i / n, x = a[0] + (b[0] - a[0]) * t, y = a[1] + (b[1] - a[1]) * t, [X, Y] = S3(x, y, h); c.beginPath(); c.arc(X, Y, 1.4, 0, 7); c.stroke(); }
+    });
+  };
+  wire([33.2, 4.6], [39.9, 4.6]); wire([39.9, 4.6], [39.9, 10.4]); wire([39.9, 10.4], [33.2, 10.4]); wire([33.2, 10.4], [33.2, 4.6]);
+  [[33.2, 4.6], [39.9, 4.6], [39.9, 10.4], [33.2, 10.4]].forEach(([x, y]) => {
+    const [X, Y] = S3(x, y, 0), [, Yt] = S3(x, y, 2.4);
+    c.fillStyle = '#2c2c2c'; c.fillRect(X - K * 0.28, Yt, K * 0.56, Y - Yt);
+    c.fillStyle = '#1a1a1a'; c.fillRect(X - K * 0.42, Yt - K * 0.16, K * 0.84, K * 0.18);
+  });
   // minimap thumbnail
   miniImg = document.createElement('canvas'); miniImg.width = 176; miniImg.height = Math.round(176 * HPX / WPX); miniImg.getContext('2d').drawImage(ground, 0, 0, miniImg.width, miniImg.height);
   const mc = miniImg.getContext('2d'), ms = miniImg.width / WPX; ALLB.forEach(b => { const q = S3(b.cx, b.cy, 0); mc.fillStyle = b === HQ ? '#141414' : b.type === 'home' ? '#8a8172' : '#3a332a'; mc.fillRect(q[0] * ms - 3, q[1] * ms - 3, b.type === 'home' ? 4 : 6, b.type === 'home' ? 4 : 6); });
@@ -465,6 +495,42 @@ const puffs = [];
 let ZM = 1; const ZMIN = 0.5, ZMAX = 2.5, VW = () => W / ZM, VH = () => H / ZM;
 function inView(x, y, w, h) { return x + w > cam.x - 20 && x < cam.x + VW() + 20 && y + h > cam.y - 20 && y < cam.y + VH() + 20; }
 let LABELRECTS = [];
+
+// black robot on a tower closer to town; constant red beam to a tower beside the black house
+const BOSS = { x: 27.2, y: 11.6 };
+const RELAY = { x: 34.6, y: 8.4 };
+function towerAt(c, x, y, h, col) {
+  const [X, Y] = S3(x, y, 0), [, Yt] = S3(x, y, h);
+  c.fillStyle = 'rgba(0,0,0,.22)'; c.beginPath(); c.ellipse(X, Y, K * 1.1, K * 0.35, 0, 0, 7); c.fill();
+  c.fillStyle = col; c.fillRect(X - K * 0.55, Yt, K * 1.1, Y - Yt);
+  c.fillStyle = '#2a2a2a'; c.fillRect(X - K * 0.7, Yt - K * 0.18, K * 1.4, K * 0.22);
+  c.strokeStyle = '#3a3a3a'; c.lineWidth = 1;
+  for (let k = 0.4; k < h; k += 0.7) { const [, yy] = S3(x, y, k); c.beginPath(); c.moveTo(X - K * 0.5, yy); c.lineTo(X + K * 0.5, yy); c.stroke(); }
+  return [X, Yt];
+}
+function drawBoss(c, t) {
+  const [bx, by] = towerAt(c, BOSS.x, BOSS.y, 4.6, '#1a1a1a');
+  const [rx, ry] = towerAt(c, RELAY.x, RELAY.y, 3.2, '#222');
+  // black robot on the town-side tower
+  const u = K / 11;
+  const r = (x, y, w, h, col) => { c.fillStyle = col; c.fillRect(bx + x * u, by + y * u, w * u, h * u); };
+  r(-2.4, -5.2, 1.6, 4.6, '#0e0e0e'); r(0.8, -5.2, 1.6, 4.6, '#0e0e0e');
+  r(-3.4, -12.5, 6.8, 7.4, '#141414'); r(-2.7, -11.6, 5.4, 5.6, '#1c1c1c');
+  r(-4.6, -11, 1.4, 4.2, '#0e0e0e'); r(3.2, -11, 1.4, 4.2, '#0e0e0e');
+  r(-2.8, -19.5, 5.6, 7, '#0e0e0e'); r(-2.1, -18.6, 4.2, 5.2, '#1a1a1a');
+  c.fillStyle = '#f6f4ef'; c.beginPath(); c.arc(bx - 1.0 * u, by - 16.2 * u, 0.55 * u, 0, 7); c.arc(bx + 1.0 * u, by - 16.2 * u, 0.55 * u, 0, 7); c.fill();
+  // constant red beam
+  const pulse = 0.75 + 0.25 * Math.sin(t * 6);
+  c.strokeStyle = 'rgba(180,20,20,' + pulse + ')'; c.lineWidth = Math.max(2, K * 0.12);
+  c.beginPath(); c.moveTo(bx, by - 16 * u); c.lineTo(rx, ry - K * 0.4); c.stroke();
+  c.strokeStyle = 'rgba(255,60,40,' + (pulse * 0.6) + ')'; c.lineWidth = Math.max(1, K * 0.05);
+  c.beginPath(); c.moveTo(bx, by - 16 * u); c.lineTo(rx, ry - K * 0.4); c.stroke();
+  c.fillStyle = '#ff3a28'; c.beginPath(); c.arc(rx, ry - K * 0.4, Math.max(3, K * 0.12), 0, 7); c.fill();
+  // black agent at the house door
+  const door = doorOf(AI), [ax, ay] = S3(door[0], door[1], 0), au = K / 14;
+  c.fillStyle = '#0e0e0e'; c.beginPath(); c.arc(ax, ay - 6 * au, 2.2 * au, 0, 7); c.fill();
+  c.fillRect(ax - 1.6 * au, ay - 4 * au, 3.2 * au, 4 * au);
+}
 function drawFrame(t, dt) {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   { const sx = Math.max(0, cam.x), sy = Math.max(0, cam.y), sw = Math.min(WPX - sx, VW() - (sx - cam.x)), sh = Math.min(HPX - sy, VH() - (sy - cam.y)), k = dpr * ZM; if (cam.x < 0 || cam.y < 0 || sw < VW() || sh < VH()) { ctx.fillStyle = '#c9d2b6'; ctx.fillRect(0, 0, cv.width, cv.height); const wb = (HPX - cam.y) * k; if (wb < cv.height) { ctx.fillStyle = '#5f8ea3'; ctx.fillRect(0, wb, cv.width, cv.height - wb); } } ctx.drawImage(ground, sx * gdpr, sy * gdpr, sw * gdpr, sh * gdpr, (sx - cam.x) * k, (sy - cam.y) * k, sw * k, sh * k); }
@@ -510,6 +576,8 @@ function drawFrame(t, dt) {
     sign(bt.b, line2 ? [bt.place, line2] : [bt.place], i, ADMIN ? [s.pending && { n: s.pending, col: C.red, kind: 'count' }, u && { n: u, col: C.slate, kind: 'chat' }].filter(Boolean) : []); });
   const op = ADMIN ? otherPending() : 0, wq = ADMIN ? waitingQueue().length : 0;
   sign(HQ, ADMIN ? ['Christian\u2019s HQ', `${wq} waiting on you`] : ['Gatepost HQ'], 'hq', op ? [{ n: op, col: C.red, kind: 'count' }] : []);
+  sign(AI, ['AI Desk'], 'ai');
+  drawBoss(ctx, t);
   chars.forEach(ch => drawRobotOver(ctx, ch, t));
   pops.forEach(p => { const k = p.t / 1.3, [X, Y] = S3(p.x, p.y, 1.6 + k * 0.9); ctx.globalAlpha = 1 - k; if (p.item) drawItem(ctx, p.item, X, Y, K / 14 * (1 - k * 0.5));
     ctx.fillStyle = C.sage; ctx.beginPath(); ctx.arc(X + K * 0.45, Y - K * 0.2, K * 0.24, 0, 7); ctx.fill(); ctx.fillStyle = C.cream; ctx.font = FONT(700, K * 0.3); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('✓', X + K * 0.45, Y - K * 0.2 + 0.5); ctx.globalAlpha = 1; });
@@ -583,7 +651,7 @@ function setup() {
   cv.onpointerup = cv.onpointercancel = e => { pts.delete(e.pointerId);
     if (pinch) { if (pts.size < 2) { pinch = null; drag = null; cam.vx = cam.vy = 0; } return; }
     if (!drag || drag.id !== e.pointerId) return; const d = drag; drag = null; if (performance.now() - d.lt > 90) { cam.vx = cam.vy = 0; }
-    if (!d.moved && e.type === 'pointerup') { const [x, y] = rel(e), h = hit(x, y); if (h === 'hq') openHQ(); else if (h === 'dock') openDock(); else if (h !== null && h >= 0) openBot(h); } };
+    if (!d.moved && e.type === 'pointerup') { const [x, y] = rel(e), h = hit(x, y); if (h === 'hq') openHQ(); else if (h === 'dock') openDock(); else if (h === 'ai') { if (window.openGatepostAI) window.openGatepostAI(); } else if (h !== null && h >= 0) openBot(h); } };
   cv.onwheel = e => { e.preventDefault(); const [x, y] = rel(e), k = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1, dy = e.deltaY * k;
     const mouseWheel = e.deltaMode !== 0 || (e.deltaX === 0 && Math.abs(e.deltaY) >= 50 && Number.isInteger(e.deltaY));
     if (e.ctrlKey || e.metaKey || mouseWheel) { zoomAt(ZM * Math.exp(-dy * (e.ctrlKey && !mouseWheel ? 0.012 : 0.0018)), x, y); }
