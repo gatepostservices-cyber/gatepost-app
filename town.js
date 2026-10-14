@@ -6,11 +6,11 @@ const TZ = 'America/Denver';
 const C = { ink: '#05080f', cream: '#F6F4EF', paper: '#18212f', wall: '#121a27', wall2: '#1a2433', stone: '#222c3c', lit: '#5ff3ff', door: '#0a111c', red: '#ff4d6d', tan: '#f2c96b', sage: '#3ddc97', slate: '#7aa7ff', tree: '#1b6f7a', tree2: '#0e3e4a', tree3: '#7ff7ff', dirt: '#0f2236', dirt2: '#163a55', g1: '#0a111d', g2: '#070c16', g3: '#0c1422', neon: '#5ff3ff' };
 const NEON = 'rgba(95,243,255,', GOLD = 'rgba(242,201,107,';
 const BOTS = [
-  { name: 'Gatepost', short: 'Gatepost', role: 'Office admin: bids, calendar and cash', color: '#5ff3ff', place: 'Command Hall', glyph: '$', type: 'hall', at: [34, 22], work: 'At the town hall, keeping the calendar and the cash straight.' },
-  { name: 'Gatepost Leads', short: 'Leads', role: 'Lead finder: Nextdoor, Facebook and Craigslist', color: C.sage, place: 'Signal Tower', glyph: '!', type: 'tower', at: [14, 15], work: 'Up in the lookout tower, scanning the neighborhood for leads.' },
-  { name: 'Gatepost Bids', short: 'Bids', role: 'Bids and OneDrive filing', color: C.tan, place: 'Bid Lab', glyph: '✎', type: 'shop', at: [60, 18], work: 'In the drafting office, filing bids in the cabinets.' },
-  { name: 'Gatepost Tasks', short: 'Tasks', role: 'Christian\u2019s to-do list', color: '#ff8a3d', place: 'Task Board', glyph: '✓', type: 'kiosk', at: [16, 50], work: 'At the notice board, pinning up to-dos.' },
-  { name: 'Gatepost App', short: 'App', role: 'Builds and maintains this app', color: C.slate, place: 'Dev Forge', glyph: '</>', type: 'garage', at: [74, 52], work: 'In the tech garage, tinkering with the app.' },
+  { name: 'Gatepost', short: 'Gatepost', role: 'Office admin: bids, calendar and cash', color: '#b58cff', place: 'Command Hall', glyph: '$', type: 'hall', at: [34, 22], work: 'At the town hall, keeping the calendar and the cash straight.' },
+  { name: 'Gatepost Leads', short: 'Leads', role: 'Lead finder: Nextdoor, Facebook and Craigslist', color: '#22ff8a', place: 'Signal Tower', glyph: '!', type: 'tower', at: [14, 15], work: 'Up in the lookout tower, scanning the neighborhood for leads.' },
+  { name: 'Gatepost Bids', short: 'Bids', role: 'Bids and OneDrive filing', color: '#ffd23a', place: 'Bid Lab', glyph: '✎', type: 'shop', at: [60, 18], work: 'In the drafting office, filing bids in the cabinets.' },
+  { name: 'Gatepost Tasks', short: 'Tasks', role: 'Christian\u2019s to-do list', color: '#ff7a1f', place: 'Task Board', glyph: '✓', type: 'kiosk', at: [16, 50], work: 'At the notice board, pinning up to-dos.' },
+  { name: 'Gatepost App', short: 'App', role: 'Builds and maintains this app', color: '#4f8dff', place: 'Dev Forge', glyph: '</>', type: 'garage', at: [74, 52], work: 'In the tech garage, tinkering with the app.' },
 ];
 const HOME_AT = [[28.5, 15.5], [8.5, 21.5], [66.5, 24.5], [10.5, 56.5], [80.5, 58.5]];
 const WX = 96, WY = 92, TILT = 0.62, ZK = 0.82;
@@ -56,14 +56,14 @@ function route(from, to) {
 // ---------- districts: each bot gets a neighborhood with a landmark + themed structures ----------
 const SPIRE = { x: 52, y: 36 }, CMD_PLAZA = { x: 40, y: 29 }, FOUNTAIN = { x: 50, y: 50 }, PADS = [[38.4, 86.4], [55, 86.4]];
 const DISTRICTS = [
-  { key: 'cmd', name: 'Command District', short: 'Command', col: '#5ff3ff', bot: 0, R: 10.5, props: [['council', 8, -5], ['ckiosk', 3, 8], ['ckiosk', 9, 6], ['billboard', -7, 6, 'ONE CREW. ONE INVOICE.']] },
-  { key: 'leads', name: 'Signal Heights', short: 'Leads', col: '#3ddc97', bot: 1, R: 9.5, props: [['antenna', -5, -6], ['antenna', -7, 3], ['antenna', 5, -6], ['exchange', 6, 4], ['billboard', -1, 8, 'LEAD EXCHANGE']] },
-  { key: 'bids', name: 'Blueprint Row', short: 'Bids', col: '#f2c96b', bot: 2, R: 9.5, props: [['workshop', -7, 2], ['workshop', -3, -6], ['vault', 7, -4], ['billboard', 4, 8, 'ESTIMATE VAULT']] },
-  { key: 'tasks', name: 'Dispatch Yard', short: 'Tasks', col: '#ff8a3d', bot: 3, R: 9.5, props: [['depot', 6, 4], ['ckiosk', -5, -3], ['ckiosk', -6, 2], ['ckiosk', 3, -6], ['billboard', 5, -1.5, 'DISPATCH']] },
-  { key: 'app', name: 'Forge Quarter', short: 'App', col: '#7aa7ff', bot: 4, R: 10, props: [['server', -6, -5], ['server', -2, -7], ['server', 6, -5], ['fab', 7, 3], ['billboard', -7, 3, 'DEV FORGE']] },
+  { key: 'cmd', name: 'Command District', short: 'Command', col: '#b58cff', bot: 0, R: 10.5, props: [['council', 8, -5], ['ckiosk', 3, 8], ['ckiosk', 9, 6], ['billboard', -7, 6, 'ONE CREW. ONE INVOICE.']] },
+  { key: 'leads', name: 'Signal Heights', short: 'Leads', col: '#22ff8a', bot: 1, R: 9.5, props: [['antenna', -5, -6], ['antenna', -7, 3], ['antenna', 5, -6], ['exchange', 6, 4], ['billboard', -1, 8, 'LEAD EXCHANGE']] },
+  { key: 'bids', name: 'Blueprint Row', short: 'Bids', col: '#ffd23a', bot: 2, R: 9.5, props: [['workshop', -7, 2], ['workshop', -3, -6], ['vault', 7, -4], ['billboard', 4, 8, 'ESTIMATE VAULT']] },
+  { key: 'tasks', name: 'Dispatch Yard', short: 'Tasks', col: '#ff7a1f', bot: 3, R: 9.5, props: [['depot', 6, 4], ['ckiosk', -5, -3], ['ckiosk', -6, 2], ['ckiosk', 3, -6], ['billboard', 5, -1.5, 'DISPATCH']] },
+  { key: 'app', name: 'Forge Quarter', short: 'App', col: '#4f8dff', bot: 4, R: 10, props: [['server', -6, -5], ['server', -2, -7], ['server', 6, -5], ['fab', 7, 3], ['billboard', -7, 3, 'DEV FORGE']] },
   { key: 'hq', name: 'Gatepost Plaza', short: 'HQ', col: '#F6F4EF', bot: 'hq', R: 10, props: [['billboard', 8, -5, 'GATEPOST PROPERTY SERVICES']] },
   { key: 'ai', name: 'AI Core Sector', short: 'AI Core', col: '#ff4d6d', bot: 'ai', R: 10.5, props: [['server', -5, 6], ['server', 5, 6]] },
-  { key: 'port', name: 'Spaceport', short: 'Spaceport', col: '#b3ff5f', bot: 'dock', at: [46, 76.5], R: 11, props: [['hangar', -8, 0], ['hangar', 8, 0], ['antenna', -12, -3], ['billboard', 0, -4.5, 'LAUNCH PAD']] },
+  { key: 'port', name: 'Spaceport', short: 'Spaceport', col: '#ff6bd6', bot: 'dock', at: [46, 76.5], R: 11, props: [['hangar', -8, 0], ['hangar', 8, 0], ['antenna', -12, -3], ['billboard', 0, -4.5, 'LAUNCH PAD']] },
 ];
 const PSZ = { antenna: [1.3, 1.3], exchange: [5, 3.4], workshop: [3.6, 2.6], vault: [2.8, 2.8], depot: [5, 3.2], ckiosk: [1.2, 0.9], council: [3, 3], server: [3.2, 1.8], fab: [4.8, 3.4], hangar: [5.8, 3.8], billboard: [3, 0.5] };
 const PROPS = [];
@@ -234,6 +234,7 @@ function rgbOf(col) { if (/^#[0-9a-f]{6}$/i.test(col)) { const n = parseInt(col.
 const lum = r => (0.299 * r[0] + 0.587 * r[1] + 0.114 * r[2]) / 255;
 function fut(col) { const r = rgbOf(col), l = lum(r); return '#' + r.map((v, k) => Math.round(Math.min(255, 10 + v * 0.16 + [6, 12, 26][k] + l * 18))).map(v => v.toString(16).padStart(2, '0')).join(''); }
 function decoCol(col) { if (typeof col !== 'string') return col; const r = rgbOf(col), l = lum(r); if (l > 0.62) return EDGE; if (l > 0.42) return 'rgba(' + rgbOf(EDGE).join(',') + ',.45)'; return fut(col); }
+function tintMix(a, b, k) { const A = rgbOf(a), B = rgbOf(b); return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * k)).join(',')})`; }
 function shade(hex, f) { const n = parseInt(hex.slice(1), 16), ch = s => Math.max(0, Math.min(255, Math.round(((n >> s) & 255) * f))); return `rgb(${ch(16)},${ch(8)},${ch(0)})`; }
 function mkSolid(b, faces) { // faces: { l: [[lx,ly,z],...], col, deco, wall:[lx0,ly0,lx1,ly1,z0,z1] }
   const W = p => { const q = loc(b, p[0], p[1]); return [q[0], q[1], p[2]]; };
@@ -265,7 +266,7 @@ function hipOld(b, lx, ly, w, d, z, rh, col, o = 0.2) { const W = w / 2 + o, D =
 function drawSolid(c, s) {
   s.faces.forEach(f => { if (dot(f.n, VV) <= 0.02) return; const lt = 0.8 + 0.22 * Math.max(0, dot(f.n, LL)) - (f.n[2] < 0.3 ? 0.04 : 0);
     c.beginPath(); f.pts.forEach((p, k) => { const q = S3(p[0], p[1], p[2]); k ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1]); }); c.closePath();
-    c.fillStyle = shade(fut(f.col), lt + (f.n[2] > 0.6 ? 0.25 : 0)); c.fill(); c.save(); c.shadowColor = EDGE; c.shadowBlur = K * 0.28; c.strokeStyle = EDGE; c.globalAlpha = f.roof ? 0.95 : 0.7; c.lineWidth = Math.max(1, K / 30); c.lineJoin = 'round'; c.stroke(); c.restore();
+    c.fillStyle = tintMix(shade(fut(f.col), lt + (f.n[2] > 0.6 ? 0.25 : 0)), EDGE, f.n[2] > 0.6 ? 0.3 : 0.14); c.fill(); c.save(); c.lineJoin = 'round'; c.strokeStyle = 'rgba(1,4,10,.9)'; c.lineWidth = Math.max(2, K / 11); c.stroke(); c.shadowColor = EDGE; c.shadowBlur = K * 0.4; c.strokeStyle = EDGE; c.globalAlpha = f.roof || f.n[2] > 0.6 ? 1 : 0.9; c.lineWidth = Math.max(1.4, K / 19); c.stroke(); c.restore();
     if (f.deco && f.wall) { const { p0, p1, z0, z1 } = f.wall, len = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]), a = S3(p0[0], p0[1], z1), bq = S3(p1[0], p1[1], z1);
       c.save(); c.transform((bq[0] - a[0]) / len, (bq[1] - a[1]) / len, 0, ZK * K, a[0], a[1]); c.lineWidth = 1 / K; c.shadowColor = EDGE; c.shadowBlur = K * 0.18; FUTDECO = true; try { f.deco(c, len, z1 - z0, lt); } finally { FUTDECO = false; } c.restore(); } });
 }
@@ -421,7 +422,8 @@ function drawGroundTo(c, lite) { const r = mulberry32(7);
   // paths
   const stroke = (pts, wdt, col) => { c.strokeStyle = col; c.lineWidth = wdt; c.lineCap = 'round'; c.lineJoin = 'round'; c.beginPath(); pts.forEach((p, k) => { const q = S3(p[0], p[1], 0); k ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1]); }); c.stroke(); };
   c.save(); c.shadowColor = '#5ff3ff'; c.shadowBlur = K * 0.5; EDGES.forEach(e => { if (e.b === 'dock' || e.faint) return; stroke(e.pts, K * (e.main ? 1.9 : 0.62) + 3, 'rgba(95,243,255,.45)'); }); c.restore();
-  EDGES.forEach(e => { if (e.b === 'dock' || e.faint) return; stroke(e.pts, K * (e.main ? 1.9 : 0.62), C.dirt); });
+  EDGES.forEach(e => { if (e.b === 'dock' || e.faint) return; stroke(e.pts, K * (e.main ? 1.9 : 0.62) + Math.max(2, K / 9), 'rgba(190,235,255,.7)'); });
+  EDGES.forEach(e => { if (e.b === 'dock' || e.faint) return; stroke(e.pts, K * (e.main ? 1.9 : 0.62), '#081525'); });
   EDGES.forEach(e => { if (e.b === 'dock' || e.faint) return; stroke(e.pts, Math.max(1, K / 30), 'rgba(95,243,255,.35)'); if (e.main) { c.setLineDash([K * 0.5, K * 0.7]); stroke(e.pts, Math.max(1, K / 22), 'rgba(242,201,107,.35)'); c.setLineDash([]); } });
   EDGES.forEach(e => { if (!e.faint) return; stroke(e.pts, K * 0.28, 'rgba(255,77,109,.25)'); stroke(e.pts, K * 0.08, 'rgba(255,77,109,.8)'); });
   EDGES.forEach(e => e.pts.forEach((p, k) => { if (k % 2 || e.b === 'dock' || e.faint) return; const [X, Y] = S3(p[0] + (r() - 0.5) * 0.6, p[1] + (r() - 0.5) * 0.4, 0); c.fillStyle = 'rgba(95,243,255,.18)'; c.fillRect(X, Y, 2, 1.5); }));
@@ -435,7 +437,9 @@ function drawGroundTo(c, lite) { const r = mulberry32(7);
   { const [X, Y] = S3(DOCK_SPOT[0] - 3.2, SHIP_Y, 0.02); c.save(); c.shadowColor = '#f2c96b'; c.shadowBlur = K * 0.5; c.fillStyle = 'rgba(10,18,30,.92)'; c.beginPath(); c.ellipse(X, Y, K * 2.3, K * 2.3 * TILT, 0, 0, 7); c.fill(); c.strokeStyle = 'rgba(242,201,107,.9)'; c.lineWidth = Math.max(1.5, K / 16); c.stroke(); c.beginPath(); c.ellipse(X, Y, K * 1.6, K * 1.6 * TILT, 0, 0, 7); c.strokeStyle = 'rgba(95,243,255,.6)'; c.stroke(); c.restore();
     c.fillStyle = 'rgba(242,201,107,.85)'; c.font = FONT(800, K * 0.9); c.textAlign = 'center'; c.textBaseline = 'middle'; c.save(); c.translate(X, Y); c.scale(1, TILT); c.fillText('G', 0, 0); c.restore(); }
   
-  // pier props: crates + barrel
+  // launch-pad hazard ring + cargo stacks at the dock (decor)
+  { const [X, Y] = S3(DOCK_SPOT[0] - 3.2, SHIP_Y, 0.02); c.lineWidth = Math.max(2, K / 8); for (let k = 0; k < 24; k++) { c.strokeStyle = k % 2 ? '#05080f' : '#ffd23a'; c.beginPath(); c.ellipse(X, Y, K * 2.55, K * 2.55 * TILT, 0, k / 24 * Math.PI * 2, (k + 1) / 24 * Math.PI * 2); c.stroke(); } }
+  [[41.2, 79.6], [42.0, 79.9], [41.5, 80.6], [50.4, 79.7], [51.2, 80.1], [50.8, 79.2]].forEach(([x, y], k) => { const z0 = k === 5 ? 0.5 : 0; EDGE = ['#ffd23a', '#ff6bd6', '#22ff8a', '#4f8dff'][k % 4]; drawSolid(c, boxS({ cx: x, cy: y, rot: 0.08 * (k % 3) }, 0, 0, 0.6, 0.6, z0, z0 + 0.5, '#2a3a55')); EDGE = '#5ff3ff'; });
   [[PIER.x0 + 0.3, PIER.y0 + 0.9], [PIER.x0 + 0.8, PIER.y0 + 0.75]].forEach(([x, y]) => { const s = boxS({ cx: x, cy: y, rot: 0.1 }, 0, 0, 0.45, 0.45, 0.3, 0.75, '#3a5a80'); drawSolid(c, s); });
   // flowers + rocks
   FLOWERS.forEach(([x, y, t]) => { const [X, Y] = S3(x, y, 0); [[0, 0], [0.22, 0.1], [-0.18, 0.15]].forEach(([dx, dy], j) => { c.fillStyle = [C.red, C.lit, C.tan][(t + j) % 3]; c.beginPath(); c.arc(X + dx * K, Y + dy * K * TILT, Math.max(1, K * 0.045), 0, 7); c.fill(); }); });
@@ -468,17 +472,17 @@ function drawGroundTo(c, lite) { const r = mulberry32(7);
   });
   // districts: tinted plates, glowing borders, gates where boulevards cross, plazas
   DISTRICTS.forEach(d => { const [X, Y] = S3(d.cx, d.cy, 0), rx = d.R * K, ry = d.R * K * TILT, rgb = rgbOf(d.col).join(',');
-    const g = c.createRadialGradient(X, Y, 0, X, Y, rx); g.addColorStop(0, `rgba(${rgb},.10)`); g.addColorStop(0.85, `rgba(${rgb},.05)`); g.addColorStop(1, `rgba(${rgb},0)`); c.fillStyle = g; c.beginPath(); c.ellipse(X, Y, rx, ry, 0, 0, 7); c.fill();
-    if (!lite) { c.fillStyle = `rgba(${rgb},.16)`; for (let gx = -d.R; gx <= d.R; gx += 1.2) for (let gy = -d.R; gy <= d.R; gy += 1.2) { if (gx * gx + gy * gy > d.R * d.R * 0.8) continue; const [hx, hy] = S3(d.cx + gx + ((Math.round(gy / 1.2)) % 2) * 0.6, d.cy + gy, 0); c.fillRect(hx - 1, hy - 0.5, 2, 1); } }
-    c.save(); c.shadowColor = d.col; c.shadowBlur = lite ? 0 : K * 0.4; c.strokeStyle = `rgba(${rgb},.75)`; c.lineWidth = Math.max(1.5, K / 14); c.setLineDash([K * 0.9, K * 0.45]); c.beginPath(); c.ellipse(X, Y, rx, ry, 0, 0, 7); c.stroke(); c.setLineDash([]); c.restore();
+    const g = c.createRadialGradient(X, Y, 0, X, Y, rx); g.addColorStop(0, `rgba(${rgb},.2)`); g.addColorStop(0.85, `rgba(${rgb},.11)`); g.addColorStop(1, `rgba(${rgb},0)`); c.fillStyle = g; c.beginPath(); c.ellipse(X, Y, rx, ry, 0, 0, 7); c.fill();
+    if (!lite) { c.fillStyle = `rgba(${rgb},.3)`; for (let gx = -d.R; gx <= d.R; gx += 1.2) for (let gy = -d.R; gy <= d.R; gy += 1.2) { if (gx * gx + gy * gy > d.R * d.R * 0.8) continue; const [hx, hy] = S3(d.cx + gx + ((Math.round(gy / 1.2)) % 2) * 0.6, d.cy + gy, 0); c.fillRect(hx - 1, hy - 0.5, 2, 1); } }
+    c.save(); c.shadowColor = d.col; c.shadowBlur = lite ? 0 : K * 0.6; c.strokeStyle = `rgba(${rgb},.35)`; c.lineWidth = Math.max(2, K / 5); c.beginPath(); c.ellipse(X, Y, rx, ry, 0, 0, 7); c.stroke(); c.strokeStyle = `rgba(${rgb},.95)`; c.lineWidth = Math.max(2, K / 9); c.setLineDash([K * 0.9, K * 0.45]); c.stroke(); c.setLineDash([]); c.restore();
     if (lite) return;
     EDGES.forEach(e => { for (let k = 1; k < e.pts.length; k++) { const a = e.pts[k - 1], b2 = e.pts[k], da = Math.hypot(a[0] - d.cx, a[1] - d.cy) - d.R, db = Math.hypot(b2[0] - d.cx, b2[1] - d.cy) - d.R; if ((da < 0) === (db < 0)) continue;
       const dx = b2[0] - a[0], dy = b2[1] - a[1], l = Math.hypot(dx, dy) || 1, nx = -dy / l, ny = dx / l, hw = e.main ? 1.25 : 0.8;
       const tops = [-1, 1].map(sg => { const px = a[0] + nx * hw * sg, py = a[1] + ny * hw * sg, [GX, GY] = S3(px, py, 0), [, TY] = S3(px, py, 2.6); c.fillStyle = '#0c1424'; c.fillRect(GX - K * 0.14, TY, K * 0.28, GY - TY); c.fillStyle = d.col; c.fillRect(GX - K * 0.14, TY, K * 0.28, K * 0.12); return [GX, TY]; });
       c.save(); c.shadowColor = d.col; c.shadowBlur = K * 0.4; c.strokeStyle = `rgba(${rgb},.9)`; c.lineWidth = Math.max(1.5, K / 12); c.beginPath(); c.moveTo(tops[0][0], tops[0][1] + K * 0.06); c.lineTo(tops[1][0], tops[1][1] + K * 0.06); c.stroke(); c.restore(); break; } }); });
   // command plaza + HQ fountain basin + spire base ring + spaceport pads
-  [[CMD_PLAZA, 3.2, '#5ff3ff'], [FOUNTAIN, 2.6, '#F6F4EF'], [SPIRE, 5, '#f2c96b']].forEach(([o, rad, col]) => { const [X, Y] = S3(o.x, o.y, 0), rgb = rgbOf(col).join(','); c.fillStyle = `rgba(${rgb},.08)`; c.beginPath(); c.ellipse(X, Y, rad * K, rad * K * TILT, 0, 0, 7); c.fill(); c.strokeStyle = `rgba(${rgb},.7)`; c.lineWidth = 1.5; [1, 0.72, 0.45].forEach(f => { c.beginPath(); c.ellipse(X, Y, rad * K * f, rad * K * TILT * f, 0, 0, 7); c.stroke(); }); for (let k = 0; k < 12; k++) { const a = k / 12 * Math.PI * 2; c.beginPath(); c.moveTo(X + Math.cos(a) * rad * K * 0.45, Y + Math.sin(a) * rad * K * TILT * 0.45); c.lineTo(X + Math.cos(a) * rad * K, Y + Math.sin(a) * rad * K * TILT); c.stroke(); } });
-  PADS.forEach(([x, y]) => { const [X, Y] = S3(x, y, 0.02); c.fillStyle = 'rgba(10,18,30,.92)'; c.beginPath(); c.ellipse(X, Y, K * 1.9, K * 1.9 * TILT, 0, 0, 7); c.fill(); c.strokeStyle = 'rgba(179,255,95,.85)'; c.lineWidth = Math.max(1.5, K / 16); c.stroke(); c.beginPath(); c.ellipse(X, Y, K * 1.2, K * 1.2 * TILT, 0, 0, 7); c.strokeStyle = 'rgba(95,243,255,.5)'; c.stroke(); });
+  [[CMD_PLAZA, 3.2, '#b58cff'], [FOUNTAIN, 2.6, '#F6F4EF'], [SPIRE, 5, '#f2c96b']].forEach(([o, rad, col]) => { const [X, Y] = S3(o.x, o.y, 0), rgb = rgbOf(col).join(','); c.fillStyle = `rgba(${rgb},.08)`; c.beginPath(); c.ellipse(X, Y, rad * K, rad * K * TILT, 0, 0, 7); c.fill(); c.strokeStyle = `rgba(${rgb},.7)`; c.lineWidth = 1.5; [1, 0.72, 0.45].forEach(f => { c.beginPath(); c.ellipse(X, Y, rad * K * f, rad * K * TILT * f, 0, 0, 7); c.stroke(); }); for (let k = 0; k < 12; k++) { const a = k / 12 * Math.PI * 2; c.beginPath(); c.moveTo(X + Math.cos(a) * rad * K * 0.45, Y + Math.sin(a) * rad * K * TILT * 0.45); c.lineTo(X + Math.cos(a) * rad * K, Y + Math.sin(a) * rad * K * TILT); c.stroke(); } });
+  PADS.forEach(([x, y]) => { const [X, Y] = S3(x, y, 0.02); c.fillStyle = 'rgba(10,18,30,.92)'; c.beginPath(); c.ellipse(X, Y, K * 1.9, K * 1.9 * TILT, 0, 0, 7); c.fill(); c.strokeStyle = 'rgba(255,107,214,.95)'; c.lineWidth = Math.max(1.5, K / 16); c.stroke(); c.beginPath(); c.ellipse(X, Y, K * 1.2, K * 1.2 * TILT, 0, 0, 7); c.strokeStyle = 'rgba(95,243,255,.5)'; c.stroke(); });
   // sky-rail shadow + pillar feet
   c.strokeStyle = 'rgba(0,0,0,.4)'; c.lineWidth = K * 0.5; c.beginPath(); RAIL.forEach((p, k) => { const q = S3(p[0] + RAIL_Z * SH[0], p[1] + RAIL_Z * SH[1], 0); k ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1]); }); c.closePath(); c.stroke();
   RAIL.forEach((p, k) => { if (k % 6) return; const [X, Y] = S3(p[0], p[1], 0); c.fillStyle = 'rgba(95,243,255,.25)'; c.beginPath(); c.ellipse(X, Y, K * 0.35, K * 0.15, 0, 0, 7); c.fill(); });
@@ -502,10 +506,11 @@ const FONT = (wt, px) => `${wt} ${Math.round(px)}px -apple-system, system-ui, sa
 const pillCache = new Map();
 function pill(lines, opt = {}) { // cached text sign canvas: lines = [main, sub?]
   const key = lines.join('|') + (opt.bg || '') + K; if (pillCache.has(key)) return pillCache.get(key); if (pillCache.size > 300) pillCache.clear();
-  const c0 = document.createElement('canvas').getContext('2d'), f1 = FONT(650, K * 0.36), f2 = FONT(600, K * 0.3);
+  const c0 = document.createElement('canvas').getContext('2d'), f1 = FONT(800, K * 0.38), f2 = FONT(600, K * 0.3);
   c0.font = f1; let w = c0.measureText(lines[0]).width; if (lines[1]) { c0.font = f2; w = Math.max(w, c0.measureText(lines[1]).width); }
   const pw = Math.ceil(w + K * 0.6), ph = Math.ceil(K * (lines[1] ? 0.98 : 0.58)), cv2 = document.createElement('canvas'); cv2.width = pw * dpr; cv2.height = (ph + 4) * dpr;
-  const c = cv2.getContext('2d'); c.scale(dpr, dpr); c.fillStyle = opt.bg || 'rgba(4,14,26,.82)'; c.beginPath(); c.roundRect ? c.roundRect(0.75, 0.75, pw - 1.5, ph - 1.5, Math.min(ph / 2, K * 0.18)) : c.rect(0, 0, pw, ph); c.fill(); c.strokeStyle = opt.edge || 'rgba(95,243,255,.8)'; c.lineWidth = 1.25; c.stroke();
+  const c = cv2.getContext('2d'); c.scale(dpr, dpr); c.fillStyle = opt.bg || 'rgba(2,8,16,.95)'; c.beginPath(); c.roundRect ? c.roundRect(1.25, 1.25, pw - 2.5, ph - 2.5, Math.min(ph / 2, K * 0.16)) : c.rect(1, 1, pw - 2, ph - 2); c.fill(); c.strokeStyle = opt.edge || 'rgba(95,243,255,.9)'; c.lineWidth = 2.25; c.stroke();
+  if (opt.edge && !opt.bg) { c.fillStyle = opt.edge; c.fillRect(3, 3, Math.max(3, K * 0.1), ph - 6); c.fillStyle = opt.edge; }
   if (opt.pin) { c.beginPath(); c.moveTo(pw / 2 - 4, ph); c.lineTo(pw / 2, ph + 4); c.lineTo(pw / 2 + 4, ph); c.fill(); }
   c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = opt.fg || '#bff9ff'; c.font = f1; c.fillText(lines[0], pw / 2, lines[1] ? K * 0.3 : ph / 2 + 0.5);
   if (lines[1]) { c.font = f2; c.fillStyle = opt.fg2 || 'rgba(246,244,239,.75)'; c.fillText(lines[1], pw / 2, K * 0.7); }
@@ -541,11 +546,13 @@ function drawRobot(c, ch, t) {
   { const g = c.createRadialGradient(X, Y, 0, X, Y, 4 * u); g.addColorStop(0, bt.color === '#F6F4EF' ? 'rgba(246,244,239,.5)' : 'rgba(' + rgbOf(bt.color).join(',') + ',.55)'); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; c.beginPath(); c.ellipse(X, Y, 4 * u, 1.5 * u, 0, 0, 7); c.fill(); }
   const r = (x, y, w, h, col, rad = 0) => { c.fillStyle = col; c.beginPath(); c.roundRect ? c.roundRect(X + x * u, Y + (y + bob) * u, w * u, h * u, rad * u) : c.rect(X + x * u, Y + (y + bob) * u, w * u, h * u); c.fill(); };
   if (!idle) { r(-1.9 + sw * 0.6, -2.6, 1.4, 2.6, C.ink, 0.5); r(0.5 - sw * 0.6, -2.6, 1.4, 2.6, C.ink, 0.5); } else { r(-2.6, -1.6, 2.2, 1.4, C.ink, 0.5); r(0.4, -1.6, 2.2, 1.4, C.ink, 0.5); }
-  r(-2.9, -6.7, 5.8, 4.4, C.ink, 1.2); r(-2.4, -6.2, 4.8, 3.4, bt.color, 0.9); r(-1.0, -5.4, 2.0, 1.2, 'rgba(255,255,255,.25)', 0.4);
+  c.strokeStyle = bt.color; c.lineWidth = Math.max(1.5, u * 0.5); c.globalAlpha = 0.9; c.beginPath(); c.ellipse(X, Y, 3.6 * u, 1.3 * u, 0, 0, 7); c.stroke(); c.globalAlpha = 1;
+  r(-3.1, -6.9, 6.2, 4.8, '#f4fbff', 1.3); r(-2.7, -6.5, 5.4, 4.0, C.ink, 1.1); r(-2.3, -6.1, 4.6, 3.2, bt.color, 0.9);
+  if (u > 1.6) { c.fillStyle = C.ink; c.font = FONT(900, u * (bt.glyph.length > 1 ? 1.7 : 2.6)); c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(bt.glyph, X, Y + (-4.45 + bob) * u); }
   const work = !ch.walking && ch.where === 'work' && !idle, arm = work ? Math.max(0, Math.sin(t * (ch.busyT > 0 || current(bt.name) ? 9 : 5) + ch.i * 2)) * 1.6 : ch.walking ? sw * 0.8 : 0;
   if (ch.carry) { r(-3.9, -10.6, 1.1, 4.4, C.ink, 0.5); r(2.8, -10.6, 1.1, 4.4, C.ink, 0.5); }
   else { r(-3.9, -6.1 - arm, 1.1, 2.7, C.ink, 0.5); r(2.8, -6.1 + (work ? 0 : -arm), 1.1, 2.7, C.ink, 0.5); }
-  r(-3.2, -11.8, 6.4, 5.3, '#1c2738', 1.6); r(-2.7, -11.3, 5.4, 4.3, '#060b14', 1.2);
+  r(-3.5, -12.1, 7.0, 5.9, bt.color, 1.8); r(-3.0, -11.6, 6.0, 4.9, '#1c2738', 1.5); r(-2.6, -11.2, 5.2, 4.1, '#060b14', 1.2);
   const blink = idle || (t + ch.blink) % 4 < 0.14, look = (ch.walking ? ch.face : ch.i === 1 ? Math.sin(t * 0.8) : 0) * 0.6;
   const eye = idle ? '#3a5068' : bt.color === '#F6F4EF' ? C.lit : bt.color; if (!blink) { r(-2.0 + look, -9.6, 4.0, 0.9, eye, 0.45); } else { r(-2.0, -9.2, 4.0, 0.3, eye); }
   
@@ -652,8 +659,8 @@ function drawFrame(t, dt) {
   drawCity(t, dt);
   // building animation bits
   const flag = (p, col) => { const [fx, fy] = S3(p[0], p[1], p[2] + 1.0), wv = Math.sin(t * 4.5) * K * 0.08; ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(fx, fy); ctx.quadraticCurveTo(fx + K * 0.4, fy + wv, fx + K * 0.75, fy + K * 0.17 + wv); ctx.quadraticCurveTo(fx + K * 0.4, fy + K * 0.36, fx, fy + K * 0.36); ctx.fill(); };
-  if (BOTS[0].b.ex) flag(BOTS[0].b.ex.flag, 'rgba(95,243,255,.75)'); if (HQ.ex) flag(HQ.ex.flag, 'rgba(242,201,107,.8)');
-  const bc = BOTS[1].b.ex; if (bc) { const [X, Y] = S3(...bc.beacon), on = (Math.sin(t * 3) + 1) / 2; ctx.fillStyle = `rgba(61,220,151,${0.4 + on * 0.6})`; ctx.beginPath(); ctx.arc(X, Y, K * (0.12 + on * 0.06), 0, 7); ctx.fill(); ctx.strokeStyle = `rgba(61,220,151,${0.6 * (1 - (t * 0.6 % 1))})`; ctx.lineWidth = 1.5; const rr3 = K * (0.3 + (t * 0.6 % 1) * 3); ctx.beginPath(); ctx.ellipse(X, Y, rr3, rr3 * 0.4, 0, 0, 7); ctx.stroke(); }
+  if (BOTS[0].b.ex) flag(BOTS[0].b.ex.flag, 'rgba(181,140,255,.9)'); if (HQ.ex) flag(HQ.ex.flag, 'rgba(242,201,107,.8)');
+  const bc = BOTS[1].b.ex; if (bc) { const [X, Y] = S3(...bc.beacon), on = (Math.sin(t * 3) + 1) / 2; ctx.fillStyle = `rgba(34,255,138,${0.4 + on * 0.6})`; ctx.beginPath(); ctx.arc(X, Y, K * (0.12 + on * 0.06), 0, 7); ctx.fill(); ctx.strokeStyle = `rgba(34,255,138,${0.6 * (1 - (t * 0.6 % 1))})`; ctx.lineWidth = 1.5; const rr3 = K * (0.3 + (t * 0.6 % 1) * 3); ctx.beginPath(); ctx.ellipse(X, Y, rr3, rr3 * 0.4, 0, 0, 7); ctx.stroke(); }
   const hk = BOTS[4].b.ex; if (hk) { const [X, Y] = S3(...hk.hook), sx = X + Math.sin(t * 1.3) * K * 0.25; ctx.strokeStyle = C.lit; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(X, Y); ctx.lineTo(sx, Y + K * 1.2); ctx.stroke(); ctx.fillStyle = C.tan; ctx.fillRect(sx - K * 0.12, Y + K * 1.2, K * 0.24, K * 0.18); }
   if (Math.random() < dt * 2.0) { const i = Math.floor(Math.random() * BOTS.length), e = BOTS[i].home.ex; if (e && (chars[i].where === 'home' || Math.random() < 0.3)) puffs.push({ p: S3(...e.chimney), a: 1, r: 0.12 }); }
   for (let k = puffs.length - 1; k >= 0; k--) { const p = puffs[k]; p.p[1] -= dt * K * 0.45; p.p[0] += dt * K * 0.15; p.r += dt * 0.12; p.a -= dt * 0.45; if (p.a <= 0) { puffs.splice(k, 1); continue; } ctx.fillStyle = `rgba(95,243,255,${p.a * 0.5})`; ctx.fillRect(p.p[0] - p.r * K * 0.3, p.p[1] - p.r * K * 0.3, p.r * K * 0.6, p.r * K * 0.6); }
@@ -674,9 +681,9 @@ function drawFrame(t, dt) {
     ctx.globalAlpha = 0.86 + 0.14 * Math.sin(t * 9 + b.cy * 3) * (Math.sin(t * 0.7 + b.cx) > 0.93 ? 1 : 0.15); ctx.drawImage(p.img, x, y, p.w, p.h); ctx.globalAlpha = 1; LABELRECTS.push({ x, y, w: p.w, h: p.h, tap }); (badges || []).forEach((bd, k) => badge(ctx, k ? x + 2 : x + p.w - 2, y + 2, bd.n, bd.col, t + k, bd.kind)); };
   BOTS.forEach((bt, i) => { const s = ADMIN ? stats(bt.name) : null, u = ADMIN ? unread(bt.name) : 0;
     const line2 = ADMIN ? signLine(i, s) : null;
-    sign(bt.b, line2 ? [bt.place, line2] : [bt.place], i, ADMIN ? [s.pending && { n: s.pending, col: C.red, kind: 'count' }, u && { n: u, col: C.slate, kind: 'chat' }].filter(Boolean) : []); });
+    sign(bt.b, line2 ? [bt.glyph + '  ' + bt.place, line2] : [bt.glyph + '  ' + bt.place], i, ADMIN ? [s.pending && { n: s.pending, col: C.red, kind: 'count' }, u && { n: u, col: C.slate, kind: 'chat' }].filter(Boolean) : [], bt.color); });
   const op = ADMIN ? otherPending() : 0, wq = ADMIN ? waitingQueue().length : 0;
-  sign(HQ, ADMIN ? ['Christian\u2019s HQ', `${wq} waiting on you`] : ['Gatepost HQ'], 'hq', op ? [{ n: op, col: C.red, kind: 'count' }] : []);
+  sign(HQ, ADMIN ? ['Christian\u2019s HQ', `${wq} waiting on you`] : ['Gatepost HQ'], 'hq', op ? [{ n: op, col: C.red, kind: 'count' }] : [], '#F6F4EF');
   sign(AI, ['AI Core', 'tap to talk'], 'ai', [], 'rgba(255,77,109,.9)');
   districtSigns(t);
   drawBoss(ctx, t);
@@ -740,11 +747,28 @@ function drawCity(t, dt) {
     if (ex.bill && Math.sin(t * 0.5 + pr.cx) > 0.96) { ctx.fillStyle = `rgba(${rgb},.18)`; ctx.fillRect(X - pr.w * K * 0.5, Y - K * 0.7, pr.w * K, K * 1.2); } });
   // ambient drones (pure decoration: no data)
   DRONES.forEach(dr => { const a = t * dr.sp + dr.p, x = dr.cx + Math.cos(a) * dr.rx, y = dr.cy + Math.sin(a * 1.3) * dr.ry, [X, Y] = S3(x, y, dr.z); if (!inView(X - 10, Y - 10, 20, 20)) return; ctx.fillStyle = '#0c1424'; ctx.fillRect(X - K * 0.16, Y - K * 0.05, K * 0.32, K * 0.1); ctx.fillStyle = (t * 2 + dr.p) % 1 < 0.5 ? '#ff4d6d' : '#5ff3ff'; ctx.fillRect(X - 1, Y - 1, 2.5, 2.5); });
+  cityDetails(t);
   // parked shuttles on the extra pads (decor)
-  PADS.forEach(([x, y], k) => { const [X, Y] = S3(x, y, 0.6 + Math.sin(t * 1.5 + k) * 0.05); if (!inView(X - K * 2, Y - K, K * 4, K * 2)) return; ctx.fillStyle = '#16213a'; ctx.strokeStyle = '#b3ff5f'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.ellipse(X, Y, K * 1.1, K * 0.32, 0, 0, 7); ctx.fill(); ctx.stroke(); ctx.fillStyle = 'rgba(95,243,255,.7)'; ctx.beginPath(); ctx.ellipse(X + K * 0.3, Y - K * 0.12, K * 0.3, K * 0.1, 0, 0, 7); ctx.fill(); });
+  PADS.forEach(([x, y], k) => { const [X, Y] = S3(x, y, 0.6 + Math.sin(t * 1.5 + k) * 0.05); if (!inView(X - K * 2, Y - K, K * 4, K * 2)) return; ctx.fillStyle = '#16213a'; ctx.strokeStyle = '#ff6bd6'; ctx.lineWidth = Math.max(1.5, K / 18); ctx.beginPath(); ctx.ellipse(X, Y, K * 1.1, K * 0.32, 0, 0, 7); ctx.fill(); ctx.stroke(); ctx.fillStyle = 'rgba(95,243,255,.7)'; ctx.beginPath(); ctx.ellipse(X + K * 0.3, Y - K * 0.12, K * 0.3, K * 0.1, 0, 0, 7); ctx.fill(); });
+}
+// fine details (pure decoration, no data): rooftop masts + identity beams, hover cars on the boulevards, district motes
+const CARS = Array.from({ length: 10 }, (_, k) => ({ e: k, f: (k * 0.37) % 1, sp: 0.035 + (k % 4) * 0.012, dir: k % 2 ? 1 : -1, col: ['#ffd23a', '#ff6bd6', '#22ff8a', '#4f8dff', '#b58cff', '#ff7a1f'][k % 6] }));
+const MOTES = Array.from({ length: 40 }, (_, k) => ({ d: k % 8, a: k * 2.39, r: 0.25 + ((k * 0.618) % 1) * 0.7, p: k * 0.77 }));
+function cityDetails(t) {
+  BOTS.forEach((bt, i) => { const b = bt.b, ex = b.ex; if (!ex) return; const top = ex.top || 3, mx = b.cx + b.w * 0.3, my = b.cy - b.d * 0.25, [X, Y] = S3(mx, my, top - 0.3), [, Yt] = S3(mx, my, top + 1.3); if (!inView(X - K * 2, Yt - K * 4, K * 4, K * 6)) return;
+    ctx.strokeStyle = '#05080f'; ctx.lineWidth = Math.max(2, K / 10); ctx.beginPath(); ctx.moveTo(X, Y); ctx.lineTo(X, Yt); ctx.stroke(); ctx.strokeStyle = bt.color; ctx.lineWidth = Math.max(1, K / 26); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(X - K * 0.25, Yt + K * 0.35); ctx.lineTo(X + K * 0.25, Yt + K * 0.35); ctx.stroke();
+    const on = (t * 1.1 + i * 0.37) % 1.3 < 0.45; ctx.fillStyle = on ? '#ffffff' : bt.color; ctx.beginPath(); ctx.arc(X, Yt, K * (on ? 0.14 : 0.1), 0, 7); ctx.fill();
+    const [cx2, cy2] = S3(b.cx, b.cy, top + 0.2), bg = ctx.createLinearGradient(0, cy2 - K * 5, 0, cy2), rgb = rgbOf(bt.color).join(','); bg.addColorStop(0, `rgba(${rgb},0)`); bg.addColorStop(1, `rgba(${rgb},${0.16 + 0.06 * Math.sin(t * 1.6 + i)})`); ctx.fillStyle = bg; ctx.fillRect(cx2 - K * 0.45, cy2 - K * 5, K * 0.9, K * 5); });
+  const mains = EDGES.filter(e => e.main && !e.faint && e.b !== 'dock' && e.pts.length > 2);
+  if (mains.length) CARS.forEach(cr => { const e = mains[cr.e % mains.length], P = e.pts; let f = (cr.f + t * cr.sp) % 1; if (cr.dir < 0) f = 1 - f; const fi = f * (P.length - 1), i0 = Math.floor(fi), a = P[i0], b2 = P[Math.min(P.length - 1, i0 + 1)], q = fi - i0, dx = b2[0] - a[0], dy = b2[1] - a[1], l = Math.hypot(dx, dy) || 1, off = 0.45 * cr.dir, x = a[0] + dx * q - dy / l * off, y = a[1] + dy * q + dx / l * off, [X, Y] = S3(x, y, 0.35);
+    if (!inView(X - K, Y - K, K * 2, K * 2)) return; const [Xg, Yg] = S3(x, y, 0); ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(Xg, Yg, K * 0.42, K * 0.14, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#05080f'; ctx.beginPath(); ctx.ellipse(X, Y, K * 0.46, K * 0.2, 0, 0, 7); ctx.fill(); ctx.fillStyle = cr.col; ctx.beginPath(); ctx.ellipse(X, Y, K * 0.38, K * 0.14, 0, 0, 7); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,.75)'; ctx.fillRect(X - K * 0.12, Y - K * 0.12, K * 0.24, K * 0.06);
+    const hx = X + Math.sign(S3(b2[0], b2[1], 0)[0] - S3(a[0], a[1], 0)[0] || 1) * (cr.dir) * K * 0.4; ctx.fillStyle = 'rgba(255,250,220,.95)'; ctx.fillRect(hx - 1.5, Y - 1, 3, 2); });
+  MOTES.forEach(m => { const d = DISTRICTS[m.d]; if (!d) return; const f = ((t * 0.18 + m.p) % 1), x = d.cx + Math.cos(m.a) * d.R * m.r, y = d.cy + Math.sin(m.a) * d.R * m.r * 0.8, [X, Y] = S3(x, y, 0.3 + f * 4); if (!inView(X - 4, Y - 4, 8, 8)) return; ctx.globalAlpha = Math.sin(f * Math.PI) * 0.85; ctx.fillStyle = d.col; ctx.fillRect(X - 1.2, Y - 1.2, Math.max(2.4, K * 0.07), Math.max(2.4, K * 0.07)); ctx.globalAlpha = 1; });
 }
 // district name signs (tappable) drawn with the other labels
-function districtSigns(t) { DISTRICTS.forEach(d => { const [X, Y] = S3(d.cx, d.cy - d.R * 0.92, 2.8); const st = ADMIN ? ((d.act || 0) > 0.5 ? '● ACTIVE' : (d.act || 0) > 0.05 ? 'recently active' : 'quiet') : null; const p = pill(st ? [d.name.toUpperCase(), st] : [d.name.toUpperCase()], { edge: d.col, fg: d.col }); const x = X - p.w / 2, y = Y - p.h; if (!inView(x, y, p.w, p.h)) return; ctx.drawImage(p.img, x, y, p.w, p.h); LABELRECTS.push({ x, y, w: p.w, h: p.h, tap: 'D:' + d.key }); }); }
+function districtSigns(t) { DISTRICTS.forEach(d => { const [X, Y] = S3(d.cx, d.cy - d.R * 0.92, 2.8); const st = ADMIN ? ((d.act || 0) > 0.5 ? '● ACTIVE' : (d.act || 0) > 0.05 ? 'recently active' : 'quiet') : null; const p = pill(st ? [d.name.toUpperCase(), st] : [d.name.toUpperCase()], { edge: d.col, fg: '#03070e', fg2: 'rgba(3,7,14,.8)', bg: d.col }); const x = X - p.w / 2, y = Y - p.h; if (!inView(x, y, p.w, p.h)) return; ctx.drawImage(p.img, x, y, p.w, p.h); LABELRECTS.push({ x, y, w: p.w, h: p.h, tap: 'D:' + d.key }); }); }
 let scanPat = null, vign = null, vignKey = '';
 const HUDF = new Intl.DateTimeFormat('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit', second: '2-digit' });
 function drawHUD(t) {
@@ -902,12 +926,12 @@ window.townApprove = async k => { const it = bItems(board('Gatepost', 'follow_up
 // ---------- page ----------
 window.townPage = () => { ADMIN = typeof isAdmin === 'function' && isAdmin();
   const chips = BOTS.map((bt, i) => { const s = ADMIN ? stats(bt.name) : null, u = ADMIN ? unread(bt.name) : 0;
-    return `<button class="town-chip" onclick="townChip(${i})"><span class="dot" style="background:${bt.color}"></span>${esc(bt.short)}${s && s.pending ? ` <b>${s.pending}</b>` : ''}${u ? ` <b class="chat">${u}</b>` : ''}</button>`; }).join('');
+    return `<button class="town-chip" style="border-color:${bt.color}!important;box-shadow:0 0 10px ${bt.color}55" onclick="townChip(${i})"><span class="dot" style="background:${bt.color}"></span><b style="background:none;color:${bt.color};padding:0">${esc(bt.glyph)}</b> ${esc(bt.short)}${s && s.pending ? ` <b>${s.pending}</b>` : ''}${u ? ` <b class="chat">${u}</b>` : ''}</button>`; }).join('');
   return `<div class="town-full" id="town-full"><canvas id="town-canvas" role="img" aria-label="Gatepost town map. Drag to look around; tap a building, a bot, HQ or the launch pad."></canvas>
   <div class="town-top"><div class="town-title"><b>Gatepost AI Grid</b><span id="town-clock"></span></div>${ADMIN ? '<div class="town-ticker" id="town-ticker"></div>' : ''}</div>
   <div class="town-tools"><canvas id="town-mini" aria-label="Minimap: tap to jump"></canvas><button class="town-btn" onclick="townZoom(1.25)" aria-label="Zoom in" title="Zoom in">+</button><button class="town-btn" onclick="townZoom(0.8)" aria-label="Zoom out" title="Zoom out">−</button><button class="town-btn" onclick="townCenter()" aria-label="Center on HQ" title="Center on HQ">⌂</button><button class="town-btn" onclick="townJump()" aria-label="Districts" title="Fly to a district">◎</button></div>
   <div class="town-jump" id="town-jump">${DISTRICTS.map(d => `<button onclick="townFly('${d.key}')"><span class="dot" style="background:${d.col}"></span>${esc(d.name)}</button>`).join('')}</div>
-  <div class="town-legend"><button class="town-chip hq" onclick="townChip('hq')"><span class="dot" style="background:#F6F4EF"></span>HQ</button>${chips}<button class="town-chip" onclick="townChip('dock')"><span class="dot" style="background:#6f9aac"></span>Launch Pad</button></div></div>`; };
+  <div class="town-legend"><button class="town-chip hq" onclick="townChip('hq')"><span class="dot" style="background:#F6F4EF"></span>HQ</button>${chips}<button class="town-chip" onclick="townChip('dock')"><span class="dot" style="background:#ff6bd6"></span>Launch Pad</button></div></div>`; };
 window.townCenter = () => focusOn(HQ.cx, HQ.cy, 1);
 window.townFly = (key, open) => { const d = DISTRICTS.find(x => x.key === key); if (!d) return; if (ZM < 0.8) zoomAt(1, W / 2, H / 2); focusOn(d.cx, d.cy, 1); const j = document.getElementById('town-jump'); if (j) j.classList.remove('on');
   if (open) { if (d.bot === 'hq') openHQ(); else if (d.bot === 'dock') openDock(); else if (d.bot === 'ai') { if (window.openGatepostAI) window.openGatepostAI(); } else openBot(d.bot); } };
