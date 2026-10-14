@@ -1,6 +1,6 @@
 // Gatepost Home service worker. Bump CACHE on every release.
-const CACHE = 'gp-home-v1';
-const SHELL = ['./', './index.html', './app.js?v=1', './manifest.json?v=1', './icon-192.png?v=1', '../logo.png', '../arch-mark.png', '../config.js'];
+const CACHE = 'gp-home-v2';
+const SHELL = ['./', './index.html', './app.js?v=2', './manifest.json?v=1', './icon-192.png?v=1', '../logo.png', '../arch-mark.png', '../config.js'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith('gp-home-') && k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 // Network first for our own files (always fresh when online), cache as offline fallback. Supabase/CDN calls are not cached.

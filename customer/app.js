@@ -132,15 +132,15 @@ function scheduleView() {
   const row = v => `<div class="item"><div class="top"><strong>${esc(v.type)}</strong><span class="right badge ${esc(v.status)}">${esc(STATUS[v.status] || v.status)}</span></div>
     <div class="muted" style="margin-top:4px;">${esc(fmtDT(v.scheduled_for))}</div>${v.notes ? `<div class="muted small" style="margin-top:4px;white-space:pre-wrap;">${esc(v.notes)}</div>` : ''}</div>`;
   return `<h1>Schedule</h1>
-  <div class="card"><h2>Upcoming visits</h2>${up.length ? up.map(row).join('') : '<p class="muted">No visits scheduled yet. Maintenance like AC filter changes and swamp cooler startup or turnover will show up here once booked.</p>'}</div>
+  <div class="card"><h2>Upcoming visits</h2>${up.length ? up.map(row).join('') : '<p class="muted">No visits scheduled yet. Maintenance like AC and furnace filter changes, weeding and gutter checks will show up here once booked.</p>'}</div>
   ${past.length ? `<div class="card"><h2>Past visits</h2>${past.map(row).join('')}</div>` : ''}`;
 }
 const ADDONS = [
   { key: 'windows', ico: '🪟', name: 'Window cleaning', text: 'Inside and out, screens and tracks.' },
   { key: 'pressure', ico: '💦', name: 'Pressure washing', text: 'Driveways, walkways, patios and walls.' },
   { key: 'weeding', ico: '🌿', name: 'Weeding', text: 'Beds, gravel and yard cleanup.' },
-  { key: 'swamp', ico: '❄️', name: 'Swamp cooler service', text: 'Spring startup, fall turnover, pads and checks.' },
-  { key: 'acfilter', ico: '🌬️', name: 'AC filters', text: 'Filter changes on a regular schedule.' },
+  { key: 'gutters', ico: '🏠', name: 'Gutter check', text: 'Clear and check gutters and downspouts.' },
+  { key: 'acfilter', ico: '🌬️', name: 'AC / furnace filters', text: 'Filter changes on a regular schedule.' },
   { key: 'upgrade', ico: '⬆️', name: 'Upgrade my plan', text: 'More visits or more coverage. Options are coming soon.', wide: true }];
 function addonsView() {
   return `<h1>Add-ons</h1><p class="muted">Tap “Request this” and we will follow up with details and timing.</p>

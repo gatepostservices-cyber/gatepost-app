@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="Gatepost">
 <meta name="theme-color" content="#0e0e0e">
 <title>Gatepost Property Services</title>
-<meta name="app-version" content="2026-10-14-customers-v1">
+<meta name="app-version" content="2026-10-14-customers-v2">
 <link rel="manifest" href="manifest.json?v=6">
 <link rel="icon" href="favicon.ico?v=2" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=2">
@@ -492,7 +492,7 @@ async function decide(id, status) { await API.decide(id, status); renderRequests
 const CU_ST = { new: 'Received', reviewing: 'Reviewing', scheduled: 'Scheduled', done: 'Done', closed: 'Closed' };
 const CU_TYPE = { repair: 'Repair', urgent: 'Urgent', addon: 'Add-on', cancel: 'Cancel' };
 const CV_ST = { scheduled: 'Scheduled', done: 'Done', canceled: 'Canceled' };
-const VISIT_TYPES = ['AC filter change', 'Swamp cooler startup', 'Swamp cooler turnover', 'Seasonal maintenance', 'Other'];
+const VISIT_TYPES = ['AC / furnace filter change', 'Weeding', 'Window cleaning', 'Pressure washing', 'Gutter check', 'Other'];
 const cuName = id => { const p = S.cust.people.find(x => x.id === id); return p ? (p.full_name || p.email) : 'Customer'; };
 const cuDue = r => { if (!r.due_at || ['done', 'closed'].includes(r.status)) return ''; const ms = Date.parse(r.due_at) - Date.now(), h = Math.floor(Math.abs(ms) / 3600e3), m = Math.floor(Math.abs(ms) % 3600e3 / 60e3);
   return `<span class="cu-due ${ms < 0 ? 'late' : ''}">${ms < 0 ? `Overdue ${h}h ${m}m` : `${h}h ${m}m left`}</span>`; };
@@ -590,7 +590,7 @@ document.getElementById('main-nav').addEventListener('click', e => {
 });
 API.init().then(()=>{ if (location.hash.length>1) document.querySelector(`.nav button[data-page="${location.hash.slice(1)}"]`)?.click(); render(); });
 </script>
-<script src="town.js?v=24"></script>
-<script src="chat.js?v=4"></script>
+<script src="town.js?v=25"></script>
+<script src="chat.js?v=5"></script>
 </body>
 </html>
