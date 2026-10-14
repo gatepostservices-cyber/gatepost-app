@@ -144,6 +144,7 @@ body.town-mode .sheet.town-sheet { top:auto; height:min(76dvh, 680px); border-ra
 .login-hero p { margin:10px 0 0; font-size:.8rem; letter-spacing:.14em; text-transform:uppercase; color:#555; }
 .result { background:var(--ink3); border-radius:12px; padding:14px; border:1px solid var(--line); }
 footer { padding:14px; text-align:center; font-size:.72rem; letter-spacing:.08em; color:var(--mute); }
+.ask-log { max-height:55vh; overflow-y:auto; margin:10px 0; display:flex; flex-direction:column; gap:8px; } .ask-msg { padding:9px 11px; border-radius:12px; border:1px solid var(--line); font-size:.88rem; line-height:1.4; } .ask-msg.me { align-self:flex-end; background:var(--paper); color:var(--ink); max-width:85%; } .ask-msg.ai { align-self:flex-start; } .ask-cite, .ask-src { font-size:.72rem; opacity:.7; } .ask-src { margin-top:6px; }
 </style>
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -169,6 +170,7 @@ window.addEventListener('unhandledrejection', function(e){ gpReportError(e.reaso
   <button data-page="estimate" data-admin>Estimate</button>
   <button data-page="calendar">Calendar</button>
   <button data-page="requests" data-admin>Requests</button>
+  <button data-page="ask" data-admin>Ask AI</button>
   <button data-page="admin" id="admin-tab" class="hidden" data-admin>Team</button>
 </nav>
 <main id="app"></main>
@@ -301,10 +303,11 @@ function render() {
   document.querySelectorAll('.nav button[data-admin]').forEach(b => b.classList.toggle('hidden', !isAdmin()));
   if (!isAdmin() && document.querySelector('.nav button.active')?.hasAttribute('data-admin')) { document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('active', b.dataset.page === 'town')); }
   const p = page();
-  main.innerHTML = p === 'estimate' ? estimatePage() : p === 'calendar' ? calendarPage() : p === 'requests' ? requestsPage() : p === 'admin' ? adminPage() : p === 'town' && window.townPage ? townPage() : dashboard();
+  main.innerHTML = p === 'estimate' ? estimatePage() : p === 'calendar' ? calendarPage() : p === 'requests' ? requestsPage() : p === 'admin' ? adminPage() : p === 'ask' ? askPage() : p === 'town' && window.townPage ? townPage() : dashboard();
   renderSaved(); renderEvents(); renderRequests(); renderUsers();
   if (OPEN_REQ && !REQ_EDIT) renderReqDetail();
   window.townAfterRender && townAfterRender();
+  if (p === 'ask') askAfterRender();
 }
 
 function authScreen() {
@@ -486,6 +489,40 @@ async function setRole(id, role) {
   if (role === 'pending' && !confirm(`Remove access for ${u.email}?`)) return;
   await API.setRole(id, role); render(); }
 
+
+// ---------- Ask AI (admin only; history stays on this device) ----------
+const ASK_KEY = 'gatepost_ask_ai_v1';
+let ASK_BUSY = false;
+const askLoad = () => { try { return JSON.parse(localStorage.getItem(ASK_KEY)) || []; } catch(e) { return []; } };
+const askSave = h => localStorage.setItem(ASK_KEY, JSON.stringify(h.slice(-60)));
+const askFmt = t => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\[([^\]\n]{3,200})\]/g, '<span class="ask-cite">[$1]</span>').replace(/\n/g, '<br>');
+function askPage() {
+  if (!isAdmin()) return '<div class="card"><p class="muted">Admins only.</p></div>';
+  const h = askLoad();
+  return `<div class="card"><h2>Ask AI</h2><p class="muted" style="font-size:.8rem;">Answers come from the Gatepost files and live app data, with sources. Free Gemini tier. History is saved on this device only.</p>
+    <div id="ask-log" class="ask-log">${h.length ? h.map(m => `<div class="ask-msg ${m.role}">${askFmt(m.text)}${m.sources && m.sources.length ? `<div class="ask-src">Sources: ${m.sources.map(esc).join(' · ')}</div>` : ''}</div>`).join('') : '<p class="muted">Try: "What do we charge for gutter cleaning?" or "What is on the calendar this week?"</p>'}${ASK_BUSY ? '<div class="ask-msg ai muted">Thinking…</div>' : ''}</div>
+    <textarea id="ask-q" rows="3" placeholder="Ask about jobs, bids, pricing, leads, the calendar…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();askSend();}"></textarea>
+    <div class="row" style="margin-top:8px;"><button class="primary" onclick="askSend()" ${ASK_BUSY ? 'disabled' : ''}>Ask</button><button class="secondary" onclick="askClear()">Clear history</button></div></div>`;
+}
+function askAfterRender() { const l = document.getElementById('ask-log'); if (l) l.scrollTop = l.scrollHeight; }
+function askClear() { if (confirm('Clear Ask AI history on this device?')) { localStorage.removeItem(ASK_KEY); render(); } }
+async function askSend() {
+  const box = document.getElementById('ask-q'), q = (box && box.value || '').trim(); if (!q || ASK_BUSY) return;
+  const h = askLoad(); const prior = h.slice(-6).map(m => ({ role: m.role, text: m.text }));
+  h.push({ role: 'me', text: q }); askSave(h); ASK_BUSY = true; render();
+  let msg = { role: 'ai', text: '' };
+  try {
+    if (!CLOUD) throw new Error('local');
+    const { data: { session } } = await sb.auth.getSession();
+    const r = await fetch(CFG.SUPABASE_URL + '/functions/v1/ask-ai', { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: CFG.SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (session && session.access_token) }, body: JSON.stringify({ question: q, history: prior }) });
+    const d = await r.json().catch(() => ({}));
+    if (r.ok) { msg.text = d.answer; msg.sources = d.sources; }
+    else msg.text = d.error === 'no_key' ? 'Ask AI is almost ready: the Gemini API key has not been set up yet. Christian can add it and this will start working.'
+      : d.error === 'rate_limited' || d.error === 'busy' ? 'The free AI tier is busy right now. Please wait a minute and try again.'
+      : d.error === 'admins_only' ? 'Ask AI is for admins only.' : 'Sorry, Ask AI could not answer right now. Please try again.';
+  } catch (e) { msg.text = e.message === 'local' ? 'Ask AI needs the synced (cloud) app.' : 'Could not reach Ask AI. Check your connection and try again.'; }
+  const h2 = askLoad(); h2.push(msg); askSave(h2); ASK_BUSY = false; render();
+}
 document.getElementById('main-nav').addEventListener('click', e => {
   if (OPEN_REQ) closeReq();
   if (window.closeBot) closeBot();
@@ -496,7 +533,7 @@ document.getElementById('main-nav').addEventListener('click', e => {
 });
 API.init().then(()=>{ if (location.hash.length>1) document.querySelector(`.nav button[data-page="${location.hash.slice(1)}"]`)?.click(); render(); });
 </script>
-<script src="town.js?v=22"></script>
+<script src="town.js?v=23"></script>
 <script src="chat.js?v=3"></script>
 </body>
 </html>

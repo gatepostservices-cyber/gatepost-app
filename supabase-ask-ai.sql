@@ -1,0 +1,4 @@
+-- Ask AI file index (applied as migration ask_ai_doc_chunks). Admin read-only via RLS; writes only through
+-- token-gated SECURITY DEFINER RPCs post_doc_file / prune_doc_files (tools/index-files.py).
+-- Gemini key: function secret GEMINI_API_KEY, or private.settings 'gemini_api_key' read by ai_gemini_key() (service_role only).
+-- See the live schema for full definitions: doc_chunks, search_doc_chunks(q,n), post_doc_file, prune_doc_files, ai_gemini_key.
