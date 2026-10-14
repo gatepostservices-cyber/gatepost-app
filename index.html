@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="Gatepost">
 <meta name="theme-color" content="#0e0e0e">
 <title>Gatepost Property Services</title>
-<meta name="app-version" content="2026-10-14-town-future-v1">
+<meta name="app-version" content="2026-10-14-town-districts-v1">
 <link rel="manifest" href="manifest.json?v=8">
 <link rel="icon" href="favicon.ico?v=4" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=4">
@@ -590,7 +590,7 @@ document.getElementById('main-nav').addEventListener('click', e => {
 });
 API.init().then(()=>{ if (location.hash.length>1) document.querySelector(`.nav button[data-page="${location.hash.slice(1)}"]`)?.click(); render(); });
 </script>
-<script src="town.js?v=28"></script>
+<script src="town.js?v=29"></script>
 <script src="chat.js?v=5"></script>
 </body>
 </html>

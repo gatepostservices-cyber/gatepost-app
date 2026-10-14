@@ -6,14 +6,14 @@ const TZ = 'America/Denver';
 const C = { ink: '#05080f', cream: '#F6F4EF', paper: '#18212f', wall: '#121a27', wall2: '#1a2433', stone: '#222c3c', lit: '#5ff3ff', door: '#0a111c', red: '#ff4d6d', tan: '#f2c96b', sage: '#3ddc97', slate: '#7aa7ff', tree: '#1b6f7a', tree2: '#0e3e4a', tree3: '#7ff7ff', dirt: '#0f2236', dirt2: '#163a55', g1: '#0a111d', g2: '#070c16', g3: '#0c1422', neon: '#5ff3ff' };
 const NEON = 'rgba(95,243,255,', GOLD = 'rgba(242,201,107,';
 const BOTS = [
-  { name: 'Gatepost', short: 'Gatepost', role: 'Office admin: bids, calendar and cash', color: '#F6F4EF', place: 'Command Hall', glyph: '$', type: 'hall', at: [8.6, 11.2], work: 'At the town hall, keeping the calendar and the cash straight.' },
-  { name: 'Gatepost Leads', short: 'Leads', role: 'Lead finder: Nextdoor, Facebook and Craigslist', color: C.sage, place: 'Signal Tower', glyph: '!', type: 'tower', at: [3.9, 5.4], work: 'Up in the lookout tower, scanning the neighborhood for leads.' },
-  { name: 'Gatepost Bids', short: 'Bids', role: 'Bids and OneDrive filing', color: C.tan, place: 'Bid Lab', glyph: '✎', type: 'shop', at: [21.6, 8.6], work: 'In the drafting office, filing bids in the cabinets.' },
-  { name: 'Gatepost Tasks', short: 'Tasks', role: 'Christian\u2019s to-do list', color: C.red, place: 'Task Board', glyph: '✓', type: 'kiosk', at: [5.6, 22.8], work: 'At the notice board, pinning up to-dos.' },
-  { name: 'Gatepost App', short: 'App', role: 'Builds and maintains this app', color: C.slate, place: 'Dev Forge', glyph: '</>', type: 'garage', at: [22.4, 22.4], work: 'In the tech garage, tinkering with the app.' },
+  { name: 'Gatepost', short: 'Gatepost', role: 'Office admin: bids, calendar and cash', color: '#5ff3ff', place: 'Command Hall', glyph: '$', type: 'hall', at: [34, 22], work: 'At the town hall, keeping the calendar and the cash straight.' },
+  { name: 'Gatepost Leads', short: 'Leads', role: 'Lead finder: Nextdoor, Facebook and Craigslist', color: C.sage, place: 'Signal Tower', glyph: '!', type: 'tower', at: [14, 15], work: 'Up in the lookout tower, scanning the neighborhood for leads.' },
+  { name: 'Gatepost Bids', short: 'Bids', role: 'Bids and OneDrive filing', color: C.tan, place: 'Bid Lab', glyph: '✎', type: 'shop', at: [60, 18], work: 'In the drafting office, filing bids in the cabinets.' },
+  { name: 'Gatepost Tasks', short: 'Tasks', role: 'Christian\u2019s to-do list', color: '#ff8a3d', place: 'Task Board', glyph: '✓', type: 'kiosk', at: [16, 50], work: 'At the notice board, pinning up to-dos.' },
+  { name: 'Gatepost App', short: 'App', role: 'Builds and maintains this app', color: C.slate, place: 'Dev Forge', glyph: '</>', type: 'garage', at: [74, 52], work: 'In the tech garage, tinkering with the app.' },
 ];
-const HOME_AT = [[3.4, 31.2], [8.7, 33.6], [13.2, 30.6], [18.6, 33.2], [23.8, 30.4]];
-const WX = 42, WY = 44, TILT = 0.62, ZK = 0.82;
+const HOME_AT = [[28.5, 15.5], [8.5, 21.5], [66.5, 24.5], [10.5, 56.5], [80.5, 58.5]];
+const WX = 96, WY = 92, TILT = 0.62, ZK = 0.82;
 let ADMIN = false;
 
 // ---------- seeded layout (fixed seed: identical on every device and reload) ----------
@@ -22,26 +22,26 @@ const R = mulberry32(0x6A7E2026), rr = (a, b) => a + R() * (b - a), rsign = () =
 const SIZES = { hall: [5.0, 3.4], tower: [2.6, 2.6], shop: [4.0, 3.0], kiosk: [3.4, 1.4], garage: [4.2, 3.2], hq: [5.4, 3.8], home: [2.6, 2.0] };
 function mkB(type, at, extra) { const s = rr(0.92, 1.1), [w, d] = SIZES[type]; return Object.assign({ type, cx: at[0] + rr(-0.5, 0.5), cy: at[1] + rr(-0.5, 0.5), rot: rsign() * rr(0.17, 0.46), w: w * s, d: d * s, s }, extra || {}); }
 BOTS.forEach(bt => { bt.b = mkB(bt.type, bt.at); });
-const HQ = mkB('hq', [14.2, 19.6]); HQ.rot = rsign() * rr(0.1, 0.22);
-const AI = mkB('shop', [36.4, 7.2]); AI.rot = 0.05; AI.black = true;
+const HQ = mkB('hq', [42, 46]); HQ.rot = rsign() * rr(0.1, 0.22);
+const AI = mkB('shop', [84.5, 16]); AI.rot = 0.05; AI.black = true;
 BOTS.forEach((bt, i) => { bt.home = mkB('home', HOME_AT[i], { col: bt.color }); });
 const loc = (b, lx, ly) => { const c = Math.cos(b.rot), s = Math.sin(b.rot); return [b.cx + lx * c - ly * s, b.cy + lx * s + ly * c]; };
 const doorOf = b => loc(b, 0, b.d / 2 + 0.55);
-const shoreY = x => 37.3 + Math.sin(x * 0.45 + 1) * 0.55 + Math.sin(x * 1.3) * 0.22;
-const PIER = { x0: 16.95, x1: 18.15, y0: 36.6, y1: 41.9 }, DOCK_SPOT = [17.55, 41.45], SHIP_HOME = 14.3, SHIP_Y = 41.35;
+const shoreY = x => 81.2 + Math.sin(x * 0.45 + 1) * 0.55 + Math.sin(x * 1.3) * 0.22;
+const PIER = { x0: 45.4, x1: 46.6, y0: 80.4, y1: 86.6 }, DOCK_SPOT = [46, 86.1], SHIP_HOME = 42.8, SHIP_Y = 86.0;
 
 // path network: nodes + winding edges (quadratic curves with seeded bends)
 const N = {}; const nd = (k, p) => { N[k] = { k, p, e: [] }; };
 BOTS.forEach((bt, i) => nd('w' + i, doorOf(bt.b))); BOTS.forEach((bt, i) => nd('h' + i, doorOf(bt.home))); nd('hq', doorOf(HQ));
-[['A', [7.6, 16.0]], ['B', [14.6, 14.6]], ['C', [20.4, 14.2]], ['D', [9.6, 27.0]], ['E', [14.6, 26.0]], ['F', [19.8, 27.4]], ['G', [16.4, 35.2]], ['L', [5.0, 9.6]]].forEach(([k, p]) => nd(k, [p[0] + rr(-0.4, 0.4), p[1] + rr(-0.4, 0.4)]));
-nd('dock', DOCK_SPOT); nd('P', [17.55, 36.9]);
+[['A', [26, 32]], ['B', [46, 31]], ['C', [66, 31]], ['D', [24, 60]], ['E', [45, 61]], ['F', [67, 63]], ['G', [46, 72]], ['L', [22, 19]]].forEach(([k, p]) => nd(k, [p[0] + rr(-0.4, 0.4), p[1] + rr(-0.4, 0.4)]));
+nd('dock', DOCK_SPOT); nd('SP', [52, 38]); nd('P', [46, 80.8]);
 const EDGES = [];
 function edge(a, b) { const A = N[a].p, B = N[b].p, mx = (A[0] + B[0]) / 2, my = (A[1] + B[1]) / 2, dx = B[0] - A[0], dy = B[1] - A[1], L = Math.hypot(dx, dy), bend = (a === 'P' || b === 'dock') ? 0 : rsign() * rr(0.1, 0.24) * L;
   const cx = mx - dy / L * bend, cy = my + dx / L * bend, n = Math.max(3, Math.ceil(L / 0.35)), pts = [];
   for (let k = 0; k <= n; k++) { const t = k / n, u = 1 - t; pts.push([u * u * A[0] + 2 * u * t * cx + t * t * B[0], u * u * A[1] + 2 * u * t * cy + t * t * B[1]]); }
   let len = 0; for (let k = 1; k < pts.length; k++) len += Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]);
   const e = { a, b, pts, len, main: !/^h/.test(a + b) }; EDGES.push(e); N[a].e.push(e); N[b].e.push(e); }
-[['w1', 'L'], ['L', 'A'], ['w0', 'A'], ['A', 'B'], ['B', 'C'], ['w2', 'C'], ['B', 'hq'], ['A', 'D'], ['w3', 'D'], ['D', 'E'], ['hq', 'E'], ['E', 'F'], ['C', 'F'], ['w4', 'F'], ['h0', 'D'], ['h1', 'D'], ['h2', 'E'], ['h3', 'F'], ['h4', 'F'], ['E', 'G'], ['G', 'P'], ['P', 'dock']].forEach(([a, b]) => edge(a, b));
+[['w1', 'L'], ['L', 'A'], ['w0', 'A'], ['A', 'B'], ['B', 'C'], ['w2', 'C'], ['B', 'hq'], ['A', 'D'], ['w3', 'D'], ['D', 'E'], ['hq', 'E'], ['E', 'F'], ['C', 'F'], ['w4', 'F'], ['h0', 'w0'], ['h1', 'w1'], ['h2', 'w2'], ['h3', 'w3'], ['h4', 'w4'], ['B', 'SP'], ['E', 'G'], ['G', 'P'], ['P', 'dock']].forEach(([a, b]) => edge(a, b));
 nd('ai', doorOf(AI));
 edge('ai', 'C');
 const AI_EDGE = EDGES[EDGES.length - 1]; AI_EDGE.faint = true; AI_EDGE.main = false;
@@ -53,22 +53,50 @@ function route(from, to) {
   const legs = []; let k = to; while (prev[k]) { const { u, e } = prev[k]; legs.unshift(e.a === u ? e.pts : e.pts.slice().reverse()); k = u; }
   const out = []; legs.forEach(l => l.forEach((p, j) => { if (j || !out.length) out.push(p.slice()); })); return out;
 }
+// ---------- districts: each bot gets a neighborhood with a landmark + themed structures ----------
+const SPIRE = { x: 52, y: 36 }, CMD_PLAZA = { x: 40, y: 29 }, FOUNTAIN = { x: 50, y: 50 }, PADS = [[38.4, 86.4], [55, 86.4]];
+const DISTRICTS = [
+  { key: 'cmd', name: 'Command District', short: 'Command', col: '#5ff3ff', bot: 0, R: 10.5, props: [['council', 8, -5], ['ckiosk', 3, 8], ['ckiosk', 9, 6], ['billboard', -7, 6, 'ONE CREW. ONE INVOICE.']] },
+  { key: 'leads', name: 'Signal Heights', short: 'Leads', col: '#3ddc97', bot: 1, R: 9.5, props: [['antenna', -5, -6], ['antenna', -7, 3], ['antenna', 5, -6], ['exchange', 6, 4], ['billboard', -1, 8, 'LEAD EXCHANGE']] },
+  { key: 'bids', name: 'Blueprint Row', short: 'Bids', col: '#f2c96b', bot: 2, R: 9.5, props: [['workshop', -7, 2], ['workshop', -3, -6], ['vault', 7, -4], ['billboard', 4, 8, 'ESTIMATE VAULT']] },
+  { key: 'tasks', name: 'Dispatch Yard', short: 'Tasks', col: '#ff8a3d', bot: 3, R: 9.5, props: [['depot', 6, 4], ['ckiosk', -5, -3], ['ckiosk', -6, 2], ['ckiosk', 3, -6], ['billboard', 5, -1.5, 'DISPATCH']] },
+  { key: 'app', name: 'Forge Quarter', short: 'App', col: '#7aa7ff', bot: 4, R: 10, props: [['server', -6, -5], ['server', -2, -7], ['server', 6, -5], ['fab', 7, 3], ['billboard', -7, 3, 'DEV FORGE']] },
+  { key: 'hq', name: 'Gatepost Plaza', short: 'HQ', col: '#F6F4EF', bot: 'hq', R: 10, props: [['billboard', 8, -5, 'GATEPOST PROPERTY SERVICES']] },
+  { key: 'ai', name: 'AI Core Sector', short: 'AI Core', col: '#ff4d6d', bot: 'ai', R: 10.5, props: [['server', -5, 6], ['server', 5, 6]] },
+  { key: 'port', name: 'Spaceport', short: 'Spaceport', col: '#b3ff5f', bot: 'dock', at: [46, 76.5], R: 11, props: [['hangar', -8, 0], ['hangar', 8, 0], ['antenna', -12, -3], ['billboard', 0, -4.5, 'LAUNCH PAD']] },
+];
+const PSZ = { antenna: [1.3, 1.3], exchange: [5, 3.4], workshop: [3.6, 2.6], vault: [2.8, 2.8], depot: [5, 3.2], ckiosk: [1.2, 0.9], council: [3, 3], server: [3.2, 1.8], fab: [4.8, 3.4], hangar: [5.8, 3.8], billboard: [3, 0.5] };
+const PROPS = [];
+DISTRICTS.forEach(d => { const lm = d.bot === 'hq' ? HQ : d.bot === 'ai' ? AI : d.bot === 'dock' ? null : BOTS[d.bot].b; d.lm = lm; const c0 = d.at || [lm.cx, lm.cy]; d.cx = c0[0]; d.cy = c0[1];
+  d.tap = d.bot; d.props = d.props.map(([kind, ox, oy, text]) => { const [w, dd] = PSZ[kind], pr = { kind, type: 'prop', cx: d.cx + ox, cy: d.cy + oy, rot: kind === 'billboard' ? 0.06 : rsign() * rr(0.05, 0.3), w, d: dd, dist: d, text }; PROPS.push(pr); return pr; }); });
+const districtOf = tap => DISTRICTS.find(d => d.bot === tap);
+const AVOID = [[SPIRE.x, SPIRE.y, 5.5], [CMD_PLAZA.x, CMD_PLAZA.y, 3.6], [FOUNTAIN.x, FOUNTAIN.y, 3.2]];
+const inAvoid = (x, y, pad) => AVOID.some(([ax, ay, r]) => Math.hypot(ax - x, ay - y) < r + pad);
+// sky-rail loop (elevated maglev ring through the districts)
+const RAIL = (() => { const c = [[12, 26], [24, 10], [46, 11], [70, 9], [78, 32], [90, 48], [84, 66], [62, 70], [34, 70], [8, 66], [5, 44]], out = [];
+  for (let i = 0; i < c.length; i++) { const p0 = c[(i - 1 + c.length) % c.length], p1 = c[i], p2 = c[(i + 1) % c.length], p3 = c[(i + 2) % c.length];
+    for (let k = 0; k < 16; k++) { const t = k / 16, t2 = t * t, t3 = t2 * t; out.push([0, 1].map(j => 0.5 * ((2 * p1[j]) + (-p0[j] + p2[j]) * t + (2 * p0[j] - 5 * p1[j] + 4 * p2[j] - p3[j]) * t2 + (-p0[j] + 3 * p1[j] - 3 * p2[j] + p3[j]) * t3))); } }
+  return out; })();
+const RAIL_Z = 3.4;
+// skybridges between district hubs (elevated data links)
+const BRIDGES = [['cmd', 'leads'], ['cmd', 'bids'], ['bids', 'ai'], ['cmd', 'hq'], ['hq', 'tasks'], ['hq', 'app'], ['hq', 'port'], ['app', 'ai']].map(([a, b]) => ({ a: DISTRICTS.find(d => d.key === a), b: DISTRICTS.find(d => d.key === b), pk: [], nt: Math.random() * 4 }));
 // terrain: hills, trees, rocks, flowers (rejection sampling against buildings, paths and water)
-const ALLB = BOTS.map(b => b.b).concat([HQ, AI], BOTS.map(b => b.home));
+const ALLB = BOTS.map(b => b.b).concat([HQ, AI], BOTS.map(b => b.home), PROPS);
 const nearPath = (x, y, r) => EDGES.some(e => e.pts.some(p => Math.abs(p[0] - x) < r && Math.abs(p[1] - y) < r && Math.hypot(p[0] - x, p[1] - y) < r));
 const nearB = (x, y, pad) => ALLB.some(b => Math.hypot(b.cx - x, b.cy - y) < Math.max(b.w, b.d) / 2 + pad) || (x > HQ.cx - 5 && x < HQ.cx - 2.6 && y > HQ.cy && y < HQ.cy + 3);
-const inCamp = (x, y) => x > 33.0 && x < 40.2 && y > 4.4 && y < 10.6;
-const HILLS = [{ x: BOTS[1].b.cx + 0.3, y: BOTS[1].b.cy + 0.6, r: 3.6 }, { x: 25.2, y: 3.2, r: 3.0 }, { x: 15.0, y: 4.0, r: 2.6 }, { x: 1.6, y: 16.2, r: 2.4 }, { x: 26.0, y: 16.6, r: 2.2 }, { x: 11.2, y: 37.6, r: 1.6 }];
+const inCamp = (x, y) => x > 75.2 && x < 93.8 && y > 7.2 && y < 25.4;
+const HILLS = [{ x: 4, y: 34, r: 4 }, { x: 91, y: 40, r: 4.2 }, { x: 30, y: 72, r: 3.2 }, { x: 86, y: 72, r: 3.6 }, { x: 46, y: 5, r: 3.2 }, { x: 4, y: 4, r: 3 }];
 const TREES = [], ROCKS = [], FLOWERS = [];
-for (let k = 0; k < 900 && TREES.length < 78; k++) { const x = rr(0.3, WX - 0.3), y = rr(0.6, 36), r = rr(0.42, 0.72);
-  if (inCamp(x, y) || y > shoreY(x) - 1.3 || nearB(x, y, 1.1 + r) || nearPath(x, y, 0.95 + r * 0.6) || TREES.some(t => Math.hypot(t.x - x, t.y - y) < t.r + r + 0.15)) continue;
+for (let k = 0; k < 3000 && TREES.length < 240; k++) { const x = rr(0.3, WX - 0.3), y = rr(0.6, 79), r = rr(0.42, 0.72);
+  if (inCamp(x, y) || inAvoid(x, y, r + 0.6) || y > shoreY(x) - 1.3 || nearB(x, y, 1.1 + r) || nearPath(x, y, 0.95 + r * 0.6) || TREES.some(t => Math.hypot(t.x - x, t.y - y) < t.r + r + 0.15)) continue;
   TREES.push({ x, y, r, pine: R() < 0.34, tone: R() }); }
-for (let k = 0; k < 500 && ROCKS.length < 34; k++) { const x = rr(0.3, WX - 0.3), y = rr(0.6, 38.5), r = rr(0.14, 0.4);
-  if (inCamp(x, y) || y > shoreY(x) + 0.5 || nearB(x, y, 0.8) || nearPath(x, y, 0.7) || TREES.some(t => Math.hypot(t.x - x, t.y - y) < t.r + 0.3)) continue;
+for (let k = 0; k < 1600 && ROCKS.length < 90; k++) { const x = rr(0.3, WX - 0.3), y = rr(0.6, 82), r = rr(0.14, 0.4);
+  if (inCamp(x, y) || inAvoid(x, y, 0.4) || y > shoreY(x) + 0.5 || nearB(x, y, 0.8) || nearPath(x, y, 0.7) || TREES.some(t => Math.hypot(t.x - x, t.y - y) < t.r + 0.3)) continue;
   ROCKS.push({ x, y, r, seed: R() * 99 }); }
-for (let k = 0; k < 400 && FLOWERS.length < 70; k++) { const x = rr(0.3, WX - 0.3), y = rr(0.6, 36); if (inCamp(x, y) || y > shoreY(x) - 1 || nearB(x, y, 0.5) || nearPath(x, y, 0.6)) continue; FLOWERS.push([x, y, Math.floor(R() * 3)]); }
-const LAMPS = [N.A.p, N.B.p, N.C.p, N.D.p, N.E.p, N.F.p].map(p => [p[0] + 0.55, p[1] - 0.25]);
-const LANTERNS = [[PIER.x0 - 0.05, 38.4], [PIER.x1 + 0.05, 39.9], [PIER.x0 - 0.05, 41.3]];
+for (let k = 0; k < 1400 && FLOWERS.length < 200; k++) { const x = rr(0.3, WX - 0.3), y = rr(0.6, 79); if (inCamp(x, y) || inAvoid(x, y, 0.3) || y > shoreY(x) - 1 || nearB(x, y, 0.5) || nearPath(x, y, 0.6)) continue; FLOWERS.push([x, y, Math.floor(R() * 3)]); }
+const LAMPS = [N.A.p, N.B.p, N.C.p, N.D.p, N.E.p, N.F.p, N.G.p, N.L.p].map(p => [p[0] + 0.85, p[1] - 0.25]);
+EDGES.forEach(e => { if (!e.main || e.faint || e.b === 'dock') return; for (let k = 8; k < e.pts.length - 6; k += 14) { const a = e.pts[k], b2 = e.pts[k + 1], dx = b2[0] - a[0], dy = b2[1] - a[1], l = Math.hypot(dx, dy) || 1, sd = (k / 14) % 2 ? 1 : -1; LAMPS.push([a[0] - dy / l * 1.15 * sd, a[1] + dx / l * 1.15 * sd]); } });
+const LANTERNS = [[PIER.x0 - 0.05, PIER.y0 + 1.8], [PIER.x1 + 0.05, PIER.y0 + 3.3], [PIER.x0 - 0.05, PIER.y0 + 4.7]];
 const BOARD = (() => { const p = loc(HQ, -HQ.w / 2 - 1.1, HQ.d / 2 + 0.6); return { x: p[0], y: p[1] }; })();
 const HSIGN = { x: PIER.x0 - 1.6, y: shoreY(PIER.x0 - 1.6) - 0.6 };
 
@@ -140,7 +168,7 @@ function stroll(ch) { const es = N['w' + ch.i].e, e = es[Math.floor(Math.random(
   ch.path = go.concat(go.slice(0, -1).reverse()).map(p => p.slice()); ch.walking = true; }
 let started = false, lastWork = null;
 function syncClock() { const h = denverHour(), w = atWork(h); if (!started) { chars.forEach(c => place(c, w ? 'work' : 'home')); started = true; } else if (w !== lastWork) chars.forEach(c => routeTo(c, w ? 'work' : 'home')); lastWork = w; return h; }
-const ship = { x: SHIP_HOME, state: 'docked', t: 0, cargo: 0, wait: 0 };
+const ship = { x: SHIP_HOME, state: 'docked', t: 0, cargo: 0, wait: 0, lift: 0.55 };
 const pierCrates = [], pops = [];
 const ITEM_NAME = { scroll: 'scroll', crate: 'crate', letter: 'letter', pickup: 'message' };
 function targetName(t) { return t === 'hq' ? (ADMIN ? 'Christian\u2019s HQ' : 'HQ') : t === 'dock' ? 'the launch pad' : 'the ' + BOTS[t].place; }
@@ -159,12 +187,12 @@ function startErrand(ch) {
 const AMBIENT = [[['dock', 'letter'], ['hq', 'scroll']], [[2, 'scroll'], ['hq', 'scroll']], [[0, 'scroll'], ['dock', 'crate'], ['hq', 'scroll']], [['hq', 'scroll'], [0, 'scroll']], [['hq', 'crate'], [2, 'crate']]];
 function ambient(ch) { if (Math.random() < 0.25) { stroll(ch); return; } const opts = AMBIENT[ch.i], [t, item] = opts[Math.floor(Math.random() * opts.length)]; queueErrand(ch.i, t, item, '', false); }
 function handoff(ch, target) { const item = ch.carry; ch.carry = null; pops.push({ x: ch.x, y: ch.y, t: 0, item });
-  if (target === 'dock') { if (ship.state === 'docked') { ship.cargo++; ship.wait = 1.3; } else pierCrates.push(item || 'crate'); } }
+  if (target === 'dock' && ch.errand && ch.errand.real) { if (ship.state === 'docked') { ship.cargo++; ship.wait = 1.3; } else pierCrates.push(item || 'crate'); } }
 function updateShip(dt) {
   if (ship.state === 'docked') { if (ship.cargo > 0 && (ship.wait -= dt) <= 0) { ship.state = 'leaving'; ship.t = 0; } }
-  else if (ship.state === 'leaving') { ship.t += dt; const k = Math.min(1, ship.t / 9); ship.x = SHIP_HOME - k * k * (SHIP_HOME + 7); if (k >= 1) { ship.state = 'away'; ship.t = 0; ship.cargo = 0; } }
+  else if (ship.state === 'leaving') { ship.t += dt; const k = Math.min(1, ship.t / 7); ship.lift = 0.55 + k * k * 22; ship.x = SHIP_HOME - k * k * 6; if (k >= 1) { ship.state = 'away'; ship.t = 0; ship.cargo = 0; } }
   else if (ship.state === 'away') { if ((ship.t += dt) > 9) { ship.state = 'returning'; ship.t = 0; } }
-  else if (ship.state === 'returning') { ship.t += dt; const k = Math.min(1, ship.t / 9), e = 1 - (1 - k) * (1 - k); ship.x = -7 + e * (SHIP_HOME + 7); if (k >= 1) { ship.state = 'docked'; ship.x = SHIP_HOME; if (pierCrates.length) { ship.cargo = pierCrates.length; pierCrates.length = 0; ship.wait = 1.6; } } }
+  else if (ship.state === 'returning') { ship.t += dt; const k = Math.min(1, ship.t / 7), e = 1 - (1 - k) * (1 - k); ship.lift = 0.55 + (1 - e) * 22; ship.x = SHIP_HOME + (1 - e) * 6; if (k >= 1) { ship.state = 'docked'; ship.x = SHIP_HOME; ship.lift = 0.55; if (pierCrates.length) { ship.cargo = pierCrates.length; pierCrates.length = 0; ship.wait = 1.6; } } }
   for (let k = pops.length - 1; k >= 0; k--) if ((pops[k].t += dt) > 1.3) pops.splice(k, 1);
 }
 // real-data triggers (only changes seen after the first load; history never replays)
@@ -247,7 +275,26 @@ function winW(c, x, y, w, h, lit) { R2(c, x - 0.05, y - 0.05, w + 0.1, h + 0.1, 
 function doorW(c, len, h, w, dh, col = C.door) { const x = len / 2 - w / 2; R2(c, x - 0.05, h - dh - 0.05, w + 0.1, dh + 0.05, C.ink); R2(c, x, h - dh, w, dh, col); R2(c, x + w - 0.16, h - dh / 2, 0.07, 0.07, C.lit); }
 let LIT = false, HOMELIT = false;
 let archImg = null; try { archImg = new Image(); archImg.onload = () => { spritesDirty = true; }; archImg.src = 'arch-mark.png'; } catch (e) {}
+function propSolids(b) { const w = b.w, d = b.d, out = [], ex = {}, W2 = '#ffffff';
+  const stripes = (c, L, H) => { for (let k = 0.35; k < H - 0.2; k += 0.55) R2(c, 0.15, k, L - 0.3, 0.08, W2); };
+  const panel = (c, L, H) => { R2(c, 0.2, 0.25, L - 0.4, H * 0.45, W2); };
+  switch (b.kind) {
+    case 'antenna': out.push(boxS(b, 0, 0, 1.1, 1.1, 0, 0.5, C.stone)); out.push(boxS(b, 0, 0, 0.22, 0.22, 0.5, 5.6, C.wall2)); [3.2, 4.4].forEach(z => out.push(boxS(b, 0, 0, 1.6, 0.12, z, z + 0.12, C.wall2))); { const p = loc(b, 0, 0); ex.blink = [p[0], p[1], 5.75]; ex.dish = [p[0], p[1], 4.5]; } ex.top = 6; break;
+    case 'exchange': out.push(boxS(b, 0, 0, w, d, 0, 1.3, C.wall, { front: stripes, side: stripes })); out.push(boxS(b, 0, 0, w * 0.68, d * 0.68, 1.3, 2.5, C.wall2, { front: panel, side: panel })); { const p = loc(b, 0, 0); ex.holo = [p[0], p[1], 3.3]; } ex.top = 4; break;
+    case 'workshop': out.push(boxS(b, 0, 0, w, d, 0, 1.9, C.wall, { front: (c, L, H) => { for (let k = 0; k < 3; k++) R2(c, 0.25 + k * (L - 0.5) / 3, 0.3, (L - 0.9) / 3, H * 0.5, W2); }, side: panel })); out.push(boxS(b, 0, 0, w + 0.2, d + 0.2, 1.9, 2.1, C.stone)); ex.top = 2.4; break;
+    case 'vault': out.push(boxS(b, 0, 0, w, d, 0, 2.6, C.wall, { front: (c, L, H) => { c.strokeStyle = W2; c.lineWidth = 0.1; c.beginPath(); c.arc(L / 2, H * 0.55, Math.min(L, H) * 0.32, 0, 7); c.stroke(); c.beginPath(); c.arc(L / 2, H * 0.55, Math.min(L, H) * 0.12, 0, 7); c.stroke(); }, side: stripes })); out.push(boxS(b, 0, 0, w * 0.7, d * 0.7, 2.6, 2.9, C.wall2)); ex.top = 3.2; break;
+    case 'depot': out.push(boxS(b, 0, 0, w, d, 0, 2.2, C.wall, { front: (c, L, H) => { for (let k = 0; k < 3; k++) { const x = 0.3 + k * (L - 0.6) / 3; R2(c, x, 0.6, (L - 1.2) / 3, H - 0.6, '#8899aa'); for (let j = 0.8; j < H; j += 0.3) R2(c, x, j, (L - 1.2) / 3, 0.05, W2); } }, side: stripes })); out.push(boxS(b, 0, 0, w + 0.2, d + 0.2, 2.2, 2.4, C.stone)); ex.top = 2.7; break;
+    case 'ckiosk': out.push(boxS(b, 0, 0, w, d, 0, 1.6, C.wall2, { front: (c, L, H) => { R2(c, 0.12, 0.15, L - 0.24, H * 0.55, W2); for (let k = 0; k < 3; k++) R2(c, 0.2, 0.3 + k * 0.22, 0.12, 0.1, '#8899aa'); } })); ex.top = 1.9; break;
+    case 'council': out.push(boxS(b, 0, 0, w, d, 0, 3, C.wall, { front: stripes, side: stripes })); out.push(boxS(b, 0, 0, w * 0.7, d * 0.7, 3, 6.5, C.wall2, { front: (c, L, H) => { for (let k = 0.3; k < H; k += 0.7) R2(c, 0.15, k, L - 0.3, 0.3, W2); }, side: panel })); out.push(boxS(b, 0, 0, w * 0.4, d * 0.4, 6.5, 8.6, C.wall, { front: panel, side: panel })); out.push(boxS(b, 0, 0, 0.14, 0.14, 8.6, 10.2, C.wall2)); { const p = loc(b, 0, 0); ex.beacon = [p[0], p[1], 10.3]; } ex.top = 10.6; break;
+    case 'server': [-1.05, 0, 1.05].forEach(x => out.push(boxS(b, x, 0, 0.85, d, 0, 3.2, C.wall, { front: (c, L, H) => { for (let k = 0.2; k < H - 0.1; k += 0.28) { R2(c, 0.1, k, L - 0.2, 0.06, '#8899aa'); R2(c, 0.12 + ((k * 7) % 0.5), k, 0.08, 0.06, W2); } } }))); ex.top = 3.5; break;
+    case 'fab': out.push(boxS(b, 0, 0, w, d, 0, 2.4, C.wall, { front: (c, L, H) => { R2(c, 0.3, 0.7, L * 0.5, H - 0.7, '#8899aa'); for (let j = 0.9; j < H; j += 0.3) R2(c, 0.3, j, L * 0.5, 0.05, W2); R2(c, L * 0.62, 0.4, L * 0.3, 0.5, W2); }, side: stripes })); out.push(boxS(b, w / 2 - 0.3, -d / 2 + 0.3, 0.22, 0.22, 2.4, 4.6, C.wall2)); out.push(boxS(b, w / 2 - 1.6, -d / 2 + 0.3, 2.8, 0.16, 4.4, 4.58, C.wall2)); ex.top = 4.8; break;
+    case 'hangar': out.push(boxS(b, 0, 0, w, d, 0, 2.7, C.wall, { front: (c, L, H) => { R2(c, L * 0.18, 0.5, L * 0.64, H - 0.5, '#0a111c'); R2(c, L * 0.18, 0.5, L * 0.64, 0.08, W2); R2(c, L * 0.18, 0.5, 0.08, H - 0.5, W2); R2(c, L * 0.82 - 0.08, 0.5, 0.08, H - 0.5, W2); }, side: stripes })); out.push(boxS(b, 0, 0, w + 0.3, d + 0.3, 2.7, 3.0, C.stone)); ex.top = 3.3; break;
+    case 'billboard': [-w / 2 + 0.2, w / 2 - 0.2].forEach(x => out.push(boxS(b, x, 0, 0.14, 0.14, 0, 3.0, C.wall2))); out.push(boxS(b, 0, 0, w, 0.16, 3.0, 4.5, C.wall, { front: (c, L, H) => { FUTDECO = false; c.shadowBlur = 0; c.fillStyle = 'rgba(4,16,30,.95)'; c.fillRect(0.06, 0.06, L - 0.12, H - 0.12); c.fillStyle = EDGE; c.font = '800 0.5px system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; const words = String(b.text || '').split(' '), half = Math.ceil(words.length / 2), l1 = words.length > 2 ? words.slice(0, half).join(' ') : words.join(' '), l2 = words.length > 2 ? words.slice(half).join(' ') : ''; const fs = Math.min(0.52, (L - 0.3) / Math.max(1, Math.max(l1.length, l2.length) * 0.32)); c.font = `800 ${fs}px system-ui, sans-serif`; c.fillText(l1, L / 2, l2 ? H * 0.36 : H / 2); if (l2) c.fillText(l2, L / 2, H * 0.68); FUTDECO = true; } })); { const p = loc(b, 0, 0); ex.bill = [p[0], p[1], 3.75]; } ex.top = 4.8; break;
+  }
+  return { solids: out, ex };
+}
 function buildingSolids(bt, b) {
+  if (b.type === 'prop') return propSolids(b);
   const w = b.w, d = b.d, lit = b.type === 'home' ? HOMELIT : LIT, out = [], ex = {};
   if (b.type === 'hall') {
     out.push(boxS(b, 0, d / 2 + 0.3, w * 0.5, 0.6, 0, 0.18, C.stone));
@@ -334,6 +381,10 @@ function buildSprites() {
       if (ex.bushes) ex.bushes.forEach(p => { const q = S3(p[0], p[1], p[2]); c.fillStyle = C.tree2; c.beginPath(); c.arc(q[0], q[1], K * 0.3, 0, 7); c.fill(); c.fillStyle = C.tree; c.beginPath(); c.arc(q[0] - K * 0.06, q[1] - K * 0.06, K * 0.22, 0, 7); c.fill(); }); }, bb));
     b.screen = bb; EDGE = '#5ff3ff'; };
   BOTS.forEach((bt, i) => { add(bt, bt.b, i); add(bt, bt.home, i); }); add(null, HQ, 'hq'); add({ color: '#141414', name: 'AI' }, AI, 'ai');
+  PROPS.forEach(pr => { add({ color: pr.dist.col }, pr, pr.dist.tap); });
+  { // central spire monument (static), beacon animated per frame
+    const sb = { cx: SPIRE.x, cy: SPIRE.y, rot: 0.785 }, so = [boxS(sb, 0, 0, 4.6, 4.6, 0, 0.6, C.stone, { front: (c, L, H) => R2(c, 0.1, 0.2, L - 0.2, 0.1, '#ffffff'), side: (c, L, H) => R2(c, 0.1, 0.2, L - 0.2, 0.1, '#ffffff') }), boxS(sb, 0, 0, 2.4, 2.4, 0.6, 5, C.wall, { front: (c, L, H) => { for (let k = 0.3; k < H; k += 0.5) R2(c, L / 2 - 0.08, k, 0.16, 0.3, '#ffffff'); }, side: (c, L, H) => { for (let k = 0.3; k < H; k += 0.5) R2(c, L / 2 - 0.08, k, 0.16, 0.3, '#ffffff'); } }), boxS(sb, 0, 0, 1.5, 1.5, 5, 10, C.wall2, { front: (c, L, H) => R2(c, L / 2 - 0.06, 0, 0.12, H, '#ffffff'), side: (c, L, H) => R2(c, L / 2 - 0.06, 0, 0.12, H, '#ffffff') }), boxS(sb, 0, 0, 0.8, 0.8, 10, 14, C.wall, { front: (c, L, H) => R2(c, L / 2 - 0.05, 0, 0.1, H, '#ffffff'), side: (c, L, H) => R2(c, L / 2 - 0.05, 0, 0.1, H, '#ffffff') }), boxS(sb, 0, 0, 0.2, 0.2, 14, 16.5, C.wall2)];
+    EDGE = '#f2c96b'; SPRITES.push(mkSprite(SPIRE.y, null, c => so.forEach(s => drawSolid(c, s)), solidsBBox(so, 0, 0.8))); SPIRE.solids = so; EDGE = '#5ff3ff'; }
   TREES.forEach(t => { const [X, Y] = S3(t.x, t.y, 0), r = t.r * K; SPRITES.push(mkSprite(t.y, null, c => treeDraw(c, t), [X - r * 1.3, Y - r * 3.4, X + r * 1.3, Y + 2])); });
   LAMPS.forEach(([x, y]) => { const [X, Y] = S3(x, y, 0), [, Yt] = S3(x, y, 1.6); SPRITES.push(mkSprite(y, null, c => lampDraw(c, x, y, 1.6), [X - K * 0.3, Yt - K * 0.5, X + K * 0.3, Y + 2])); });
   LANTERNS.forEach(([x, y]) => { const [X, Y] = S3(x, y, 0.3), [, Yt] = S3(x, y, 1.6); SPRITES.push(mkSprite(y, 'dock', c => lampDraw(c, x, y - 0.3 * ZK / TILT, 1.6, true), [X - K * 0.4, Yt - K * 0.6, X + K * 0.4, Y + 4])); });
@@ -346,11 +397,8 @@ function buildSprites() {
   SPRITES.forEach(s => { if (s.after) s.face = (() => { const o = s.key === BOARD.y ? BOARD : HSIGN, [X, Y] = S3(o.x, o.y, 0), w = (o === BOARD ? 3.0 : 2.4), h = (o === BOARD ? 2.2 : 1.2); return { x: X - w * K / 2 + 3, y: Y - (h + 0.6) * K * ZK + 3, w: w * K - 6, h: h * K * ZK - 6 }; })(); });
   spritesDirty = false;
 }
-function buildGround() {
-  gdpr = Math.min(dpr, Math.sqrt(6.5e6 / (WPX * HPX)));
-  ground = document.createElement('canvas'); ground.width = Math.ceil(WPX * gdpr); ground.height = Math.ceil(HPX * gdpr);
-  const c = ground.getContext('2d'); c.setTransform(gdpr, 0, 0, gdpr, 0, 0); const r = mulberry32(7);
-  c.fillStyle = C.g2; c.fillRect(0, 0, WPX, HPX);
+function drawGroundTo(c, lite) { const r = mulberry32(7);
+  c.fillStyle = C.g2; c.fillRect(0, OY - K * 0.6, WPX, HPX);
   c.strokeStyle = 'rgba(95,243,255,.07)'; c.lineWidth = 1; c.beginPath(); for (let x = 0; x <= WX; x += 1) { const a = S3(x, 0, 0), b2 = S3(x, WY, 0); c.moveTo(a[0], a[1]); c.lineTo(b2[0], b2[1]); } for (let y = 0; y <= WY; y += 1) { const a = S3(0, y, 0), b2 = S3(WX, y, 0); c.moveTo(a[0], a[1]); c.lineTo(b2[0], b2[1]); } c.stroke();
   for (let k = 0; k < 700; k++) { const [X, Y] = S3(r() * WX, r() * WY, 0); c.fillStyle = r() < 0.5 ? 'rgba(20,40,70,.18)' : 'rgba(30,20,60,.14)'; c.beginPath(); c.ellipse(X, Y, K * (0.4 + r() * 1.2), K * TILT * (0.4 + r() * 1.0), 0, 0, 7); c.fill(); }
   for (let k = 0; k < 900; k++) { const [X, Y] = S3(r() * WX, r() * WY, 0); c.fillStyle = r() < 0.15 ? 'rgba(95,243,255,.35)' : 'rgba(120,140,190,.12)'; c.fillRect(X, Y, Math.max(1, K / 20), Math.max(1, K / 20)); }
@@ -372,9 +420,9 @@ function buildGround() {
   TREES.forEach(t => { const [X, Y] = S3(t.x + t.r * 0.9, t.y + 0.2, 0); c.beginPath(); c.ellipse(X, Y, t.r * K * 1.3, t.r * K * TILT * 0.9, 0, 0, 7); c.fill(); });
   // paths
   const stroke = (pts, wdt, col) => { c.strokeStyle = col; c.lineWidth = wdt; c.lineCap = 'round'; c.lineJoin = 'round'; c.beginPath(); pts.forEach((p, k) => { const q = S3(p[0], p[1], 0); k ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1]); }); c.stroke(); };
-  c.save(); c.shadowColor = '#5ff3ff'; c.shadowBlur = K * 0.5; EDGES.forEach(e => { if (e.b === 'dock' || e.faint) return; stroke(e.pts, K * (e.main ? 0.95 : 0.62) + 3, 'rgba(95,243,255,.45)'); }); c.restore();
-  EDGES.forEach(e => { if (e.b === 'dock' || e.faint) return; stroke(e.pts, K * (e.main ? 0.95 : 0.62), C.dirt); });
-  EDGES.forEach(e => { if (e.b === 'dock' || e.faint) return; stroke(e.pts, Math.max(1, K / 30), 'rgba(95,243,255,.35)'); });
+  c.save(); c.shadowColor = '#5ff3ff'; c.shadowBlur = K * 0.5; EDGES.forEach(e => { if (e.b === 'dock' || e.faint) return; stroke(e.pts, K * (e.main ? 1.9 : 0.62) + 3, 'rgba(95,243,255,.45)'); }); c.restore();
+  EDGES.forEach(e => { if (e.b === 'dock' || e.faint) return; stroke(e.pts, K * (e.main ? 1.9 : 0.62), C.dirt); });
+  EDGES.forEach(e => { if (e.b === 'dock' || e.faint) return; stroke(e.pts, Math.max(1, K / 30), 'rgba(95,243,255,.35)'); if (e.main) { c.setLineDash([K * 0.5, K * 0.7]); stroke(e.pts, Math.max(1, K / 22), 'rgba(242,201,107,.35)'); c.setLineDash([]); } });
   EDGES.forEach(e => { if (!e.faint) return; stroke(e.pts, K * 0.28, 'rgba(255,77,109,.25)'); stroke(e.pts, K * 0.08, 'rgba(255,77,109,.8)'); });
   EDGES.forEach(e => e.pts.forEach((p, k) => { if (k % 2 || e.b === 'dock' || e.faint) return; const [X, Y] = S3(p[0] + (r() - 0.5) * 0.6, p[1] + (r() - 0.5) * 0.4, 0); c.fillStyle = 'rgba(95,243,255,.18)'; c.fillRect(X, Y, 2, 1.5); }));
   // pier (deck at z 0.3, posts into the water)
@@ -397,12 +445,12 @@ function buildGround() {
     c.fillStyle = 'rgba(122,167,255,.35)'; c.beginPath(); c.ellipse(X - rx * 0.25, Y - ry * 0.85, rx * 0.4, ry * 0.3, -0.3, 0, 7); c.fill(); });
 
   // AI core compound: dark plate, red energy fence, corner pylons
-  const camp = [[33.2, 4.6], [39.9, 4.6], [39.9, 10.4], [33.2, 10.4]];
+  const camp = [[75.6, 7.6], [93.4, 7.6], [93.4, 25.0], [75.6, 25.0]];
   c.fillStyle = '#0b0d16'; c.beginPath();
   camp.forEach((p, k) => { const q = S3(p[0], p[1], 0); k ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1]); }); c.closePath(); c.fill();
-  for (let k = 0; k < 40; k++) { const [X, Y] = S3(33.4 + (k * 1.7 % 6.2), 4.8 + (k * 1.3 % 5.2), 0); c.fillStyle = 'rgba(255,77,109,.12)'; c.fillRect(X - K * 0.3, Y, K * 0.6, 1); }
+  for (let k = 0; k < 40; k++) { const [X, Y] = S3(75.8 + (k * 4.1 % 17.4), 7.8 + (k * 2.9 % 17), 0); c.fillStyle = 'rgba(255,77,109,.12)'; c.fillRect(X - K * 0.3, Y, K * 0.6, 1); }
   const wire = (a, b) => {
-    const n = 10; for (let i = 0; i <= n; i++) {
+    const n = 24; for (let i = 0; i <= n; i++) {
       const t = i / n, x = a[0] + (b[0] - a[0]) * t, y = a[1] + (b[1] - a[1]) * t, [X, Y] = S3(x, y, 0);
       if (i % 2 === 0) { c.fillStyle = '#2a1520'; c.fillRect(X - 1.5, Y - K * 0.55, 3, K * 0.55); }
     }
@@ -412,16 +460,40 @@ function buildGround() {
       for (let i = 1; i < n; i++) { const t = i / n, x = a[0] + (b[0] - a[0]) * t, y = a[1] + (b[1] - a[1]) * t, [X, Y] = S3(x, y, h); c.beginPath(); c.arc(X, Y, 1.4, 0, 7); c.stroke(); }
     });
   };
-  wire([33.2, 4.6], [39.9, 4.6]); wire([39.9, 4.6], [39.9, 10.4]); wire([39.9, 10.4], [33.2, 10.4]); wire([33.2, 10.4], [33.2, 4.6]);
-  [[33.2, 4.6], [39.9, 4.6], [39.9, 10.4], [33.2, 10.4]].forEach(([x, y]) => {
+  wire([75.6, 7.6], [93.4, 7.6]); wire([93.4, 7.6], [93.4, 25.0]); wire([93.4, 25.0], [75.6, 25.0]); wire([75.6, 25.0], [75.6, 7.6]);
+  [[75.6, 7.6], [93.4, 7.6], [93.4, 25.0], [75.6, 25.0]].forEach(([x, y]) => {
     const [X, Y] = S3(x, y, 0), [, Yt] = S3(x, y, 2.4);
     c.fillStyle = '#141826'; c.fillRect(X - K * 0.2, Yt, K * 0.4, Y - Yt);
     c.fillStyle = '#ff4d6d'; c.fillRect(X - K * 0.3, Yt - K * 0.1, K * 0.6, K * 0.12);
   });
-  // minimap thumbnail
-  miniImg = document.createElement('canvas'); miniImg.width = 176; miniImg.height = Math.round(176 * HPX / WPX); miniImg.getContext('2d').drawImage(ground, 0, 0, miniImg.width, miniImg.height);
-  const mc = miniImg.getContext('2d'), ms = miniImg.width / WPX; ALLB.forEach(b => { const q = S3(b.cx, b.cy, 0); mc.fillStyle = b === HQ ? '#F6F4EF' : b === AI ? '#ff4d6d' : b.type === 'home' ? '#3a5a80' : '#5ff3ff'; mc.fillRect(q[0] * ms - 3, q[1] * ms - 3, b.type === 'home' ? 4 : 6, b.type === 'home' ? 4 : 6); });
+  // districts: tinted plates, glowing borders, gates where boulevards cross, plazas
+  DISTRICTS.forEach(d => { const [X, Y] = S3(d.cx, d.cy, 0), rx = d.R * K, ry = d.R * K * TILT, rgb = rgbOf(d.col).join(',');
+    const g = c.createRadialGradient(X, Y, 0, X, Y, rx); g.addColorStop(0, `rgba(${rgb},.10)`); g.addColorStop(0.85, `rgba(${rgb},.05)`); g.addColorStop(1, `rgba(${rgb},0)`); c.fillStyle = g; c.beginPath(); c.ellipse(X, Y, rx, ry, 0, 0, 7); c.fill();
+    if (!lite) { c.fillStyle = `rgba(${rgb},.16)`; for (let gx = -d.R; gx <= d.R; gx += 1.2) for (let gy = -d.R; gy <= d.R; gy += 1.2) { if (gx * gx + gy * gy > d.R * d.R * 0.8) continue; const [hx, hy] = S3(d.cx + gx + ((Math.round(gy / 1.2)) % 2) * 0.6, d.cy + gy, 0); c.fillRect(hx - 1, hy - 0.5, 2, 1); } }
+    c.save(); c.shadowColor = d.col; c.shadowBlur = lite ? 0 : K * 0.4; c.strokeStyle = `rgba(${rgb},.75)`; c.lineWidth = Math.max(1.5, K / 14); c.setLineDash([K * 0.9, K * 0.45]); c.beginPath(); c.ellipse(X, Y, rx, ry, 0, 0, 7); c.stroke(); c.setLineDash([]); c.restore();
+    if (lite) return;
+    EDGES.forEach(e => { for (let k = 1; k < e.pts.length; k++) { const a = e.pts[k - 1], b2 = e.pts[k], da = Math.hypot(a[0] - d.cx, a[1] - d.cy) - d.R, db = Math.hypot(b2[0] - d.cx, b2[1] - d.cy) - d.R; if ((da < 0) === (db < 0)) continue;
+      const dx = b2[0] - a[0], dy = b2[1] - a[1], l = Math.hypot(dx, dy) || 1, nx = -dy / l, ny = dx / l, hw = e.main ? 1.25 : 0.8;
+      const tops = [-1, 1].map(sg => { const px = a[0] + nx * hw * sg, py = a[1] + ny * hw * sg, [GX, GY] = S3(px, py, 0), [, TY] = S3(px, py, 2.6); c.fillStyle = '#0c1424'; c.fillRect(GX - K * 0.14, TY, K * 0.28, GY - TY); c.fillStyle = d.col; c.fillRect(GX - K * 0.14, TY, K * 0.28, K * 0.12); return [GX, TY]; });
+      c.save(); c.shadowColor = d.col; c.shadowBlur = K * 0.4; c.strokeStyle = `rgba(${rgb},.9)`; c.lineWidth = Math.max(1.5, K / 12); c.beginPath(); c.moveTo(tops[0][0], tops[0][1] + K * 0.06); c.lineTo(tops[1][0], tops[1][1] + K * 0.06); c.stroke(); c.restore(); break; } }); });
+  // command plaza + HQ fountain basin + spire base ring + spaceport pads
+  [[CMD_PLAZA, 3.2, '#5ff3ff'], [FOUNTAIN, 2.6, '#F6F4EF'], [SPIRE, 5, '#f2c96b']].forEach(([o, rad, col]) => { const [X, Y] = S3(o.x, o.y, 0), rgb = rgbOf(col).join(','); c.fillStyle = `rgba(${rgb},.08)`; c.beginPath(); c.ellipse(X, Y, rad * K, rad * K * TILT, 0, 0, 7); c.fill(); c.strokeStyle = `rgba(${rgb},.7)`; c.lineWidth = 1.5; [1, 0.72, 0.45].forEach(f => { c.beginPath(); c.ellipse(X, Y, rad * K * f, rad * K * TILT * f, 0, 0, 7); c.stroke(); }); for (let k = 0; k < 12; k++) { const a = k / 12 * Math.PI * 2; c.beginPath(); c.moveTo(X + Math.cos(a) * rad * K * 0.45, Y + Math.sin(a) * rad * K * TILT * 0.45); c.lineTo(X + Math.cos(a) * rad * K, Y + Math.sin(a) * rad * K * TILT); c.stroke(); } });
+  PADS.forEach(([x, y]) => { const [X, Y] = S3(x, y, 0.02); c.fillStyle = 'rgba(10,18,30,.92)'; c.beginPath(); c.ellipse(X, Y, K * 1.9, K * 1.9 * TILT, 0, 0, 7); c.fill(); c.strokeStyle = 'rgba(179,255,95,.85)'; c.lineWidth = Math.max(1.5, K / 16); c.stroke(); c.beginPath(); c.ellipse(X, Y, K * 1.2, K * 1.2 * TILT, 0, 0, 7); c.strokeStyle = 'rgba(95,243,255,.5)'; c.stroke(); });
+  // sky-rail shadow + pillar feet
+  c.strokeStyle = 'rgba(0,0,0,.4)'; c.lineWidth = K * 0.5; c.beginPath(); RAIL.forEach((p, k) => { const q = S3(p[0] + RAIL_Z * SH[0], p[1] + RAIL_Z * SH[1], 0); k ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1]); }); c.closePath(); c.stroke();
+  RAIL.forEach((p, k) => { if (k % 6) return; const [X, Y] = S3(p[0], p[1], 0); c.fillStyle = 'rgba(95,243,255,.25)'; c.beginPath(); c.ellipse(X, Y, K * 0.35, K * 0.15, 0, 0, 7); c.fill(); });
 }
+let TILES = new Map(), TSW = 1024;
+function buildGround() {
+  gdpr = Math.min(dpr, Math.sqrt(1.0e7 / (WPX * HPX))); TILES = new Map(); ground = true;
+  // minimap thumbnail: a lite render of the whole world + district markers
+  miniImg = document.createElement('canvas'); miniImg.width = 200; miniImg.height = Math.round(200 * HPX / WPX); const mc = miniImg.getContext('2d'), ms = miniImg.width / WPX;
+  mc.fillStyle = '#04070d'; mc.fillRect(0, 0, miniImg.width, miniImg.height); mc.save(); mc.scale(ms, ms); drawGroundTo(mc, true); mc.restore();
+  mc.strokeStyle = 'rgba(242,201,107,.6)'; mc.lineWidth = 1; mc.beginPath(); RAIL.forEach((p, k) => { const q = S3(p[0], p[1], 0); k ? mc.lineTo(q[0] * ms, q[1] * ms) : mc.moveTo(q[0] * ms, q[1] * ms); }); mc.closePath(); mc.stroke();
+  DISTRICTS.forEach(d => { const q = S3(d.cx, d.cy, 0); mc.fillStyle = d.col; mc.font = '700 9px system-ui, sans-serif'; mc.textAlign = 'center'; mc.textBaseline = 'middle'; mc.fillText(d.short.toUpperCase(), q[0] * ms, q[1] * ms - d.R * K * TILT * ms - 4); });
+  ALLB.forEach(b => { const q = S3(b.cx, b.cy, 0); mc.fillStyle = b.dist ? b.dist.col : b === HQ ? '#F6F4EF' : b === AI ? '#ff4d6d' : b.type === 'home' ? '#3a5a80' : '#5ff3ff'; const sz = b.type === 'home' || b.dist ? 3 : 5; mc.fillRect(q[0] * ms - sz / 2, q[1] * ms - sz / 2, sz, sz); });
+}
+function groundTile(ix, iy) { const key = ix + ',' + iy; let tl = TILES.get(key); if (tl) return tl; const cv2 = document.createElement('canvas'); cv2.width = Math.ceil(TSW * gdpr); cv2.height = Math.ceil(TSW * gdpr); const c = cv2.getContext('2d'); c.setTransform(gdpr, 0, 0, gdpr, -ix * TSW * gdpr, -iy * TSW * gdpr); drawGroundTo(c, false); TILES.set(key, cv2); return cv2; }
 
 // ---------- dynamic drawing ----------
 let cv = null, ctx = null, W = 360, H = 600, raf = null, last = 0, hour = 12, dark = 0, warm = 0, clockT = 0, OPEN = null;
@@ -496,11 +568,11 @@ function drawRobotOver(c, ch, t) { // tags, thought bubbles, Zz (drawn above eve
     c.globalAlpha = pop; c.drawImage(p.img, X + 3 * u, Y - 18 * u - p.h, p.w, p.h); c.globalAlpha = 1; }
 }
 function drawShip(c, t) { // delivery shuttle: hovers on the pad, launches when packets arrive
-  if (ship.x < -6.5) return; const moving = ship.state === 'leaving' || ship.state === 'returning', lift = ship.state === 'docked' ? 0.55 + Math.sin(t * 2) * 0.06 : 1.6 + Math.sin(t * 2) * 0.1;
+  if (ship.state === 'away') return; const moving = ship.state === 'leaving' || ship.state === 'returning', lift = ship.lift + Math.sin(t * 2) * 0.06;
   const [X, Yg] = S3(ship.x, SHIP_Y, 0), [, Y] = S3(ship.x, SHIP_Y, lift), u = K;
   c.fillStyle = 'rgba(95,243,255,.18)'; c.beginPath(); c.ellipse(X, Yg, u * 1.4, u * 0.4, 0, 0, 7); c.fill();
   c.save(); c.translate(X, Y);
-  const fl = 0.6 + 0.4 * Math.sin(t * 30); c.fillStyle = `rgba(242,201,107,${0.5 * fl})`; [-1.1, 1.1].forEach(x => { c.beginPath(); c.moveTo(u * (x - 0.22), u * 0.18); c.lineTo(u * x, u * (0.6 + fl * 0.3 + (moving ? 0.3 : 0))); c.lineTo(u * (x + 0.22), u * 0.18); c.fill(); });
+  const fl = 0.6 + 0.4 * Math.sin(t * 30); if (moving) { c.fillStyle = 'rgba(242,201,107,.25)'; c.fillRect(-u * 0.5, u * 0.3, u, (Yg - Y) - u * 0.3); } c.fillStyle = `rgba(242,201,107,${0.5 * fl})`; [-1.1, 1.1].forEach(x => { c.beginPath(); c.moveTo(u * (x - 0.22), u * 0.18); c.lineTo(u * x, u * (0.6 + fl * 0.3 + (moving ? 0.3 : 0))); c.lineTo(u * (x + 0.22), u * 0.18); c.fill(); });
   if (moving) { c.strokeStyle = 'rgba(95,243,255,.5)'; c.lineWidth = Math.max(1, K / 16); for (let k = 0; k < 3; k++) { const o = (t * 3 + k * 0.4) % 1.5; c.beginPath(); c.moveTo(u * (1.8 + o), u * (-0.1 + k * 0.12)); c.lineTo(u * (2.6 + o), u * (-0.1 + k * 0.12)); c.stroke(); } }
   c.shadowColor = '#5ff3ff'; c.shadowBlur = K * 0.5;
   c.fillStyle = '#16213a'; c.strokeStyle = '#5ff3ff'; c.lineWidth = Math.max(1, K / 22); c.beginPath(); c.moveTo(-u * 2.1, 0); c.quadraticCurveTo(-u * 1.4, -u * 0.75, u * 0.2, -u * 0.7); c.quadraticCurveTo(u * 1.6, -u * 0.6, u * 1.9, 0); c.quadraticCurveTo(u * 0.2, u * 0.32, -u * 2.1, 0); c.closePath(); c.fill(); c.stroke();
@@ -511,15 +583,15 @@ function drawShip(c, t) { // delivery shuttle: hovers on the pad, launches when 
   c.restore();
 }
 const clouds = [{ x: 3, y: 8, s: 3.6, v: 0.16 }, { x: 16, y: 20, s: 3.0, v: 0.12 }, { x: 9, y: 30, s: 2.6, v: 0.2 }, { x: 22, y: 4, s: 2.8, v: 0.14 }];
-const flies = Array.from({ length: 18 }, (_, k) => ({ x: (k * 7.3) % WX, y: 6 + (k * 11.7) % 28, p: k * 1.7 }));
+const flies = Array.from({ length: 48 }, (_, k) => ({ x: (k * 7.3) % WX, y: 4 + (k * 11.7) % 74, p: k * 1.7 }));
 const puffs = [];
-let ZM = 1; const ZMIN = 0.5, ZMAX = 2.5, VW = () => W / ZM, VH = () => H / ZM;
+let ZM = 1; const ZMIN = 0.3, ZMAX = 2.5, VW = () => W / ZM, VH = () => H / ZM;
 function inView(x, y, w, h) { return x + w > cam.x - 20 && x < cam.x + VW() + 20 && y + h > cam.y - 20 && y < cam.y + VH() + 20; }
 let LABELRECTS = [];
 
 // black robot on a tower closer to town; constant red beam to a tower beside the black house
-const BOSS = { x: 27.2, y: 11.6 };
-const RELAY = { x: 34.6, y: 8.4 };
+const BOSS = { x: 70, y: 27 };
+const RELAY = { x: 78.6, y: 20.6 };
 function towerAt(c, x, y, h, col) {
   const [X, Y] = S3(x, y, 0), [, Yt] = S3(x, y, h);
   c.fillStyle = 'rgba(255,77,109,.15)'; c.beginPath(); c.ellipse(X, Y, K * 1.1, K * 0.35, 0, 0, 7); c.fill();
@@ -550,7 +622,10 @@ function drawBoss(c, t) { // the AI core: a floating, pulsing sphere above a pyl
 }
 function drawFrame(t, dt) {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  { const sx = Math.max(0, cam.x), sy = Math.max(0, cam.y), sw = Math.min(WPX - sx, VW() - (sx - cam.x)), sh = Math.min(HPX - sy, VH() - (sy - cam.y)), k = dpr * ZM; if (cam.x < 0 || cam.y < 0 || sw < VW() || sh < VH()) { ctx.fillStyle = '#070c16'; ctx.fillRect(0, 0, cv.width, cv.height); const wb = (HPX - cam.y) * k; if (wb < cv.height) { ctx.fillStyle = '#020b14'; ctx.fillRect(0, wb, cv.width, cv.height - wb); } } ctx.drawImage(ground, sx * gdpr, sy * gdpr, sw * gdpr, sh * gdpr, (sx - cam.x) * k, (sy - cam.y) * k, sw * k, sh * k); }
+  drawSky(t);
+  { const k = dpr * ZM, x0 = Math.max(0, Math.floor(cam.x / TSW)), y0 = Math.max(0, Math.floor(cam.y / TSW)), x1 = Math.min(Math.ceil(WPX / TSW) - 1, Math.floor((cam.x + VW()) / TSW)), y1 = Math.min(Math.ceil(HPX / TSW) - 1, Math.floor((cam.y + VH()) / TSW));
+    let budget = TILES.size ? 1 : 99; const wb = (HPX - cam.y) * k; if (wb < cv.height) { ctx.fillStyle = '#020b14'; ctx.fillRect(0, wb, cv.width, cv.height - wb); }
+    for (let iy = y0; iy <= y1; iy++) for (let ix = x0; ix <= x1; ix++) { let tl = TILES.get(ix + ',' + iy); if (!tl && budget-- > 0) tl = groundTile(ix, iy); if (tl) ctx.drawImage(tl, (ix * TSW - cam.x) * k, (iy * TSW - cam.y) * k, TSW * k + 0.5, TSW * k + 0.5); else { ctx.fillStyle = C.g2; ctx.fillRect((ix * TSW - cam.x) * k, Math.max(0, (iy * TSW - cam.y) * k), TSW * k, TSW * k); } } }
   ctx.setTransform(dpr * ZM, 0, 0, dpr * ZM, -cam.x * dpr * ZM, -cam.y * dpr * ZM);
   // data streams along the paths (packets of light)
   ctx.fillStyle = 'rgba(160,250,255,.9)';
@@ -562,18 +637,19 @@ function drawFrame(t, dt) {
   if (pulseT > 0) pulseT -= dt;
   // water life
   ctx.strokeStyle = 'rgba(95,243,255,.35)'; ctx.lineWidth = Math.max(1, K / 22);
-  for (let k = 0; k < 34; k++) { const dir = k % 2 ? 1 : -1, wx = (((k * 5.37) % WX) + t * 0.22 * dir + WX * 4) % WX, wy = 38.8 + ((k * 3.91) % 5), s = 0.25 + (k % 5) * 0.08; if (wx > PIER.x0 - 0.3 && wx < PIER.x1 + 0.3) continue; const [X, Y] = S3(wx, wy, 0); if (!inView(X - 20, Y - 10, 40, 20)) continue;
+  for (let k = 0; k < 80; k++) { const dir = k % 2 ? 1 : -1, wx = (((k * 5.37) % WX) + t * 0.22 * dir + WX * 4) % WX, wy = 82.8 + ((k * 3.91) % 9), s = 0.25 + (k % 5) * 0.08; if (wx > PIER.x0 - 0.3 && wx < PIER.x1 + 0.3) continue; const [X, Y] = S3(wx, wy, 0); if (!inView(X - 20, Y - 10, 40, 20)) continue;
     ctx.beginPath(); ctx.moveTo(X - s * K, Y); ctx.quadraticCurveTo(X, Y - K * (0.1 + Math.sin(t * 2 + k) * 0.04), X + s * K, Y); ctx.stroke(); }
   // depth-sorted world objects
   const list = [];
   SPRITES.forEach(s => { if (inView(s.x, s.y, s.w, s.h)) list.push({ k: s.key, s }); });
   chars.forEach(ch => { if (ch.where === 'home' && !ch.walking) return; list.push({ k: ch.y + 0.01, ch }); });
   list.push({ k: SHIP_Y, ship: 1 });
-  pierCrates.forEach((it, k) => list.push({ k: 40.5 + k * 0.01, crate: [PIER.x0 + 0.3 + (k % 2) * 0.5, 40.4 - Math.floor(k / 2) * 0.45, it] }));
+  pierCrates.forEach((it, k) => list.push({ k: PIER.y0 + 3.9 + k * 0.01, crate: [PIER.x0 + 0.3 + (k % 2) * 0.5, PIER.y0 + 3.8 - Math.floor(k / 2) * 0.45, it] }));
   list.sort((a, b) => a.k - b.k).forEach(o => {
     if (o.s) { ctx.drawImage(o.s.img, o.s.x, o.s.y, o.s.w, o.s.h); if (o.s.after) o.s.after(ctx, o.s); }
     else if (o.ch) drawRobot(ctx, o.ch, t); else if (o.ship) drawShip(ctx, t);
     else if (o.crate) { const [x, y, it] = o.crate; drawSolid(ctx, boxS({ cx: x, cy: y, rot: 0 }, 0, 0, 0.42, 0.42, 0.3, 0.72, it === 'letter' ? '#f2c96b' : '#3ddc97')); } });
+  drawCity(t, dt);
   // building animation bits
   const flag = (p, col) => { const [fx, fy] = S3(p[0], p[1], p[2] + 1.0), wv = Math.sin(t * 4.5) * K * 0.08; ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(fx, fy); ctx.quadraticCurveTo(fx + K * 0.4, fy + wv, fx + K * 0.75, fy + K * 0.17 + wv); ctx.quadraticCurveTo(fx + K * 0.4, fy + K * 0.36, fx, fy + K * 0.36); ctx.fill(); };
   if (BOTS[0].b.ex) flag(BOTS[0].b.ex.flag, 'rgba(95,243,255,.75)'); if (HQ.ex) flag(HQ.ex.flag, 'rgba(242,201,107,.8)');
@@ -602,6 +678,7 @@ function drawFrame(t, dt) {
   const op = ADMIN ? otherPending() : 0, wq = ADMIN ? waitingQueue().length : 0;
   sign(HQ, ADMIN ? ['Christian\u2019s HQ', `${wq} waiting on you`] : ['Gatepost HQ'], 'hq', op ? [{ n: op, col: C.red, kind: 'count' }] : []);
   sign(AI, ['AI Core', 'tap to talk'], 'ai', [], 'rgba(255,77,109,.9)');
+  districtSigns(t);
   drawBoss(ctx, t);
   chars.forEach(ch => drawRobotOver(ctx, ch, t));
   pops.forEach(p => { const k = p.t / 1.3, [X, Y] = S3(p.x, p.y, 1.6 + k * 0.9); ctx.globalAlpha = 1 - k; if (p.item) drawItem(ctx, p.item, X, Y, K / 14 * (1 - k * 0.5));
@@ -609,6 +686,65 @@ function drawFrame(t, dt) {
   drawHUD(t);
 }
 // ---------- HUD: scanlines, vignette, live clock + live counts (all from real data) ----------
+// ---------- sky: parallax stars + aurora (screen space, behind the world) ----------
+const STARS = Array.from({ length: 140 }, (_, k) => { const r = mulberry32(900 + k); return { x: r(), y: r(), z: 0.15 + r() * 0.5, s: r() < 0.1 ? 1.6 : 0.9, p: r() * 7 }; });
+function drawSky(t) {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#02040b'); g.addColorStop(1, '#070c18'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  STARS.forEach(s => { const x = ((s.x * W * 1.5 - cam.x * ZM * s.z * 0.2) % (W * 1.5) + W * 1.5) % (W * 1.5) - W * 0.25, y = ((s.y * H * 1.4 - cam.y * ZM * s.z * 0.2) % (H * 1.4) + H * 1.4) % (H * 1.4) - H * 0.2; ctx.fillStyle = `rgba(220,240,255,${0.35 + 0.45 * Math.abs(Math.sin(t * 0.8 + s.p))})`; ctx.fillRect(x, y, s.s, s.s); });
+  const top = (OY - cam.y) * ZM; if (top > -40) { const ay = Math.min(top, H) ; [[0.0, '61,220,151', 0.16], [1.7, '150,110,255', 0.12]].forEach(([ph, rgb, al]) => { ctx.beginPath(); ctx.moveTo(0, ay); for (let x = 0; x <= W; x += 24) ctx.lineTo(x, ay - 30 - Math.sin(x * 0.011 + t * 0.35 + ph - cam.x * ZM * 0.002) * 22 - Math.sin(x * 0.027 + t * 0.6 + ph) * 10 - 40); ctx.lineTo(W, ay); ctx.closePath(); const ag = ctx.createLinearGradient(0, ay - 110, 0, ay); ag.addColorStop(0, `rgba(${rgb},0)`); ag.addColorStop(1, `rgba(${rgb},${al})`); ctx.fillStyle = ag; ctx.fill(); }); }
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+}
+// ---------- living city: district activity, workers, skybridges, sky-rail, drones, monuments ----------
+function districtActive(d) { if (!ADMIN) return 0; if (typeof d.bot === 'number') { const bt = BOTS[d.bot], ch = chars[d.bot]; if (current(bt.name) || ch.busyT > 0 || (ch.errand && ch.errand.real)) return 1; const la = lastActive(bt.name); return la && Date.now() - la < 20 * 60e3 ? 0.6 : 0; }
+  if (d.bot === 'hq') return reqs().some(r => r.status === 'pending') ? 0.5 : 0; if (d.bot === 'ai') return pulseT > 0 ? 1 : 0; if (d.bot === 'dock') return ship.state !== 'docked' ? 1 : 0; return 0; }
+const WORKERS = [], DRONES = Array.from({ length: 16 }, (_, k) => ({ cx: 8 + (k * 13.7) % 80, cy: 8 + (k * 9.3) % 66, rx: 4 + (k % 4) * 2, ry: 3 + (k % 3) * 2, sp: 0.15 + (k % 5) * 0.05, p: k * 1.3, z: 5 + (k % 4) * 1.5 }));
+const SPARKS = Array.from({ length: 36 }, (_, k) => ({ p: k / 36 * 9, a: k * 2.4 }));
+let workerT = 0;
+function drawCity(t, dt) {
+  // district glows (brighter when that bot is really working)
+  DISTRICTS.forEach(d => { const act = districtActive(d); d.act = (d.act || 0) + (act - (d.act || 0)) * Math.min(1, dt * 2); const [X, Y] = S3(d.cx, d.cy, 0), rx = d.R * K; if (!inView(X - rx, Y - rx * TILT, rx * 2, rx * 2 * TILT)) return;
+    const a = 0.03 + d.act * (0.12 + 0.05 * Math.sin(t * 3)); if (a < 0.035 && !d.act) return; const g = ctx.createRadialGradient(X, Y, 0, X, Y, rx); const rgb = rgbOf(d.col).join(','); g.addColorStop(0, `rgba(${rgb},${a})`); g.addColorStop(1, `rgba(${rgb},0)`); ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(X, Y, rx, rx * TILT, 0, 0, 7); ctx.fill(); });
+  // workers carry packets out of active districts (only when real activity says so)
+  if ((workerT -= dt) <= 0) { workerT = 0.9; DISTRICTS.forEach(d => { if ((d.act || 0) < 0.5 || WORKERS.length > 40 || !d.props.length || Math.random() > d.act) return; const from = d.lm || { cx: d.cx, cy: d.cy }, to = d.props[Math.floor(Math.random() * d.props.length)]; WORKERS.push({ x0: from.cx, y0: from.cy, x1: to.cx, y1: to.cy, t: 0, col: d.col }); }); }
+  for (let k = WORKERS.length - 1; k >= 0; k--) { const w = WORKERS[k]; w.t += dt / 2.6; if (w.t >= 1) { WORKERS.splice(k, 1); continue; } const f = w.t < 0.5 ? w.t * 2 : 2 - w.t * 2, x = w.x0 + (w.x1 - w.x0) * f, y = w.y0 + (w.y1 - w.y0) * f, [X, Y] = S3(x, y, 1.6 + Math.sin(f * Math.PI) * 1.4); if (!inView(X - 10, Y - 10, 20, 20)) continue;
+    ctx.fillStyle = '#0c1424'; ctx.fillRect(X - K * 0.18, Y - K * 0.08, K * 0.36, K * 0.16); ctx.fillStyle = w.col; ctx.fillRect(X - K * 0.24, Y - K * 0.1, K * 0.1, K * 0.04); ctx.fillRect(X + K * 0.14, Y - K * 0.1, K * 0.1, K * 0.04); if (w.t < 0.5) drawItem(ctx, 'scroll', X, Y + K * 0.32, K / 22); }
+  // skybridges with data packets (faster out of active districts)
+  BRIDGES.forEach(br => { const A = S3(br.a.cx, br.a.cy, 4.2), B = S3(br.b.cx, br.b.cy, 4.2), mx = (A[0] + B[0]) / 2, my = Math.min(A[1], B[1]) - K * 2.6; const vis = inView(Math.min(A[0], B[0]), my, Math.abs(A[0] - B[0]) + 1, Math.abs(A[1] - B[1]) + K * 3);
+    const act = Math.max(br.a.act || 0, br.b.act || 0); if ((br.nt -= dt) <= 0) { br.nt = act > 0.4 ? 0.8 + Math.random() * 0.6 : 5 + Math.random() * 6; const fromA = (br.a.act || 0) >= (br.b.act || 0) ? Math.random() < 0.75 : Math.random() < 0.25; br.pk.push({ f: 0, dir: fromA ? 1 : -1, col: fromA ? br.a.col : br.b.col }); }
+    for (let k = br.pk.length - 1; k >= 0; k--) { const pk = br.pk[k]; pk.f += dt * 0.12; if (pk.f >= 1) br.pk.splice(k, 1); }
+    if (!vis) return; ctx.strokeStyle = 'rgba(95,243,255,.16)'; ctx.lineWidth = K * 0.3; ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.quadraticCurveTo(mx, my, B[0], B[1]); ctx.stroke(); ctx.strokeStyle = 'rgba(160,250,255,.6)'; ctx.lineWidth = Math.max(1, K / 22); ctx.stroke();
+    [A, B].forEach(P => { ctx.fillStyle = 'rgba(95,243,255,.8)'; ctx.beginPath(); ctx.arc(P[0], P[1], K * 0.12, 0, 7); ctx.fill(); });
+    br.pk.forEach(pk => { const f = pk.dir > 0 ? pk.f : 1 - pk.f, u = 1 - f, x = u * u * A[0] + 2 * u * f * mx + f * f * B[0], y = u * u * A[1] + 2 * u * f * my + f * f * B[1]; ctx.fillStyle = pk.col; ctx.fillRect(x - K * 0.1, y - K * 0.1, K * 0.2, K * 0.2); ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.fillRect(x - K * 0.2, y - K * 0.2, K * 0.4, K * 0.4); }); });
+  // sky-rail loop: pillars, glowing rail, maglev pods
+  for (let k = 0; k < RAIL.length; k += 6) { const p = RAIL[k], [X, Y] = S3(p[0], p[1], 0), [, Yt] = S3(p[0], p[1], RAIL_Z); if (!inView(X - 6, Yt, 12, Y - Yt)) continue; ctx.fillStyle = '#121b2b'; ctx.fillRect(X - K * 0.09, Yt, K * 0.18, Y - Yt); }
+  ctx.strokeStyle = 'rgba(242,201,107,.22)'; ctx.lineWidth = K * 0.34; ctx.beginPath(); RAIL.forEach((p, k) => { const q = S3(p[0], p[1], RAIL_Z); k ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); }); ctx.closePath(); ctx.stroke(); ctx.strokeStyle = 'rgba(255,225,150,.85)'; ctx.lineWidth = Math.max(1, K / 20); ctx.stroke();
+  for (let n = 0; n < 3; n++) { const f = ((t * 0.012 + n / 3) % 1) * RAIL.length; for (let s2 = 0; s2 < 4; s2++) { const fi = (f - s2 * 0.9 + RAIL.length) % RAIL.length, i0 = Math.floor(fi), a = RAIL[i0], b2 = RAIL[(i0 + 1) % RAIL.length], q = fi - i0, [X, Y] = S3(a[0] + (b2[0] - a[0]) * q, a[1] + (b2[1] - a[1]) * q, RAIL_Z + 0.25); if (!inView(X - 20, Y - 20, 40, 40)) continue;
+    ctx.fillStyle = '#e8f6ff'; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(X - K * 0.42, Y - K * 0.22, K * 0.84, K * 0.36, K * 0.16) : ctx.rect(X - K * 0.42, Y - K * 0.22, K * 0.84, K * 0.36); ctx.fill(); ctx.fillStyle = 'rgba(95,243,255,.9)'; ctx.fillRect(X - K * 0.34, Y - K * 0.14, K * 0.68, K * 0.1); } }
+  // spire beacon + floating platforms + rising light motes
+  { const [X, Y] = S3(SPIRE.x, SPIRE.y, 16.6), on = (Math.sin(t * 2.2) + 1) / 2; if (inView(X - K * 4, Y - K * 6, K * 8, K * 20)) { const g = ctx.createRadialGradient(X, Y, 0, X, Y, K * (1.6 + on)); g.addColorStop(0, `rgba(255,236,170,${0.7 + on * 0.3})`); g.addColorStop(1, 'rgba(242,201,107,0)'); ctx.fillStyle = g; ctx.fillRect(X - K * 3, Y - K * 3, K * 6, K * 6);
+      const bg = ctx.createLinearGradient(0, Y - K * 12, 0, Y); bg.addColorStop(0, 'rgba(242,201,107,0)'); bg.addColorStop(1, `rgba(242,201,107,${0.25 + on * 0.2})`); ctx.fillStyle = bg; ctx.fillRect(X - K * 0.12, Y - K * 12, K * 0.24, K * 12); }
+    for (let k = 0; k < 3; k++) { const a = t * 0.25 + k * 2.094, px = SPIRE.x + Math.cos(a) * 4.2, py = SPIRE.y + Math.sin(a) * 4.2, z = 5 + k * 2.5 + Math.sin(t * 1.3 + k) * 0.3; const pts = [[-1, -0.7], [1, -0.7], [1, 0.7], [-1, 0.7]].map(([dx, dy]) => S3(px + dx, py + dy, z)); if (!inView(pts[0][0] - 10, pts[0][1] - 10, K * 3, K * 3)) continue;
+      ctx.fillStyle = 'rgba(0,0,0,.25)'; const sh = S3(px + z * SH[0], py + z * SH[1], 0); ctx.beginPath(); ctx.ellipse(sh[0], sh[1], K, K * 0.5, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = '#16213a'; ctx.beginPath(); pts.forEach((q, j) => j ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1])); ctx.closePath(); ctx.fill(); ctx.strokeStyle = 'rgba(242,201,107,.9)'; ctx.lineWidth = 1.5; ctx.stroke(); const [cx2, cy2] = S3(px, py, z); ctx.fillStyle = 'rgba(242,201,107,.35)'; ctx.fillRect(cx2 - K * 0.5, cy2, K, K * 0.5); } }
+  // fountain of light (HQ plaza)
+  { const [X, Y] = S3(FOUNTAIN.x, FOUNTAIN.y, 0); if (inView(X - K * 3, Y - K * 5, K * 6, K * 6)) SPARKS.forEach(s2 => { const f = ((t * 0.5 + s2.p) % 1.6) / 1.6, r2 = f * K * 1.6, h = Math.sin(f * Math.PI) * K * 3.2; ctx.fillStyle = `rgba(246,244,239,${0.9 * (1 - f)})`; ctx.fillRect(X + Math.cos(s2.a) * r2 - 1.5, Y + Math.sin(s2.a) * r2 * TILT - h - 1.5, 3, 3); }); }
+  // holographic statue (Command plaza): a rotating wireframe android
+  { const [X, Y] = S3(CMD_PLAZA.x, CMD_PLAZA.y, 0); if (inView(X - K * 3, Y - K * 6, K * 6, K * 7)) { const sx = Math.cos(t * 0.8), u = K * 0.42; ctx.strokeStyle = `rgba(95,243,255,${0.55 + 0.25 * Math.sin(t * 7) * (Math.sin(t * 0.9) > 0.9 ? 1 : 0.2)})`; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.ellipse(X, Y - u * 9.6, u * 1.4 * Math.abs(sx) + u * 0.3, u * 1.5, 0, 0, 7); ctx.stroke(); ctx.strokeRect(X - u * 2 * Math.abs(sx) - u * 0.4, Y - u * 8, u * 4 * Math.abs(sx) + u * 0.8, u * 4.4); ctx.beginPath(); ctx.moveTo(X - u * 0.8, Y - u * 3.6); ctx.lineTo(X - u * 1.1, Y - u * 0.6); ctx.moveTo(X + u * 0.8, Y - u * 3.6); ctx.lineTo(X + u * 1.1, Y - u * 0.6); ctx.moveTo(X - u * 2.4 * sx, Y - u * 7.6); ctx.lineTo(X - u * 3.4 * sx, Y - u * 4.6); ctx.moveTo(X + u * 2.4 * sx, Y - u * 7.6); ctx.lineTo(X + u * 3.4 * sx, Y - u * 4.6); ctx.stroke();
+    ctx.fillStyle = 'rgba(95,243,255,.12)'; ctx.beginPath(); ctx.moveTo(X - K * 1.2, Y); ctx.lineTo(X - u * 2, Y - u * 11.5); ctx.lineTo(X + u * 2, Y - u * 11.5); ctx.lineTo(X + K * 1.2, Y); ctx.fill(); } }
+  // prop animations: antenna blinks + dish sweeps, exchange holo rings, council beacon, billboards flicker
+  PROPS.forEach(pr => { const ex = pr.ex; if (!ex) return; const [X, Y] = S3(...(ex.blink || ex.holo || ex.beacon || ex.bill || [pr.cx, pr.cy, 0])); if (!inView(X - K * 3, Y - K * 3, K * 6, K * 6)) return; const rgb = rgbOf(pr.dist.col).join(',');
+    if (ex.blink) { ctx.fillStyle = (t + pr.cx) % 1.4 < 0.5 ? '#ff4d6d' : `rgba(${rgb},.5)`; ctx.beginPath(); ctx.arc(X, Y, K * 0.12, 0, 7); ctx.fill(); const [dx, dy] = S3(...ex.dish), f = (t * 0.7 + pr.cy) % 1; ctx.strokeStyle = `rgba(${rgb},${0.7 * (1 - f)})`; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(dx, dy, K * (0.4 + f * 2.4), K * (0.16 + f * 0.9), 0, 0, 7); ctx.stroke(); }
+    if (ex.holo) { ctx.strokeStyle = `rgba(${rgb},.8)`; ctx.lineWidth = 1.5; for (let k = 0; k < 2; k++) { ctx.beginPath(); ctx.ellipse(X, Y - k * K * 0.45, K * (1.2 - k * 0.35) * (0.6 + 0.4 * Math.abs(Math.cos(t * 0.9 + k))), K * 0.32, 0, 0, 7); ctx.stroke(); } }
+    if (ex.beacon) { const on = (Math.sin(t * 2.6 + pr.cx) + 1) / 2; ctx.fillStyle = `rgba(${rgb},${0.4 + on * 0.6})`; ctx.beginPath(); ctx.arc(X, Y, K * (0.14 + on * 0.08), 0, 7); ctx.fill(); }
+    if (ex.bill && Math.sin(t * 0.5 + pr.cx) > 0.96) { ctx.fillStyle = `rgba(${rgb},.18)`; ctx.fillRect(X - pr.w * K * 0.5, Y - K * 0.7, pr.w * K, K * 1.2); } });
+  // ambient drones (pure decoration: no data)
+  DRONES.forEach(dr => { const a = t * dr.sp + dr.p, x = dr.cx + Math.cos(a) * dr.rx, y = dr.cy + Math.sin(a * 1.3) * dr.ry, [X, Y] = S3(x, y, dr.z); if (!inView(X - 10, Y - 10, 20, 20)) return; ctx.fillStyle = '#0c1424'; ctx.fillRect(X - K * 0.16, Y - K * 0.05, K * 0.32, K * 0.1); ctx.fillStyle = (t * 2 + dr.p) % 1 < 0.5 ? '#ff4d6d' : '#5ff3ff'; ctx.fillRect(X - 1, Y - 1, 2.5, 2.5); });
+  // parked shuttles on the extra pads (decor)
+  PADS.forEach(([x, y], k) => { const [X, Y] = S3(x, y, 0.6 + Math.sin(t * 1.5 + k) * 0.05); if (!inView(X - K * 2, Y - K, K * 4, K * 2)) return; ctx.fillStyle = '#16213a'; ctx.strokeStyle = '#b3ff5f'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.ellipse(X, Y, K * 1.1, K * 0.32, 0, 0, 7); ctx.fill(); ctx.stroke(); ctx.fillStyle = 'rgba(95,243,255,.7)'; ctx.beginPath(); ctx.ellipse(X + K * 0.3, Y - K * 0.12, K * 0.3, K * 0.1, 0, 0, 7); ctx.fill(); });
+}
+// district name signs (tappable) drawn with the other labels
+function districtSigns(t) { DISTRICTS.forEach(d => { const [X, Y] = S3(d.cx, d.cy - d.R * 0.92, 2.8); const st = ADMIN ? ((d.act || 0) > 0.5 ? '● ACTIVE' : (d.act || 0) > 0.05 ? 'recently active' : 'quiet') : null; const p = pill(st ? [d.name.toUpperCase(), st] : [d.name.toUpperCase()], { edge: d.col, fg: d.col }); const x = X - p.w / 2, y = Y - p.h; if (!inView(x, y, p.w, p.h)) return; ctx.drawImage(p.img, x, y, p.w, p.h); LABELRECTS.push({ x, y, w: p.w, h: p.h, tap: 'D:' + d.key }); }); }
 let scanPat = null, vign = null, vignKey = '';
 const HUDF = new Intl.DateTimeFormat('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit', second: '2-digit' });
 function drawHUD(t) {
@@ -649,7 +785,7 @@ function update(dt) {
       else if (head.act === 'end') { ch.errand = null; ch.running = false; ch.carry = null; }
       ch.path.shift(); if (!ch.path.length) ch.walking = false; return;
     }
-    if (head) { const [tx, ty] = head, dx = tx - ch.x, dy = ty - ch.y, d = Math.hypot(dx, dy), sp = (ch.running ? 4.2 : 2.6) * dt;
+    if (head) { const [tx, ty] = head, dx = tx - ch.x, dy = ty - ch.y, d = Math.hypot(dx, dy), sp = (ch.running ? 9 : 5.5) * dt;
       if (Math.abs(dx) > 0.01) ch.face = Math.sign(dx);
       if (d <= sp) { ch.x = tx; ch.y = ty; ch.dist += d; ch.path.shift(); if (!ch.path.length) ch.walking = false; } else { ch.x += dx / d * sp; ch.y += dy / d * sp; ch.dist += sp; } }
     else if (ch.where === 'work' && lastWork) {
@@ -680,9 +816,9 @@ function layoutFull() { const full = document.getElementById('town-full'); if (!
   full.style.top = Math.max(0, hd ? hd.getBoundingClientRect().bottom : 0) + 'px'; full.style.bottom = (nav && !nav.classList.contains('hidden') ? Math.max(0, window.innerHeight - nav.getBoundingClientRect().top) : 0) + 'px'; }
 function setup() {
   layoutFull(); W = Math.max(200, Math.floor(cv.clientWidth)); H = Math.max(200, Math.floor(cv.clientHeight)); const nd2 = Math.min(2, window.devicePixelRatio || 1), nk = Math.round(Math.max(26, Math.min(34, W / 13)));
-  if (nk !== K || nd2 !== dpr) { K = T = nk; dpr = nd2; OY = 3.8 * K; WPX = Math.round(WX * K); HPX = Math.round(OY + WY * TILT * K); pillCache.clear(); spritesDirty = true; ground = null; if (cam.init) cam.init = false; }
+  if (nk !== K || nd2 !== dpr) { K = T = nk; dpr = nd2; OY = 7 * K; WPX = Math.round(WX * K); HPX = Math.round(OY + WY * TILT * K); pillCache.clear(); spritesDirty = true; ground = null; if (cam.init) cam.init = false; }
   cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); ctx = cv.getContext('2d');
-  if (!cam.init) { cam.init = true; focusOn(HQ.cx, HQ.cy, 1, true); } clampCam();
+  if (!cam.init) { cam.init = true; focusOn(BOTS[0].b.cx, BOTS[0].b.cy + 1.5, 1, true); } clampCam();
   hour = syncClock(); dark = darkness(hour); warm = warmth(hour); const nl = dark > 0.15, nh = nl && !atWork(hour); if (nl !== LIT || nh !== HOMELIT) { LIT = nl; HOMELIT = nh; spritesDirty = true; } clockT = 30; updateOverlay();
   const pts = new Map(); let pinch = null;
   const rel = e => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
@@ -699,7 +835,7 @@ function setup() {
   cv.onpointerup = cv.onpointercancel = e => { pts.delete(e.pointerId);
     if (pinch) { if (pts.size < 2) { pinch = null; drag = null; cam.vx = cam.vy = 0; } return; }
     if (!drag || drag.id !== e.pointerId) return; const d = drag; drag = null; if (performance.now() - d.lt > 90) { cam.vx = cam.vy = 0; }
-    if (!d.moved && e.type === 'pointerup') { const [x, y] = rel(e), h = hit(x, y); if (h === 'hq') openHQ(); else if (h === 'dock') openDock(); else if (h === 'ai') { if (window.openGatepostAI) window.openGatepostAI(); } else if (h !== null && h >= 0) openBot(h); } };
+    if (!d.moved && e.type === 'pointerup') { const [x, y] = rel(e), h = hit(x, y); if (typeof h === 'string' && h.startsWith('D:')) townFly(h.slice(2), true); else if (h === 'hq') openHQ(); else if (h === 'dock') openDock(); else if (h === 'ai') { if (window.openGatepostAI) window.openGatepostAI(); } else if (h !== null && h >= 0) openBot(h); } };
   cv.onwheel = e => { e.preventDefault(); const [x, y] = rel(e), k = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1, dy = e.deltaY * k;
     const mouseWheel = e.deltaMode !== 0 || (e.deltaX === 0 && Math.abs(e.deltaY) >= 50 && Number.isInteger(e.deltaY));
     if (e.ctrlKey || e.metaKey || mouseWheel) { zoomAt(ZM * Math.exp(-dy * (e.ctrlKey && !mouseWheel ? 0.012 : 0.0018)), x, y); }
@@ -769,10 +905,14 @@ window.townPage = () => { ADMIN = typeof isAdmin === 'function' && isAdmin();
     return `<button class="town-chip" onclick="townChip(${i})"><span class="dot" style="background:${bt.color}"></span>${esc(bt.short)}${s && s.pending ? ` <b>${s.pending}</b>` : ''}${u ? ` <b class="chat">${u}</b>` : ''}</button>`; }).join('');
   return `<div class="town-full" id="town-full"><canvas id="town-canvas" role="img" aria-label="Gatepost town map. Drag to look around; tap a building, a bot, HQ or the launch pad."></canvas>
   <div class="town-top"><div class="town-title"><b>Gatepost AI Grid</b><span id="town-clock"></span></div>${ADMIN ? '<div class="town-ticker" id="town-ticker"></div>' : ''}</div>
-  <div class="town-tools"><canvas id="town-mini" aria-label="Minimap: tap to jump"></canvas><button class="town-btn" onclick="townZoom(1.25)" aria-label="Zoom in" title="Zoom in">+</button><button class="town-btn" onclick="townZoom(0.8)" aria-label="Zoom out" title="Zoom out">−</button><button class="town-btn" onclick="townCenter()" aria-label="Center on HQ" title="Center on HQ">⌂</button></div>
+  <div class="town-tools"><canvas id="town-mini" aria-label="Minimap: tap to jump"></canvas><button class="town-btn" onclick="townZoom(1.25)" aria-label="Zoom in" title="Zoom in">+</button><button class="town-btn" onclick="townZoom(0.8)" aria-label="Zoom out" title="Zoom out">−</button><button class="town-btn" onclick="townCenter()" aria-label="Center on HQ" title="Center on HQ">⌂</button><button class="town-btn" onclick="townJump()" aria-label="Districts" title="Fly to a district">◎</button></div>
+  <div class="town-jump" id="town-jump">${DISTRICTS.map(d => `<button onclick="townFly('${d.key}')"><span class="dot" style="background:${d.col}"></span>${esc(d.name)}</button>`).join('')}</div>
   <div class="town-legend"><button class="town-chip hq" onclick="townChip('hq')"><span class="dot" style="background:#F6F4EF"></span>HQ</button>${chips}<button class="town-chip" onclick="townChip('dock')"><span class="dot" style="background:#6f9aac"></span>Launch Pad</button></div></div>`; };
 window.townCenter = () => focusOn(HQ.cx, HQ.cy, 1);
-window.townChip = t => { if (t === 'hq') { focusOn(HQ.cx, HQ.cy, 1); openHQ(); } else if (t === 'dock') { focusOn(PIER.x0 - 1, 39.5, 0); openDock(); } else { const b = BOTS[t].b; focusOn(b.cx, b.cy, 1); openBot(t); } };
+window.townFly = (key, open) => { const d = DISTRICTS.find(x => x.key === key); if (!d) return; if (ZM < 0.8) zoomAt(1, W / 2, H / 2); focusOn(d.cx, d.cy, 1); const j = document.getElementById('town-jump'); if (j) j.classList.remove('on');
+  if (open) { if (d.bot === 'hq') openHQ(); else if (d.bot === 'dock') openDock(); else if (d.bot === 'ai') { if (window.openGatepostAI) window.openGatepostAI(); } else openBot(d.bot); } };
+window.townJump = () => { const j = document.getElementById('town-jump'); if (j) j.classList.toggle('on'); };
+window.townChip = t => { if (t === 'hq') { focusOn(HQ.cx, HQ.cy, 1); openHQ(); } else if (t === 'dock') { focusOn(PIER.x0 - 1, PIER.y0 + 3, 0); openDock(); } else { const b = BOTS[t].b; focusOn(b.cx, b.cy, 1); openBot(t); } };
 
 // ---------- sheets ----------
 window.openBot = i => { OPEN = { kind: 'bot', i, tab: ADMIN ? (unread(BOTS[i].name) && !stats(BOTS[i].name).pending ? 'chat' : 'requests') : 'about' }; renderSheet(true); if (OPEN.tab === 'chat') markRead(BOTS[i].name); };
@@ -896,7 +1036,9 @@ window.addEventListener('resize', () => { if (cv && cv.isConnected) setup(); });
 .town-full .town-ticker{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.68rem;max-width:min(100%,520px)}
 .town-full .town-ticker .tk-t{color:#f2c96b;margin-right:6px}.town-full .town-ticker .tk-row:first-child::after{content:'_';animation:tkblink 1s steps(1) infinite;color:#5ff3ff;margin-left:2px}
 @keyframes tkblink{50%{opacity:0}}
-.town-full #town-mini{border-color:rgba(95,243,255,.6)!important}`; document.head.appendChild(st); })();
+.town-full #town-mini{border-color:rgba(95,243,255,.6)!important;width:110px}
+.town-jump{position:absolute;right:58px;bottom:54px;display:none;flex-direction:column;gap:4px;background:rgba(3,10,20,.92);border:1px solid rgba(95,243,255,.45);border-radius:12px;padding:6px;z-index:2;max-height:60%;overflow:auto}
+.town-jump.on{display:flex}.town-jump button{display:flex;align-items:center;gap:8px;width:auto;background:transparent;border:0;color:#dffcff;padding:7px 10px;font-size:.8rem;text-align:left;border-radius:8px}.town-jump button:active{background:rgba(95,243,255,.15)}.town-jump .dot{width:9px;height:9px;border-radius:50%}`; document.head.appendChild(st); })();
 document.addEventListener('visibilitychange', () => { if (!document.hidden && cv && cv.isConnected && !raf) { last = 0; raf = requestAnimationFrame(loop); } });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && OPEN && !document.getElementById('req-sheet')) closeBot(); });
 })();
