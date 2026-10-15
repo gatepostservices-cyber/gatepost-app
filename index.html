@@ -405,8 +405,13 @@ function dashboard() {
 }
 
 function estimatePage() {
+  const tab = window._estTab || 'manual';
   return `
     <div class="card"><h2>Estimate calculator</h2>
+      <div class="row" style="margin-bottom:12px;">
+        <button class="${tab==='manual'?'primary':'secondary'}" onclick="estTab('manual')">Manual</button>
+        <button class="${tab==='ai'?'primary':'secondary'}" onclick="estTab('ai')">AI</button>
+      </div>
       <label>Service</label>
       <select id="svc">
         <option value="garden">Garden / Yard Cleanup</option>
@@ -417,15 +422,52 @@ function estimatePage() {
         <option value="moving">Moving help</option>
         <option value="trash">Trash / junk hauling</option>
       </select>
-      <label>Scope notes</label><textarea id="notes" rows="2" placeholder="What is included"></textarea>
+      ${tab==='ai' ? `
+      <label>Photos</label>
+      <input id="est-photos" type="file" accept="image/*" multiple>
+      <p class="muted" style="font-size:.75rem;margin-top:4px;">AI prices from the rate book and internal docs. Photos help. Two lines only: work and materials.</p>
+      ` : ''}
+      <label>Scope notes</label><textarea id="notes" rows="2" placeholder="${tab==='ai'?'Describe the job. AI fills work and materials.':'What is included'}"></textarea>
       <div class="row"><div><label>Work</label><input id="work" type="number" inputmode="decimal" step="0.01" placeholder="0.00"></div>
       <div><label>Materials</label><input id="materials" type="number" inputmode="decimal" step="0.01" placeholder="0.00"></div></div>
       <label>Discount</label><input id="discount" type="number" inputmode="decimal" step="0.01" placeholder="0.00">
       <label>Location / GRT</label>
       <select id="grt"><option value="0.074375">Rio Rancho / Sandoval 7.4375%</option><option value="0.07625">Albuquerque / Bernalillo 7.625%</option></select>
-      <button class="primary" style="margin-top:16px;" onclick="calcEstimate()">Calculate</button>
+      <button class="primary" style="margin-top:16px;" onclick="${tab==='ai'?'estAI()':'calcEstimate()'}">${tab==='ai'?'Price with AI':'Calculate'}</button>
       <div id="est-result" style="margin-top:12px;"></div></div>
     <div class="card"><h2>Saved estimates</h2><div id="saved-ests"></div></div>`;
+}
+function estTab(t) { window._estTab = t; render(); }
+async function estAI() {
+  const notes = (document.getElementById('notes').value || '').trim();
+  const svc = document.getElementById('svc').value;
+  const files = [...(document.getElementById('est-photos')?.files || [])];
+  if (!notes && !files.length) { document.getElementById('est-result').innerHTML = '<p class="muted">Add notes or a photo.</p>'; return; }
+  const box = document.getElementById('est-result');
+  box.innerHTML = '<p class="muted">Pricing from the rate book…</p>';
+  const images = [];
+  for (const f of files.slice(0, 4)) {
+    const data = await new Promise(res => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.readAsDataURL(f); });
+    images.push({ mime: f.type || 'image/jpeg', data });
+  }
+  const q = `Price this Gatepost job. Service family: ${svc}. Notes: ${notes || '(see photos)'}.
+Return ONLY these two lines, numbers only, from the Full Rate Book / Pricing Reference. Use the aim unless the notes say low.
+WORK: 0.00
+MATERIALS: 0.00
+Do not invent. If the rate book has no match, say so on a third line.`;
+  try {
+    if (!CLOUD) throw new Error('local');
+    const { data: { session } } = await sb.auth.getSession();
+    const r = await fetch(CFG.SUPABASE_URL + '/functions/v1/ask-ai', { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: CFG.SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (session && session.access_token) }, body: JSON.stringify({ question: q, images }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { box.innerHTML = '<p class="muted">' + esc(d.error || 'AI error') + '</p>'; return; }
+    const text = d.answer || '';
+    const wm = text.match(/WORK:\s*([0-9.]+)/i), mm = text.match(/MATERIALS:\s*([0-9.]+)/i);
+    if (wm) document.getElementById('work').value = wm[1];
+    if (mm) document.getElementById('materials').value = mm[1];
+    calcEstimate();
+    if (!wm && !mm) box.innerHTML += '<p class="muted" style="margin-top:8px;">' + esc(text) + '</p>';
+  } catch (e) { box.innerHTML = '<p class="muted">Could not reach AI.</p>'; }
 }
 function calcEstimate() {
   const svc = document.getElementById('svc').value, notes = document.getElementById('notes').value;
@@ -623,7 +665,7 @@ window.addEventListener('hashchange', () => { const pg = location.hash.slice(1) 
 const domReady = new Promise(r => document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', r, { once: true }) : r());
 Promise.all([API.init(), domReady]).then(()=>{ if (location.hash.length>1) document.querySelector(`.nav button[data-page="${location.hash.slice(1)}"]`)?.click(); render(); });
 </script>
-<script src="town.js?v=34"></script>
+<script src="town.js?v=35"></script>
 <script src="chat.js?v=5"></script>
 <script src="pwa.js?v=2"></script>
 </body>
