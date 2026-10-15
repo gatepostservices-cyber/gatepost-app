@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="Gatepost">
 <meta name="theme-color" content="#0e0e0e">
 <title>Gatepost Property Services</title>
-<meta name="app-version" content="2026-10-14-town-space-v4">
+<meta name="app-version" content="2026-10-14-town-space-v4-push1">
 <link rel="manifest" href="manifest.json?v=9">
 <link rel="icon" href="favicon.ico?v=4" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=4">
@@ -168,7 +168,7 @@ footer { padding:14px; text-align:center; font-size:.72rem; letter-spacing:.08em
 .req-top .badge { flex:none; } .badge.urgent { color:#e08b80; border-color:#e08b8066; } .cu-due { font-size:.75rem; color:#e08b80; } .cu-due.late { font-weight:700; }
 .cu-sel { padding:8px 10px; font-size:.85rem; margin-top:6px; }
 </style>
-<script src="config.js"></script>
+<script src="config.js?v=push1"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // PostHog error tracking (optional): loads only if POSTHOG_KEY is set in config.js
@@ -204,6 +204,7 @@ const CFG = window.GATEPOST_CONFIG || {};
 const CLOUD = !!(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY && window.supabase);
 const sb = CLOUD ? window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storage: window.localStorage, storageKey: 'gatepost-auth' } }) : null;
+window.gpSb = sb;
 
 // ---------- State (same shape in both modes) ----------
 let S = { me: null, users: [], estimates: [], events: [], requests: [], cust: { reqs: [], visits: [], people: [] } };
@@ -611,8 +612,8 @@ document.getElementById('main-nav').addEventListener('click', e => {
 window.addEventListener('hashchange', () => { const pg = location.hash.slice(1) || 'town'; if (pg !== page()) document.querySelector(`.nav button[data-page="${pg}"]`)?.click(); });
 API.init().then(()=>{ if (location.hash.length>1) document.querySelector(`.nav button[data-page="${location.hash.slice(1)}"]`)?.click(); render(); });
 </script>
-<script src="town.js?v=32"></script>
+<script src="town.js?v=33"></script>
 <script src="chat.js?v=5"></script>
-<script src="pwa.js?v=1"></script>
+<script src="pwa.js?v=2"></script>
 </body>
 </html>
