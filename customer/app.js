@@ -1,7 +1,8 @@
 // Gatepost Home: customer app. Same Supabase project as the team hub; RLS limits every query to the signed-in customer's own rows.
 'use strict';
 const CFG = window.GATEPOST_CONFIG || {};
-const sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY, {
+if (!window.supabase) document.getElementById('app').innerHTML = '<div class="card"><h2>You are offline</h2><p class="muted">Gatepost Home needs a connection to load your account. Reconnect and reopen the app, or call (505) 750-3019.</p></div>';
+const sb = window.supabase && window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, storage: window.localStorage, storageKey: 'gatepost-home-auth' } });
 const PHONE = '(505) 750-3019', TEL = 'tel:+15057503019';
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -32,7 +33,10 @@ let TAB = 'home', AUTH_MODE = 'signin', BUSY = false, channel = null;
 
 // ---------- Data ----------
 async function load() {
-  const { data: { user } } = await sb.auth.getUser();
+  const { data: { user }, error } = await sb.auth.getUser();
+  // Network failure (not a sign-out): keep the session and show an offline note instead of the sign-in screen.
+  S.offline = !user && !!error && !/session|jwt|token|auth/i.test(error.message || '') && !!(await sb.auth.getSession()).data.session;
+  if (S.offline) return;
   S.user = user || null; if (!user) { S.role = null; return; }
   const { data: p } = await sb.from('profiles').select('role,email').eq('id', user.id).maybeSingle();
   S.role = p ? p.role : null; if (S.role !== 'customer') return;
@@ -76,6 +80,7 @@ function render() {
   const inApp = S.user && S.role === 'customer';
   tabs.classList.toggle('hidden', !inApp); document.body.classList.toggle('has-tabs', !!inApp);
   who.innerHTML = S.user ? `<span id="sync" class="${channel ? 'on' : ''}"></span>${esc((S.prof && S.prof.full_name) || S.user.email.split('@')[0])}` : '';
+  if (S.offline) { app.innerHTML = `<div class="card"><h2>You are offline</h2><p class="muted">Reconnect to see your visits and requests. This page refreshes on its own when you are back online.</p><p class="muted">Urgent? Call <a href="${TEL}" style="color:inherit">${PHONE}</a>.</p></div>`; return; }
   if (!S.user) { app.innerHTML = authView(); return; }
   if (S.role !== 'customer') { app.innerHTML = `<div class="card"><h2>Team account</h2><p class="muted">Gatepost Home is for customers. Team members use the Gatepost hub.</p>
       <a href="../" class="link" style="display:inline-block;margin:8px 0;">Open the Gatepost hub ›</a><button class="secondary" onclick="signOut()">Sign out</button></div>`; return; }
@@ -268,7 +273,7 @@ async function sendRequest(type) {
 
 // ---------- UI helpers ----------
 function sheet(title, html) { closeSheet(); const el = document.createElement('div'); el.className = 'sheet'; el.id = 'sheet'; el.setAttribute('role', 'dialog');
-  el.innerHTML = `<div class="sheet-head"><button onclick="closeSheet()">‹ Back</button><strong>${esc(title)}</strong><span style="width:48px"></span></div><div class="sheet-body">${html}</div>`;
+  el.innerHTML = `<div class="sheet-head"><button class="back-btn" onclick="closeSheet()" aria-label="Back">‹ Back</button><strong>${esc(title)}</strong><span style="width:48px"></span></div><div class="sheet-body">${html}</div>`;
   document.body.appendChild(el); }
 function closeSheet() { document.getElementById('sheet')?.remove(); }
 function toast(t) { document.querySelectorAll('.toast').forEach(x => x.remove()); const el = document.createElement('div'); el.className = 'toast'; el.textContent = t; document.body.appendChild(el); setTimeout(() => el.remove(), 3200); }
@@ -276,9 +281,10 @@ function go(tab) { TAB = tab; closeSheet(); render(); window.scrollTo(0, 0); }
 document.getElementById('tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) go(b.dataset.tab); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && S.user) load().then(render); });
-sb.auth.onAuthStateChange((ev, s) => { if (ev === 'SIGNED_OUT') { S.user = null; render(); } if (ev === 'TOKEN_REFRESHED' && s) sb.realtime.setAuth(s.access_token); });
-if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
-(async () => {
+window.addEventListener('online', () => { if (sb) load().then(render); });
+if (sb) sb.auth.onAuthStateChange((ev, s) => { if (ev === 'SIGNED_OUT') { S.user = null; render(); } if (ev === 'TOKEN_REFRESHED' && s) sb.realtime.setAuth(s.access_token); });
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
+if (sb) (async () => {
   await load(); if (S.user) await subscribe(); render();
   const ck = new URLSearchParams(location.search).get('checkout');
   if (ck) {

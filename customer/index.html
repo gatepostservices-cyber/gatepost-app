@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Gatepost Home">
 <meta name="theme-color" content="#0e0e0e">
-<meta name="app-version" content="2026-10-14-home-v7">
+<meta name="app-version" content="2026-10-14-home-v8">
 <title>Gatepost Home</title>
 <link rel="manifest" href="manifest.json?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=1">
@@ -66,8 +66,11 @@ button { cursor:pointer; } button:disabled { opacity:.55; }
 .sheet-head { display:flex; align-items:center; justify-content:space-between; padding:calc(env(safe-area-inset-top) + 10px) 16px 10px; border-bottom:1px solid var(--line); }
 .sheet-head button { width:auto; background:none; border:none; padding:8px 0; color:inherit; }
 .sheet-body { flex:1; overflow-y:auto; padding:16px 18px calc(env(safe-area-inset-bottom) + 24px); max-width:640px; width:100%; margin:0 auto; }
-.link { background:none; border:none; color:var(--paper2); text-decoration:underline; width:auto; padding:6px 0; font-size:.85rem; }
-.cancel-link { background:none; border:none; color:var(--mute); text-decoration:underline; width:auto; padding:6px 0; font-size:.78rem; }
+.link { background:none; border:none; color:var(--paper2); text-decoration:underline; width:auto; padding:6px 4px; min-height:44px; font-size:.9rem; }
+.cancel-link { background:none; border:none; color:var(--mute); text-decoration:underline; width:auto; padding:6px 8px; min-height:44px; font-size:.82rem; }
+a[href^="tel:"] { display:inline-block; padding:14px 4px; margin:-14px -4px; }
+.addon button { min-height:44px; }
+.back-btn { min-height:44px; min-width:44px; }
 footer { padding:14px; text-align:center; font-size:.72rem; letter-spacing:.08em; color:var(--mute); }
 .toast { position:fixed; left:50%; transform:translateX(-50%); bottom:calc(env(safe-area-inset-bottom) + 80px); z-index:40; background:var(--paper); color:var(--ink); padding:10px 16px; border-radius:999px; font-size:.88rem; box-shadow:0 6px 20px rgba(0,0,0,.4); }
 @media print {
@@ -93,7 +96,7 @@ footer { padding:14px; text-align:center; font-size:.72rem; letter-spacing:.08em
 </nav>
 <footer id="foot">Gatepost Property Services · (505) 750-3019</footer>
 <script src="../config.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="app.js?v=7"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.min.js"></script>
+<script src="app.js?v=8"></script>
 </body>
 </html>
