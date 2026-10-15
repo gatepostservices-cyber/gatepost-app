@@ -1,0 +1,36 @@
+name: Index rate book
+on:
+  workflow_dispatch:
+jobs:
+  index:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Post rate book to Ask AI
+        env:
+          TOKEN: ${{ secrets.GATEPOST_REQUEST_TOKEN }}
+          URL: https://hssevqgkoeuludwoxyuo.supabase.co
+          KEY: sb_publishable_o5m22_S-wb3D77hqSL5-ew_fLw8b66Y
+        run: |
+          python3 - << 'PY'
+          import os, re, json, datetime, urllib.request
+          TOKEN = os.environ['TOKEN'].strip()
+          URL = os.environ['URL']; KEY = os.environ['KEY']
+          def rpc(fn, body):
+              req = urllib.request.Request(f'{URL}/rest/v1/rpc/{fn}', json.dumps(body).encode(), {'apikey': KEY, 'Content-Type': 'application/json'})
+              return json.load(urllib.request.urlopen(req, timeout=60))
+          def chunks(text, size=1500, overlap=200):
+              text = re.sub(r'[ \t]+', ' ', re.sub(r'\n{3,}', '\n\n', text)).strip(); out = []; i = 0
+              while i < len(text):
+                  j = min(len(text), i + size)
+                  if j < len(text):
+                      k = text.rfind('\n', i + size // 2, j); j = k if k > 0 else j
+                  out.append(text[i:j].strip()); i = j if j >= len(text) else max(j - overlap, i + 1)
+              return [c for c in out if c]
+          text = open('Gatepost_Pricing_Reference.md', errors='replace').read()
+          cs = chunks(text)
+          mod = datetime.datetime.now(datetime.timezone.utc).isoformat()
+          path = 'Gatepost/01_Bids/Internal_Pricing_DO_NOT_SEND/Gatepost_Pricing_Reference.md'
+          n = rpc('post_doc_file', {'p_token': TOKEN, 'p_path': path, 'p_title': 'Gatepost Pricing Reference', 'p_modified': mod, 'p_chunks': cs})
+          print(f'indexed {path}: {n} chunks')
+          PY
