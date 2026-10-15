@@ -453,11 +453,11 @@ async function estAI() {
       if (data && data.length < 1500000) images.push({ mime: f.type || 'image/jpeg', data });
     }
   } catch (e) { box.innerHTML = '<p class="muted">Could not read a photo. Try a smaller one.</p>'; return; }
-  const q = 'Price this Gatepost job from the Full Rate Book / Pricing Reference. Notes: ' + (notes || '(see photos)') + '. Dropdown hint (ignore if the notes describe a different job): ' + svc + '. Use the aim. Materials only if the rate book lists them or the notes say we buy parts. Return ONLY these lines:\nWORK: 0.00\nMATERIALS: 0.00\nWHY: one short line citing the rate book row. Do not invent a number. If there is no match, set both to 0 and say so.';
+  const q = 'Price this Gatepost job. Notes: ' + (notes || '(see photos)') + '. Dropdown hint (ignore if the notes describe a different job): ' + svc + '. Prefer the Full Rate Book aim. If there is no row, use a typical Rio Rancho / Albuquerque one-crew average and mark it EXTERNAL. Never say we do not do that. Always return numbers.\nWORK: 0.00\nMATERIALS: 0.00\nSOURCE: INTERNAL or EXTERNAL\nWHY: one short line.';
   try {
     const session = (await sb.auth.getSession()).data?.session;
     if (!session) { box.innerHTML = '<p class="muted">Not signed in. Log in and try again.</p>'; return; }
-    const call = (imgs) => fetch(CFG.SUPABASE_URL + '/functions/v1/ask-ai', { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: CFG.SUPABASE_ANON_KEY, Authorization: 'Bearer ' + session.access_token }, body: JSON.stringify(imgs.length ? { question: q, images: imgs } : { question: q }) });
+    const call = (imgs) => fetch(CFG.SUPABASE_URL + '/functions/v1/ask-ai', { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: CFG.SUPABASE_ANON_KEY, Authorization: 'Bearer ' + session.access_token }, body: JSON.stringify(imgs.length ? { question: q, images: imgs, mode: 'estimate' } : { question: q, mode: 'estimate' }) });
     let r = await call(images);
     if (!r.ok && images.length) r = await call([]);
     const d = await r.json().catch(() => ({}));
@@ -471,8 +471,11 @@ async function estAI() {
     if (mm) document.getElementById('materials').value = mm[1];
     if (!wm && !mm) { document.getElementById('est-result').innerHTML = '<p class="muted">' + esc(text || 'AI did not return a price.') + '</p>'; return; }
     calcEstimate(true);
+    const src = ((text.match(/SOURCE:\s*(\w+)/i) || [])[1] || '').toUpperCase();
     const why = (text.match(/WHY:\s*(.+)/i) || [])[1];
-    if (why) document.getElementById('est-result').innerHTML += '<p class="muted" style="margin-top:8px;">' + esc(why) + '</p>';
+    const res = document.getElementById('est-result');
+    if (src === 'EXTERNAL') res.innerHTML = '<p style="color:var(--warn);font-weight:600;">External quote. Based on market averages, not our rate book. Double-check before sending.</p>' + res.innerHTML;
+    if (why) res.innerHTML += '<p class="muted" style="margin-top:8px;">' + esc(why) + '</p>';
   } catch (e) { box.innerHTML = '<p class="muted">Could not reach AI. ' + esc(e.message || 'Check the connection.') + '</p>'; }
 }
 function calcEstimate(fromAI) {
@@ -671,7 +674,7 @@ window.addEventListener('hashchange', () => { const pg = location.hash.slice(1) 
 const domReady = new Promise(r => document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', r, { once: true }) : r());
 Promise.all([API.init(), domReady]).then(()=>{ if (location.hash.length>1) document.querySelector(`.nav button[data-page="${location.hash.slice(1)}"]`)?.click(); render(); });
 </script>
-<script src="town.js?v=37"></script>
+<script src="town.js?v=38"></script>
 <script src="chat.js?v=5"></script>
 <script src="pwa.js?v=2"></script>
 </body>

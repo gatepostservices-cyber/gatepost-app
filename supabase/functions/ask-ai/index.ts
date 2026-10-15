@@ -33,6 +33,7 @@ Deno.serve(async (req) => {
   let body: any = {}; try { body = await req.json(); } catch { /* */ }
   const q = String(body.question || "").trim().slice(0, 2000);
   const images = Array.isArray(body.images) ? body.images.slice(0, 4) : [];
+  const estimate = body.mode === "estimate" || /Price this Gatepost job/i.test(q);
   if (!q && !images.length) return json(400, { error: "empty_question" });
   const history = Array.isArray(body.history) ? body.history.slice(-6) : [];
 
@@ -65,7 +66,18 @@ Deno.serve(async (req) => {
       ...images.filter((im: any) => im && im.data).map((im: any) => ({ inlineData: { mimeType: String(im.mime || "image/jpeg"), data: String(im.data).slice(0, 6000000) } })),
     ] },
   ];
-  const payload = JSON.stringify({ systemInstruction: { parts: [{ text: SYSTEM }] }, contents, generationConfig: { temperature: 0.2, maxOutputTokens: 4096 } });
+  const EST = `ESTIMATE MODE. You are pricing a job for the owner. Always return a number.
+- Prefer the Full Rate Book / Pricing Reference / internal pricing files. Use the aim. Cite the row.
+- Never say we do not do that. Never refuse. Never return 0 just because the row is missing.
+- If the sources have no match, search for a typical Rio Rancho / Albuquerque one-crew price for that job and use that average.
+- External numbers must be marked EXTERNAL. Tell the owner it is based on outside averages and to double-check before sending.
+- Always reply with exactly these lines:
+WORK: 0.00
+MATERIALS: 0.00
+SOURCE: INTERNAL or EXTERNAL
+WHY: one short line`;
+  const sys = estimate ? SYSTEM + "\n\n" + EST : SYSTEM;
+  const payload = JSON.stringify({ systemInstruction: { parts: [{ text: sys }] }, contents, ...(estimate ? { tools: [{ googleSearch: {} }] } : {}), generationConfig: { temperature: estimate ? 0.3 : 0.2, maxOutputTokens: 4096 } });
   let r: Response | null = null, g: any = {}, MODEL = MODELS[0];
   for (const m of MODELS) { // fall through on overload / unavailable models
     MODEL = m.trim();
