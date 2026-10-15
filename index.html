@@ -453,7 +453,7 @@ async function estAI() {
       if (data && data.length < 1500000) images.push({ mime: f.type || 'image/jpeg', data });
     }
   } catch (e) { box.innerHTML = '<p class="muted">Could not read a photo. Try a smaller one.</p>'; return; }
-  const q = 'Price this Gatepost job. Service family: ' + svc + '. Notes: ' + (notes || '(see photos)') + '. Return ONLY these two lines, numbers only, from the Full Rate Book / Pricing Reference. Use the aim unless the notes say low.\nWORK: 0.00\nMATERIALS: 0.00\nDo not invent. If the rate book has no match, say so on a third line.';
+  const q = 'Price this Gatepost job from the Full Rate Book / Pricing Reference. Notes: ' + (notes || '(see photos)') + '. Dropdown hint (ignore if the notes describe a different job): ' + svc + '. Use the aim. Materials only if the rate book lists them or the notes say we buy parts. Return ONLY these lines:\nWORK: 0.00\nMATERIALS: 0.00\nWHY: one short line citing the rate book row. Do not invent a number. If there is no match, set both to 0 and say so.';
   try {
     const session = (await sb.auth.getSession()).data?.session;
     if (!session) { box.innerHTML = '<p class="muted">Not signed in. Log in and try again.</p>'; return; }
@@ -469,15 +469,17 @@ async function estAI() {
     const wm = text.match(/WORK:\s*([0-9.]+)/i), mm = text.match(/MATERIALS:\s*([0-9.]+)/i);
     if (wm) document.getElementById('work').value = wm[1];
     if (mm) document.getElementById('materials').value = mm[1];
-    calcEstimate();
-    if (!wm && !mm) document.getElementById('est-result').innerHTML += '<p class="muted" style="margin-top:8px;">' + esc(text) + '</p>';
+    if (!wm && !mm) { document.getElementById('est-result').innerHTML = '<p class="muted">' + esc(text || 'AI did not return a price.') + '</p>'; return; }
+    calcEstimate(true);
+    const why = (text.match(/WHY:\s*(.+)/i) || [])[1];
+    if (why) document.getElementById('est-result').innerHTML += '<p class="muted" style="margin-top:8px;">' + esc(why) + '</p>';
   } catch (e) { box.innerHTML = '<p class="muted">Could not reach AI. ' + esc(e.message || 'Check the connection.') + '</p>'; }
 }
-function calcEstimate() {
+function calcEstimate(fromAI) {
   const svc = document.getElementById('svc').value, notes = document.getElementById('notes').value;
   let work = parseFloat(document.getElementById('work').value) || 0, materials = parseFloat(document.getElementById('materials').value) || 0;
   const discount = parseFloat(document.getElementById('discount').value) || 0, grtRate = parseFloat(document.getElementById('grt').value);
-  if (work === 0 && materials === 0) ({ garden:[650,0], fence:[275,0], dirt:[200,0], handyman:[250,80], gutter:[180,0], moving:[300,0], trash:[220,0] }[svc] || [0,0]).forEach((v,i) => i ? materials = v : work = v);
+  if (!fromAI && work === 0 && materials === 0) ({ garden:[650,0], fence:[275,0], dirt:[200,0], handyman:[250,80], gutter:[180,0], moving:[300,0], trash:[220,0] }[svc] || [0,0]).forEach((v,i) => i ? materials = v : work = v);
   const subtotal = Math.max(0, work + materials - discount), grt = +(subtotal * grtRate).toFixed(2), total = +(subtotal + grt).toFixed(2);
   window._lastEstimate = { svc, notes, work, materials, discount, grt, total };
   document.getElementById('est-result').innerHTML = `<div class="result"><strong>${esc(svc)}</strong><div class="muted">${esc(notes) || '—'}</div>
@@ -669,7 +671,7 @@ window.addEventListener('hashchange', () => { const pg = location.hash.slice(1) 
 const domReady = new Promise(r => document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', r, { once: true }) : r());
 Promise.all([API.init(), domReady]).then(()=>{ if (location.hash.length>1) document.querySelector(`.nav button[data-page="${location.hash.slice(1)}"]`)?.click(); render(); });
 </script>
-<script src="town.js?v=36"></script>
+<script src="town.js?v=37"></script>
 <script src="chat.js?v=5"></script>
 <script src="pwa.js?v=2"></script>
 </body>
