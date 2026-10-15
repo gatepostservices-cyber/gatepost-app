@@ -12,7 +12,20 @@ const fmtDT = d => new Date(d).toLocaleString([], { month: 'short', day: 'numeri
 
 // Billing (Stripe TEST mode): the create-checkout edge function makes a Checkout Session or a Customer Portal session.
 // The stripe-webhook function writes plan/subscription status back to customer_profiles.
-async function startCheckout(/* planId */) { throw new Error('Billing is not set up yet'); }
+const hasSub = () => !!(S.prof && S.prof.stripe_subscription_id && ['active', 'trialing', 'past_due'].includes(S.prof.subscription_status));
+async function billing(body) {
+  const { data, error } = await sb.functions.invoke('create-checkout', { body });
+  if (error) { let msg = error.message, status = error.context && error.context.status;
+    try { const j = await error.context.json(); if (j && j.error) msg = j.error; } catch (_) {}
+    const e = new Error(msg); e.status = status; throw e; }
+  if (!data || !data.url) throw new Error((data && data.error) || 'Billing is not available right now.');
+  location.href = data.url;
+}
+async function startCheckout(plan) { return billing({ action: 'checkout', plan }); }
+async function openBillingPortal() {
+  if (BUSY) return; BUSY = true;
+  try { await billing({ action: 'portal' }); } catch (e) { toast(e.message); } finally { BUSY = false; }
+}
 
 let S = { user: null, role: null, prof: null, reqs: [], visits: [], contracts: [] };
 let TAB = 'home', AUTH_MODE = 'signin', BUSY = false, channel = null;
@@ -67,7 +80,9 @@ function render() {
   if (S.role !== 'customer') { app.innerHTML = `<div class="card"><h2>Team account</h2><p class="muted">Gatepost Home is for customers. Team members use the Gatepost hub.</p>
       <a href="../" class="link" style="display:inline-block;margin:8px 0;">Open the Gatepost hub ›</a><button class="secondary" onclick="signOut()">Sign out</button></div>`; return; }
   tabs.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.tab === TAB));
-  app.innerHTML = ({ home: homeView, schedule: scheduleView, addons: addonsView, contracts: contractsView, settings: settingsView }[TAB] || homeView)();
+  const view = { home: homeView, schedule: scheduleView, addons: addonsView, contracts: contractsView, settings: settingsView }[TAB] || homeView;
+  // Never leave the previous tab's screen up under a different highlighted tab if a view throws.
+  try { app.innerHTML = view(); } catch (e) { console.error(e); app.innerHTML = `<div class="card"><h2>Something went wrong</h2><p class="muted">Please reload the app or call us at <a href="${TEL}" style="color:inherit;">${PHONE}</a>.</p></div>`; }
 }
 
 function authView() {
