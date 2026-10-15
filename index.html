@@ -442,32 +442,36 @@ async function estAI() {
   const notes = (document.getElementById('notes').value || '').trim();
   const svc = document.getElementById('svc').value;
   const files = [...(document.getElementById('est-photos')?.files || [])];
-  if (!notes && !files.length) { document.getElementById('est-result').innerHTML = '<p class="muted">Add notes or a photo.</p>'; return; }
   const box = document.getElementById('est-result');
+  if (!notes && !files.length) { box.innerHTML = '<p class="muted">Add notes or a photo.</p>'; return; }
+  if (!CLOUD) { box.innerHTML = '<p class="muted">AI pricing needs the synced app. You are in local mode.</p>'; return; }
   box.innerHTML = '<p class="muted">Pricing from the rate book…</p>';
   const images = [];
-  for (const f of files.slice(0, 4)) {
-    const data = await new Promise(res => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.readAsDataURL(f); });
-    images.push({ mime: f.type || 'image/jpeg', data });
-  }
-  const q = `Price this Gatepost job. Service family: ${svc}. Notes: ${notes || '(see photos)'}.
-Return ONLY these two lines, numbers only, from the Full Rate Book / Pricing Reference. Use the aim unless the notes say low.
-WORK: 0.00
-MATERIALS: 0.00
-Do not invent. If the rate book has no match, say so on a third line.`;
   try {
-    if (!CLOUD) throw new Error('local');
-    const { data: { session } } = await sb.auth.getSession();
-    const r = await fetch(CFG.SUPABASE_URL + '/functions/v1/ask-ai', { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: CFG.SUPABASE_ANON_KEY, Authorization: 'Bearer ' + (session && session.access_token) }, body: JSON.stringify({ question: q, images }) });
+    for (const f of files.slice(0, 3)) {
+      const data = await new Promise((res, rej) => { const r = new FileReader(); r.onerror = () => rej(new Error('photo')); r.onload = () => res(String(r.result).split(',')[1]); r.readAsDataURL(f); });
+      if (data && data.length < 1500000) images.push({ mime: f.type || 'image/jpeg', data });
+    }
+  } catch (e) { box.innerHTML = '<p class="muted">Could not read a photo. Try a smaller one.</p>'; return; }
+  const q = 'Price this Gatepost job. Service family: ' + svc + '. Notes: ' + (notes || '(see photos)') + '. Return ONLY these two lines, numbers only, from the Full Rate Book / Pricing Reference. Use the aim unless the notes say low.\nWORK: 0.00\nMATERIALS: 0.00\nDo not invent. If the rate book has no match, say so on a third line.';
+  try {
+    const session = (await sb.auth.getSession()).data?.session;
+    if (!session) { box.innerHTML = '<p class="muted">Not signed in. Log in and try again.</p>'; return; }
+    const call = (imgs) => fetch(CFG.SUPABASE_URL + '/functions/v1/ask-ai', { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: CFG.SUPABASE_ANON_KEY, Authorization: 'Bearer ' + session.access_token }, body: JSON.stringify(imgs.length ? { question: q, images: imgs } : { question: q }) });
+    let r = await call(images);
+    if (!r.ok && images.length) r = await call([]);
     const d = await r.json().catch(() => ({}));
-    if (!r.ok) { box.innerHTML = '<p class="muted">' + esc(d.error || 'AI error') + '</p>'; return; }
+    if (!r.ok) {
+      const why = d.error === 'no_key' ? 'Gemini key is not set.' : d.error === 'rate_limited' || d.error === 'busy' ? 'AI is busy. Wait a minute.' : d.error === 'admins_only' ? 'Ask AI is for admins only.' : d.error === 'not_signed_in' ? 'Session expired. Log in again.' : (d.error || d.detail || ('AI error ' + r.status));
+      box.innerHTML = '<p class="muted">' + esc(why) + '</p>'; return;
+    }
     const text = d.answer || '';
     const wm = text.match(/WORK:\s*([0-9.]+)/i), mm = text.match(/MATERIALS:\s*([0-9.]+)/i);
     if (wm) document.getElementById('work').value = wm[1];
     if (mm) document.getElementById('materials').value = mm[1];
     calcEstimate();
-    if (!wm && !mm) box.innerHTML += '<p class="muted" style="margin-top:8px;">' + esc(text) + '</p>';
-  } catch (e) { box.innerHTML = '<p class="muted">Could not reach AI.</p>'; }
+    if (!wm && !mm) document.getElementById('est-result').innerHTML += '<p class="muted" style="margin-top:8px;">' + esc(text) + '</p>';
+  } catch (e) { box.innerHTML = '<p class="muted">Could not reach AI. ' + esc(e.message || 'Check the connection.') + '</p>'; }
 }
 function calcEstimate() {
   const svc = document.getElementById('svc').value, notes = document.getElementById('notes').value;
@@ -665,7 +669,7 @@ window.addEventListener('hashchange', () => { const pg = location.hash.slice(1) 
 const domReady = new Promise(r => document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', r, { once: true }) : r());
 Promise.all([API.init(), domReady]).then(()=>{ if (location.hash.length>1) document.querySelector(`.nav button[data-page="${location.hash.slice(1)}"]`)?.click(); render(); });
 </script>
-<script src="town.js?v=35"></script>
+<script src="town.js?v=36"></script>
 <script src="chat.js?v=5"></script>
 <script src="pwa.js?v=2"></script>
 </body>
