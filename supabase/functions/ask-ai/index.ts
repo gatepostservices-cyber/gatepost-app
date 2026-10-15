@@ -32,7 +32,8 @@ Deno.serve(async (req) => {
 
   let body: any = {}; try { body = await req.json(); } catch { /* */ }
   const q = String(body.question || "").trim().slice(0, 2000);
-  if (!q) return json(400, { error: "empty_question" });
+  const images = Array.isArray(body.images) ? body.images.slice(0, 4) : [];
+  if (!q && !images.length) return json(400, { error: "empty_question" });
   const history = Array.isArray(body.history) ? body.history.slice(-6) : [];
 
   let key = Deno.env.get("GEMINI_API_KEY") || "";
@@ -59,7 +60,10 @@ Deno.serve(async (req) => {
 
   const contents = [
     ...history.filter((h: any) => h && h.text).map((h: any) => ({ role: h.role === "ai" ? "model" : "user", parts: [{ text: String(h.text).slice(0, 2000) }] })),
-    { role: "user", parts: [{ text: `${ctx}\n\nQUESTION: ${q}` }] },
+    { role: "user", parts: [
+      { text: `${ctx}\n\nQUESTION: ${q}` },
+      ...images.filter((im: any) => im && im.data).map((im: any) => ({ inlineData: { mimeType: String(im.mime || "image/jpeg"), data: String(im.data).slice(0, 6000000) } })),
+    ] },
   ];
   const payload = JSON.stringify({ systemInstruction: { parts: [{ text: SYSTEM }] }, contents, generationConfig: { temperature: 0.2, maxOutputTokens: 4096 } });
   let r: Response | null = null, g: any = {}, MODEL = MODELS[0];
