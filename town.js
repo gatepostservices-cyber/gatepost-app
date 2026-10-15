@@ -71,7 +71,6 @@ const PSZ = { antenna: [1.3, 1.3], exchange: [5, 3.4], workshop: [3.6, 2.6], vau
 const PROPS = [];
 DISTRICTS.forEach(d => { const lm = d.bot === 'hq' ? HQ : d.bot === 'ai' ? AI : d.bot === 'dock' ? null : BOTS[d.bot].b; d.lm = lm; const c0 = d.at || [lm.cx, lm.cy]; d.cx = c0[0]; d.cy = c0[1];
   d.tap = d.bot; d.props = d.props.map(([kind, ox, oy, text]) => { const [w, dd] = PSZ[kind], pr = { kind, type: 'prop', cx: d.cx + ox, cy: d.cy + oy, rot: kind === 'billboard' ? 0.06 : rsign() * rr(0.05, 0.3), w, d: dd, dist: d, text }; PROPS.push(pr); return pr; }); });
-const districtOf = tap => DISTRICTS.find(d => d.bot === tap);
 const AVOID = [[SPIRE.x, SPIRE.y, 5.5], [CMD_PLAZA.x, CMD_PLAZA.y, 3.6], [FOUNTAIN.x, FOUNTAIN.y, 3.2]];
 const inAvoid = (x, y, pad) => AVOID.some(([ax, ay, r]) => Math.hypot(ax - x, ay - y) < r + pad);
 // sky-rail loop (elevated maglev ring through the districts)
@@ -115,14 +114,14 @@ function denverHour() {
 }
 const atWork = h => h >= 7 && h < 21.5;
 function darkness(h) { return 0.2; }
-function darknessDay(h) { if (h >= 7 && h < 18) return 0; if (h >= 18 && h < 20.5) return (h - 18) / 2.5 * 0.55; if (h >= 20.5 || h < 5.5) return 0.55; return (7 - h) / 1.5 * 0.55; }
 function warmth(h) { return 0; }
-function warmthDay(h) { return (h >= 17 && h < 19.5) ? Math.sin((h - 17) / 2.5 * Math.PI) * 0.16 : (h >= 5.5 && h < 7.5) ? Math.sin((h - 5.5) / 2 * Math.PI) * 0.12 : 0; }
 const clockLabel = h => { const H = Math.floor(h), M = Math.round((h - H) * 60); return new Date(2000, 0, 1, H, M).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + ' MT'; };
 const DKF = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' });
 const dayKey = d => DKF.format(new Date(d));
-const today = () => dayKey(Date.now());
-const nowLocal = () => { const p = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date()), g = t => p.find(x => x.type === t).value; return `${g('year')}-${g('month')}-${g('day')}T${g('hour')}:${g('minute')}`; };
+let TDC = { t: 0, v: '' }; const today = () => { const n = Date.now(); if (n - TDC.t > 5000) TDC = { t: n, v: dayKey(n) }; return TDC.v; };
+const NLF = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }); let NLC = { t: 0, v: '' };
+const nowLocal = () => { const n = Date.now(); if (n - NLC.t < 5000) return NLC.v; NLC = { t: n, v: nowLocal0() }; return NLC.v; };
+const nowLocal0 = () => { const p = NLF.formatToParts(new Date()), g = t => p.find(x => x.type === t).value; return `${g('year')}-${g('month')}-${g('day')}T${g('hour')}:${g('minute')}`; };
 const dayDiff = (a, b) => Math.round((Date.UTC(...b.split('-').map((v, i) => i === 1 ? v - 1 : +v)) - Date.UTC(...a.split('-').map((v, i) => i === 1 ? v - 1 : +v))) / 864e5);
 const when = d => new Date(d).toLocaleString([], { timeZone: TZ, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) + ' MT';
 const hm = d => new Date(d).toLocaleTimeString([], { timeZone: TZ, hour: 'numeric', minute: '2-digit' }) + ' MT';
@@ -233,7 +232,7 @@ function diffChat() {
 }
 
 // ---------- 2.5D projection + tiny solid renderer ----------
-let K = 36, OY = 100, WPX = 1000, HPX = 1100, dpr = 1, gdpr = 1, T = 36;
+let K = 36, OY = 100, WPX = 1000, HPX = 1100, dpr = 1, gdpr = 1;
 const S3 = (x, y, z = 0) => [x * K, OY + (y * TILT - z * ZK) * K];
 const VV = (() => { const l = Math.hypot(ZK, TILT); return [0, ZK / l, TILT / l]; })(), LL = (() => { const v = [-0.55, -0.3, 1], l = Math.hypot(...v); return v.map(a => a / l); })();
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2], cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -265,12 +264,6 @@ function boxS(b, lx, ly, w, d, z0, z1, col, deco) { // deco: {front, side, top} 
 // futuristic roofs: flat glowing decks and stepped setbacks instead of gables/hips
 function gableS(b, lx, ly, w, d, z, rh, col, endCol, o = 0.18) { return boxS(b, lx, ly, w + o, d + o, z, z + Math.min(0.32, rh * 0.3), col); }
 function hipS(b, lx, ly, w, d, z, rh, col, o = 0.2) { return boxS(b, lx, ly, w * 0.62, d * 0.62, z, z + Math.max(0.25, rh * 0.55), col, { front: (c, L, H) => R2(c, 0.08, H * 0.35, L - 0.16, Math.max(0.05, H * 0.12), '#ffffff') }); }
-function gableOld(b, lx, ly, w, d, z, rh, col, endCol, o = 0.18) { const X0 = lx - w / 2 - o, X1 = lx + w / 2 + o, Y0 = ly - d / 2 - o, Y1 = ly + d / 2 + o, t = z + rh;
-  return mkSolid(b, [{ l: [[X0, Y1, z], [X1, Y1, z], [X1, ly, t], [X0, ly, t]], col, roof: 1 }, { l: [[X1, Y0, z], [X0, Y0, z], [X0, ly, t], [X1, ly, t]], col, roof: 1 },
-    { l: [[X0, Y0, z], [X0, Y1, z], [X0, ly, t]], col: endCol }, { l: [[X1, Y1, z], [X1, Y0, z], [X1, ly, t]], col: endCol }, { l: [[X0, Y0, z], [X1, Y0, z], [X1, Y1, z], [X0, Y1, z]], col }]); }
-function hipOld(b, lx, ly, w, d, z, rh, col, o = 0.2) { const W = w / 2 + o, D = d / 2 + o, r = Math.max(0, W - D), t = z + rh;
-  return mkSolid(b, [{ l: [[lx - W, ly + D, z], [lx + W, ly + D, z], [lx + r, ly, t], [lx - r, ly, t]], col, roof: 1 }, { l: [[lx + W, ly - D, z], [lx - W, ly - D, z], [lx - r, ly, t], [lx + r, ly, t]], col, roof: 1 },
-    { l: [[lx - W, ly - D, z], [lx - W, ly + D, z], [lx - r, ly, t]], col, roof: 1 }, { l: [[lx + W, ly + D, z], [lx + W, ly - D, z], [lx + r, ly, t]], col, roof: 1 }, { l: [[lx - W, ly - D, z], [lx + W, ly - D, z], [lx + W, ly + D, z], [lx - W, ly + D, z]], col }]); }
 function drawSolid(c, s) {
   s.faces.forEach(f => { if (dot(f.n, VV) <= 0.02) return; const lt = 0.8 + 0.22 * Math.max(0, dot(f.n, LL)) - (f.n[2] < 0.3 ? 0.04 : 0);
     c.beginPath(); f.pts.forEach((p, k) => { const q = S3(p[0], p[1], p[2]); k ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1]); }); c.closePath();
@@ -326,7 +319,7 @@ function buildingSolids(bt, b) {
       side: (c, L, H) => winW(c, L / 2 - 0.35, 0.55, 0.7, 0.75, lit) }));
     out.push(gableS(b, 0, 0, w, d, 2.3, 1.3, roof, wall));
     out.push(boxS(b, w * 0.28, -0.35, 0.4, 0.4, 2.4, 3.8, b.black ? '#2a2a2a' : '#8a6d45'));
-    const tp = loc(b, 0, 0); ex.top = 3.9;
+    ex.top = 3.9;
   } else if (b.type === 'kiosk') {
     out.push(boxS(b, -w / 2 + 0.2, 0, 0.2, 0.2, 0, 2.4, '#6b5a43')); out.push(boxS(b, w / 2 - 0.2, 0, 0.2, 0.2, 0, 2.4, '#6b5a43'));
     out.push(boxS(b, 0, 0, w - 0.2, 0.25, 0.6, 2.2, '#c9a777', { front: (c, L, H) => { const notes = [C.paper, '#f2e6b8', '#dfe8d9', '#f0d9d3', C.paper, '#f2e6b8', '#dfe8d9', C.paper]; notes.forEach((n, k) => { const x = 0.2 + (k % 4) * (L - 0.4) / 4, y = 0.15 + Math.floor(k / 4) * 0.72; R2(c, x, y, 0.58, 0.55, n); R2(c, x + 0.08, y + 0.18, 0.4, 0.04, '#9b9585'); R2(c, x + 0.08, y + 0.3, 0.3, 0.04, '#9b9585'); R2(c, x + 0.24, y - 0.04, 0.1, 0.1, C.red); }); } }));
@@ -621,7 +614,7 @@ const puffs = [];
 let ZM = 1; const ZMAX = 2.5, VW = () => W / ZM, VH = () => H / ZM;
 // far zoom: zFit = whole world just fits; min zoom leaves the world ~40% of the screen's short side (lots of space around it)
 const zFit = () => Math.min(W / WPX, H / HPX), zMin = () => Math.min(0.3, zFit() * 0.42), zOver = () => zFit() * 0.62;
-let FAR = false, ZANIM = null, lastTap = null; const isFar = () => (W < 600 ? 13.5 : W < 1000 ? 12.5 : 11.5) / (K * 0.38 * ZM) > 2.8;
+let FAR = false, ZANIM = null, lastTap = null, lastInput = 0; const REDUCED = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); const isFar = () => (W < 600 ? 13.5 : W < 1000 ? 12.5 : 11.5) / (K * 0.38 * ZM) > 2.8;
 function inView(x, y, w, h) { return x + w > cam.x - 20 && x < cam.x + VW() + 20 && y + h > cam.y - 20 && y < cam.y + VH() + 20; }
 let LABELRECTS = [];
 
@@ -777,7 +770,7 @@ function drawFalls(t) {
   const cg = ctx.createLinearGradient(0, ya, 0, ya + Hf); cg.addColorStop(0, 'rgba(200,250,255,.9)'); cg.addColorStop(0.12, 'rgba(95,243,255,.6)'); cg.addColorStop(0.55, 'rgba(120,90,255,.32)'); cg.addColorStop(1, 'rgba(120,90,255,0)');
   ctx.fillStyle = cg; ctx.beginPath(); ctx.moveTo(xa, ya); ctx.lineTo(xb, ya); ctx.lineTo(xb + sp, ya + Hf); ctx.lineTo(xa - sp, ya + Hf); ctx.closePath(); ctx.fill();
   FBITS.forEach(b => { const f = (t * b.v * 0.35 + b.p) % 1, e = f * f, x = xa + b.u * fw + (b.u - 0.5) * sp * 2 * e, y = ya + e * Hf, L = K * (0.4 + e * 2.6); ctx.fillStyle = `rgba(${b.c},${0.95 * (1 - f)})`; ctx.fillRect(x, y, Math.max(1.2, K * 0.06 * b.w), L); if (b.w > 1) { ctx.fillRect(x - K * 0.12, y + L + K * 0.2, K * 0.24, K * 0.24); } });
-  ctx.lineWidth = Math.max(1.5, K * 0.1); for (let k = 0; k < 16; k++) { const u = (k + 0.5) / 16, ph = (t * 0.6 + k * 0.37) % 1; ctx.strokeStyle = `rgba(${k % 3 ? '191,249,255' : '181,140,255'},${0.18 + 0.12 * Math.sin(t * 2 + k)})`; ctx.beginPath(); for (let j = 0; j <= 12; j++) { const f = j / 12, x = xa + u * fw + (u - 0.5) * sp * 2 * f * f + Math.sin(f * 9 + t * 3 + k) * K * 0.12, y = ya + f * Hf * 0.92; j ? ctx.lineTo(x, y) : ctx.moveTo(x, y); } ctx.stroke(); }
+  ctx.lineWidth = Math.max(1.5, K * 0.1); for (let k = 0; k < 16; k++) { const u = (k + 0.5) / 16; ctx.strokeStyle = `rgba(${k % 3 ? '191,249,255' : '181,140,255'},${0.18 + 0.12 * Math.sin(t * 2 + k)})`; ctx.beginPath(); for (let j = 0; j <= 12; j++) { const f = j / 12, x = xa + u * fw + (u - 0.5) * sp * 2 * f * f + Math.sin(f * 9 + t * 3 + k) * K * 0.12, y = ya + f * Hf * 0.92; j ? ctx.lineTo(x, y) : ctx.moveTo(x, y); } ctx.stroke(); }
   ctx.save(); ctx.shadowColor = '#bff9ff'; ctx.shadowBlur = K * 0.6; ctx.strokeStyle = 'rgba(235,255,255,.95)'; ctx.lineWidth = Math.max(2, K * 0.14); ctx.beginPath(); for (let x = FALLS.x0; x <= FALLS.x1; x += 0.5) { const q = S3(x, LIP_Y, 0); x === FALLS.x0 ? ctx.moveTo(q[0], q[1] + Math.sin(t * 6 + x) * 1.5) : ctx.lineTo(q[0], q[1] + Math.sin(t * 6 + x) * 1.5); } ctx.stroke(); ctx.restore();
   for (let k = 0; k < 14; k++) { const x = xa + ((k * 0.0731 + t * 0.03) % 1) * fw, a = 0.5 + 0.5 * Math.sin(t * 3 + k); ctx.fillStyle = `rgba(230,255,255,${0.25 * a})`; ctx.beginPath(); ctx.ellipse(x, ya + K * 0.2, K * 0.9, K * 0.28, 0, 0, 7); ctx.fill(); }
   const my = ya + Hf * 0.9, mg = ctx.createRadialGradient((xa + xb) / 2, my, 0, (xa + xb) / 2, my, fw * 0.75); mg.addColorStop(0, 'rgba(200,170,255,.35)'); mg.addColorStop(1, 'rgba(200,170,255,0)'); ctx.fillStyle = mg; ctx.beginPath(); ctx.ellipse((xa + xb) / 2, my, fw * 0.75, K * 3, 0, 0, 7); ctx.fill();
@@ -982,7 +975,10 @@ function focusOn(x, y, z = 1, instant, fy = 0.45) { const [X, Y] = S3(x, y, z); 
 function loop(ts) {
   if (!cv || !cv.isConnected || document.hidden) { stop(); return; }
   raf = requestAnimationFrame(loop);
-  if (document.body.classList.contains('in-screen')) { if (last && ts - last < 66) return; } // ~15fps behind an open screen (battery)
+  // Frame budget (battery): ~12fps behind an open screen, ~30fps while the town just idles (waterfall, bots walking), full rate (capped at 60 on 120Hz iPads) while you touch or the camera moves.
+  const moving = drag || ZANIM || cam.tx !== null || Math.abs(cam.vx) > 5 || Math.abs(cam.vy) > 5 || ts - lastInput < 1200;
+  const gap = document.body.classList.contains('in-screen') ? 80 : (moving && !REDUCED) ? 15 : 30;
+  if (last && ts - last < gap) return;
   const dt = Math.min(0.08, last ? (ts - last) / 1000 : 0.016); last = ts;
   if ((clockT -= dt) <= 0) { clockT = 30; const pl = LIT, ph = HOMELIT; hour = syncClock(); dark = darkness(hour); warm = warmth(hour); LIT = dark > 0.15; HOMELIT = LIT && !atWork(hour);
     if (pl !== LIT || ph !== HOMELIT) spritesDirty = true; updateOverlay(); }
@@ -999,7 +995,7 @@ function layoutFull() { const full = document.getElementById('town-full'); if (!
   const navOn = !!(nav && nav.offsetHeight); full.classList.toggle('nonav', !navOn); full.style.top = Math.max(0, hd ? hd.getBoundingClientRect().bottom : 0) + 'px'; full.style.bottom = (navOn ? Math.max(0, window.innerHeight - nav.getBoundingClientRect().top) : 0) + 'px'; }
 function setup() {
   layoutFull(); W = Math.max(200, Math.floor(cv.clientWidth)); H = Math.max(200, Math.floor(cv.clientHeight)); const nd2 = Math.max(1, Math.min(2, window.devicePixelRatio || 1, Math.sqrt(4.6e6 / (W * H)))), nk = Math.round(Math.max(26, Math.min(34, W / 13)));
-  if (nk !== K || nd2 !== dpr) { K = T = nk; dpr = nd2; OY = 7 * K; WPX = Math.round(WX * K); HPX = Math.round(OY + WY * TILT * K + ABY_T * K); pillCache.clear(); spritesDirty = true; ground = null; if (cam.init) cam.init = false; }
+  if (nk !== K || nd2 !== dpr) { K = nk; dpr = nd2; OY = 7 * K; WPX = Math.round(WX * K); HPX = Math.round(OY + WY * TILT * K + ABY_T * K); pillCache.clear(); spritesDirty = true; ground = null; if (cam.init) cam.init = false; }
   cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); ctx = cv.getContext('2d');
   if (HUDC === null) HUDC = W < 600; { const pr = document.createElement('div'); pr.style.cssText = 'position:fixed;visibility:hidden;padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)'; document.body.appendChild(pr); const cs = getComputedStyle(pr); SAFE.l = parseFloat(cs.paddingLeft) || 0; SAFE.r = parseFloat(cs.paddingRight) || 0; pr.remove(); }
   { const lg = document.querySelector('.town-full .town-legend'), cr = cv.getBoundingClientRect(); HUD_BOT = lg ? Math.max(56, cr.bottom - lg.getBoundingClientRect().top + 8) : 64; }
@@ -1009,10 +1005,10 @@ function setup() {
   const pts = new Map(); let pinch = null;
   const rel = e => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
   const pinchState = () => { const [a, b2] = [...pts.values()]; return { d: Math.hypot(a[0] - b2[0], a[1] - b2[1]) || 1, mx: (a[0] + b2[0]) / 2, my: (a[1] + b2[1]) / 2 }; };
-  cv.onpointerdown = e => { ZANIM = null; try { cv.setPointerCapture(e.pointerId); } catch (_) {} pts.set(e.pointerId, rel(e)); cam.vx = cam.vy = 0; cam.tx = cam.ty = null;
+  cv.onpointerdown = e => { lastInput = performance.now(); ZANIM = null; if (lastTap && lastTap.timer && lastInput - lastTap.t < 450) { const [qx, qy] = rel(e); if (Math.hypot(qx - lastTap.x, qy - lastTap.y) < 44) { clearTimeout(lastTap.timer); lastTap.timer = 0; lastTap.held = true; } } try { cv.setPointerCapture(e.pointerId); } catch (_) {} pts.set(e.pointerId, rel(e)); cam.vx = cam.vy = 0; cam.tx = cam.ty = null;
     if (pts.size === 2) { pinch = { ...pinchState(), z: ZM }; if (drag) drag.moved = true; return; }
     if (pts.size === 1) drag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, lt: performance.now(), moved: false }; };
-  cv.onpointermove = e => { if (!pts.has(e.pointerId)) return; pts.set(e.pointerId, rel(e));
+  cv.onpointermove = e => { if (!pts.has(e.pointerId)) return; lastInput = performance.now(); pts.set(e.pointerId, rel(e));
     if (pinch && pts.size >= 2) { const p2 = pinchState(); zoomAt(pinch.z * p2.d / pinch.d, p2.mx, p2.my); cam.x -= (p2.mx - pinch.mx) / ZM; cam.y -= (p2.my - pinch.my) / ZM; pinch.mx = p2.mx; pinch.my = p2.my; clampCam(); camMoved = true; return; }
     if (!drag || drag.id !== e.pointerId) return; const dx = e.clientX - drag.lx, dy = e.clientY - drag.ly, now = performance.now(), dtm = Math.max(1, now - drag.lt) / 1000;
     if (!drag.moved && Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) > 7) drag.moved = true;
@@ -1021,8 +1017,13 @@ function setup() {
   cv.onpointerup = cv.onpointercancel = e => { pts.delete(e.pointerId);
     if (pinch) { if (pts.size < 2) { pinch = null; drag = null; cam.vx = cam.vy = 0; const rest = [...pts.entries()][0]; if (rest) { const r = cv.getBoundingClientRect(), cx = rest[1][0] + r.left, cy = rest[1][1] + r.top; drag = { id: rest[0], x0: cx, y0: cy, lx: cx, ly: cy, lt: performance.now(), moved: true }; } } return; }
     if (!drag || drag.id !== e.pointerId) return; const d = drag; drag = null; if (performance.now() - d.lt > 90) { cam.vx = cam.vy = 0; }
-    if (!d.moved && e.type === 'pointerup') { const [x, y] = rel(e); if (HUDR && x >= HUDR.x && x <= HUDR.x + HUDR.w && y >= HUDR.y && y <= HUDR.y + HUDR.h) { HUDC = !HUDC; return; } const h = hit(x, y); const now = performance.now(), dbl = lastTap && now - lastTap.t < 320 && Math.hypot(x - lastTap.x, y - lastTap.y) < 30; lastTap = dbl ? null : { t: now, x, y }; if (h === null && dbl) { if (ZM > zOver() * 1.15) townOverview(); else animZoom(Math.max(1, zFit() * 2), x / ZM + cam.x, y / ZM + cam.y); return; } if (typeof h === 'string' && h.startsWith('T:')) { const pg = h.slice(2); if (canTab(pg)) townGo(pg); else flashLock(pg); } else if (typeof h === 'string' && h.startsWith('D:')) townFly(h.slice(2), true); else if (h === 'hq') openHQ(); else if (h === 'dock') openDock(); else if (h === 'ai') { if (window.openGatepostAI) window.openGatepostAI(); } else if (h !== null && h >= 0) openBot(h); } };
-  cv.onwheel = e => { e.preventDefault(); const [x, y] = rel(e), k = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1, dy = e.deltaY * k;
+    if (!d.moved && e.type === 'pointerup') { const [x, y] = rel(e); if (HUDR && x >= HUDR.x && x <= HUDR.x + HUDR.w && y >= HUDR.y && y <= HUDR.y + HUDR.h) { HUDC = !HUDC; return; } const now = performance.now(), dbl = lastTap && (lastTap.held || now - lastTap.t < 450) && Math.hypot(x - lastTap.x, y - lastTap.y) < 44, wide = ZM <= zOver() * 1.15 || FAR;
+      if (dbl) { clearTimeout(lastTap.timer); lastTap = null; if (wide) { animZoom(Math.max(1, zFit() * 2), x / ZM + cam.x, y / ZM + cam.y); return; } if (hit(x, y) === null) { townOverview(); return; } }
+      // Zoomed out (overview / far): wait briefly so a double-tap anywhere zooms back in instead of opening what is under the finger (iPad).
+      if (wide) { lastTap = { t: now, x, y, timer: setTimeout(() => { lastTap = null; tapAt(x, y); }, 350) }; return; }
+      lastTap = { t: now, x, y, timer: 0 }; tapAt(x, y); } };
+  const tapAt = (x, y) => { const h = hit(x, y); if (typeof h === 'string' && h.startsWith('T:')) { const pg = h.slice(2); if (canTab(pg)) townGo(pg); else flashLock(pg); } else if (typeof h === 'string' && h.startsWith('D:')) townFly(h.slice(2), true); else if (h === 'hq') openHQ(); else if (h === 'dock') openDock(); else if (h === 'ai') { if (window.openGatepostAI) window.openGatepostAI(); } else if (h !== null && h >= 0) openBot(h); };
+  cv.onwheel = e => { e.preventDefault(); lastInput = performance.now(); const [x, y] = rel(e), k = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1, dy = e.deltaY * k;
     const mouseWheel = e.deltaMode !== 0 || (e.deltaX === 0 && Math.abs(e.deltaY) >= 50 && Number.isInteger(e.deltaY));
     if (e.ctrlKey || e.metaKey || mouseWheel) { zoomAt(ZM * Math.exp(-dy * (e.ctrlKey && !mouseWheel ? 0.012 : 0.0018)), x, y); }
     else { cam.x += (e.shiftKey && !e.deltaX ? dy : e.deltaX * k) / ZM; if (!e.shiftKey) cam.y += dy / ZM; }
@@ -1106,7 +1107,7 @@ window.townJump = () => { const j = document.getElementById('town-jump'); if (j)
 window.townChip = t => { if (t === 'hq') { focusOn(HQ.cx, HQ.cy, 1); openHQ(); } else if (t === 'dock') { focusOn(PIER.x0 - 1, PIER.y0 + 3, 0); openDock(); } else { const b = BOTS[t].b; focusOn(b.cx, b.cy, 1); openBot(t); } };
 
 // ---------- sheets ----------
-window.openBot = i => { if (cv && W) { if (ZM < 0.8) zoomAt(1, W / 2, H / 2); const b = BOTS[i].b; focusOn(b.cx, b.cy, 1, false, 0.2); } OPEN = { kind: 'bot', i, tab: ADMIN ? (unread(BOTS[i].name) && !stats(BOTS[i].name).pending ? 'chat' : 'requests') : 'about' }; renderSheet(true); if (OPEN.tab === 'chat') markRead(BOTS[i].name); };
+window.openBot = i => { if (typeof i === "string") i = BOTS.findIndex(b => b.name === i || b.short === i); if (!BOTS[i]) return; if (cv && W) { if (ZM < 0.8) zoomAt(1, W / 2, H / 2); const b = BOTS[i].b; focusOn(b.cx, b.cy, 1, false, 0.2); } OPEN = { kind: 'bot', i, tab: ADMIN ? (unread(BOTS[i].name) && !stats(BOTS[i].name).pending ? 'chat' : 'requests') : 'about' }; renderSheet(true); if (OPEN.tab === 'chat') markRead(BOTS[i].name); };
 window.openHQ = () => { OPEN = { kind: 'hq' }; renderSheet(true); };
 window.openDock = () => { OPEN = { kind: 'dock' }; renderSheet(true); };
 window.closeBot = () => { OPEN = null; document.getElementById('bot-sheet')?.remove(); if (!document.getElementById('req-sheet')) document.body.classList.remove('sheet-open'); };
@@ -1145,7 +1146,7 @@ function calendarHtml() { const ev = eventsInfo(), row = e => `<li><div><b>${esc
 function dockSheetHtml() {
   const st = { docked: ship.cargo ? `Loading ${ship.cargo} item${ship.cargo > 1 ? 's' : ''}, about to sail` : 'Docked at the pier', leaving: 'Diving over the Data Falls into the internet', away: 'Out on the internet, back soon', returning: 'Flying back up to the pad' }[ship.state];
   const sends = ADMIN ? ACTS.filter(a => SEND_RE.test(a.body || '') && !/^Approved by Christian/.test(a.body || '')).slice(0, 8) : [];
-  return `<div class="sheet-head"><button class="sheet-back" onclick="closeBot()" aria-label="Back">‹ Town</button><span class="badge">Launch Pad</span></div>
+  return `<div class="sheet-head"><button class="sheet-back" onclick="closeBot()" aria-label="Back to town">‹ Town</button><span class="badge">Launch Pad</span></div>
   <div class="sheet-body"><div class="bot-hero"><span class="hq-ava" style="font-size:1.6rem">⛵</span><div><h2 class="sheet-title" style="margin:0">Launch Pad</h2><div class="muted">Where the bots send things out</div></div></div>
   <dl class="facts"><dt>Ship</dt><dd>${esc(st)}</dd>${pierCrates.length ? `<dt>On the pier</dt><dd>${pierCrates.length} waiting</dd>` : ''}${ADMIN ? `<dt>Sent today</dt><dd>${sentToday()}</dd>` : ''}</dl>
   ${ADMIN ? `<h3>Recently sent (from bot activity)</h3>${sends.length ? `<ol class="timeline">${sends.map(a => `<li><span class="tl-ico">✉</span><div><div>${esc(a.body)}</div><div class="muted">${esc(a.bot)} · ${esc(when(a.created_at))}</div></div></li>`).join('')}</ol>` : '<p class="muted">Nothing logged as sent yet. When a bot logs that it sent an email, text or follow-up, it runs it down to the ship.</p>'}` : ''}
@@ -1162,7 +1163,7 @@ function renderSheet(animate) {
     const q = ADMIN ? waitingQueue() : [];
     const queue = ADMIN ? `<div class="tboard"><div class="tb-h"><b>Waiting on Christian</b><span class="muted">${q.filter(x => !x.top).length} open</span></div>${q.length ? `<ul class="tb-list">${q.map(x => `<li${x.id ? ` class="tap" onclick="openReq(${Number(x.id)})"` : ''}><span class="tb-ico">${x.icon}</span><div><b>${esc(x.title)}</b><div class="muted">${esc(x.sub || '')}</div></div>${x.phone ? `<a class="tb-btn secondary" href="tel:${esc(v(x.phone).replace(/[^0-9+]/g, ''))}" onclick="event.stopPropagation()">Call</a>` : x.id ? '<span class="chev">›</span>' : ''}</li>`).join('')}</ul>` : emptyRow('Nothing is waiting on you.')}
       ${!board('Gatepost', 'todays_jobs') ? '<p class="muted tb-empty" style="margin-top:4px">Today\u2019s jobs: waiting for Gatepost to publish.</p>' : ''}${!BOARDS.some(b => b.board_key === 'waiting_on_christian') ? '<p class="muted tb-empty" style="margin-top:2px">Bot waiting lists: none published yet.</p>' : ''}</div>` : '';
-    el.innerHTML = `<div class="sheet-head"><button class="sheet-back" onclick="closeBot()" aria-label="Back">‹ Town</button><span class="badge">HQ</span></div>
+    el.innerHTML = `<div class="sheet-head"><button class="sheet-back" onclick="closeBot()" aria-label="Back to town">‹ Town</button><span class="badge">HQ</span></div>
     <div class="sheet-body"><div class="bot-hero"><span class="hq-ava"><img src="arch-mark.png" alt=""></span><div><h2 class="sheet-title" style="margin:0">${ADMIN ? 'Christian\u2019s HQ' : 'Gatepost HQ'}</h2><div class="muted">${ADMIN ? 'Run the business from here.' : 'Schedule and your account.'}</div></div></div>
       ${ADMIN ? RENDER.todays_jobs('Gatepost') : ''}${queue}${calendarHtml()}${ADMIN ? RENDER.promised_followups('Gatepost Tasks') : ''}
       <div class="hq-list">${row('📅', 'Calendar', up ? `${up} upcoming` : 'Schedule and jobs', "townGo('calendar')")}
@@ -1197,7 +1198,7 @@ function renderSheet(animate) {
         <div class="town-reqs">${list.slice(0, 12).map(reqRow).join('') || ''}</div>${list.length > 12 ? `<p class="muted">+ ${list.length - 12} more</p>` : ''}`;
       }
     }
-    el.innerHTML = `<div class="sheet-head"><button class="sheet-back" onclick="closeBot()" aria-label="Back">‹ Town</button><span class="badge" style="border-color:${bt.color};color:${bt.color === '#2b2b2b' ? 'var(--paper)' : bt.color};white-space:nowrap">${esc(bt.place)}</span></div>
+    el.innerHTML = `<div class="sheet-head"><button class="sheet-back" onclick="closeBot()" aria-label="Back to town">‹ Town</button><span class="badge" style="border-color:${bt.color};color:${bt.color === '#2b2b2b' ? 'var(--paper)' : bt.color};white-space:nowrap">${esc(bt.place)}</span></div>
     <div class="sheet-body"><div class="bot-hero"><span class="bot-ava" style="background:${bt.color}"><i></i></span><div><h2 class="sheet-title" style="margin:0">${esc(bt.name)}</h2><div class="muted">${esc(bt.role)}</div></div></div>${body}</div>
     ${ADMIN && OPEN.tab === 'chat' ? `<div class="sheet-actions chat-compose"><textarea id="chat-text" rows="1" placeholder="Message ${esc(bt.short)}…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();townSend()}"></textarea><button class="primary" id="chat-send" onclick="townSend()">Send</button></div>`
       : ADMIN && OPEN.tab === 'requests' ? `<div class="sheet-actions"><button class="secondary" onclick="townGo('requests', '${esc(bt.name)}')">Open in Requests${s.total ? ` (${s.total})` : ''}</button></div>` : ''}`;

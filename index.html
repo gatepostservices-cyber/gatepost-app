@@ -9,7 +9,9 @@
 <meta name="apple-mobile-web-app-title" content="Gatepost">
 <meta name="theme-color" content="#0e0e0e">
 <title>Gatepost Property Services</title>
-<meta name="app-version" content="2026-10-14-town-space-v4-push1">
+<meta name="app-version" content="2026-10-14-town-space-v5-opt1">
+<link rel="preconnect" href="https://hssevqgkoeuludwoxyuo.supabase.co" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="manifest" href="manifest.json?v=9">
 <link rel="icon" href="favicon.ico?v=4" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=4">
@@ -87,7 +89,9 @@ button.ok { background:var(--ok); border:none; color:#fff; }
 .sheet.anim { animation:sheetin .18s ease-out; }
 @keyframes sheetin { from { transform:translateY(16px); opacity:0; } }
 .sheet-head { display:flex; align-items:center; justify-content:space-between; padding:calc(env(safe-area-inset-top) + 10px) 16px 10px; border-bottom:1px solid var(--line); }
-.sheet-back { background:none; border:none; color:inherit; font-size:1rem; padding:8px 0; cursor:pointer; }
+.sheet-back { background:none; border:none; color:inherit; font-size:1rem; padding:10px 4px; min-height:44px; cursor:pointer; }
+body .town-tabs button { min-height:44px; }
+.link-btn { display:inline-flex; align-items:center; min-height:44px; color:inherit; }
 .sheet-body { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:16px 18px 24px; }
 .sheet-title { margin:0 0 8px; font-size:1.35rem; } .sheet-text { white-space:pre-wrap; line-height:1.45; margin:0 0 14px; }
 .sheet h3 { font-size:.75rem; letter-spacing:.12em; text-transform:uppercase; margin:18px 0 8px; opacity:.7; }
@@ -118,7 +122,7 @@ body.sheet-open { overflow:hidden; }
 .hq-n { background:#a85a52; color:#F6F4EF; border-radius:999px; padding:1px 8px; font-size:.75rem; font-weight:700; }
 
 .team-row .team-top { display:flex; align-items:center; gap:6px; flex-wrap:wrap; } .segs { display:flex; gap:6px; margin-top:8px; }
-.seg { flex:1; width:auto; padding:8px 4px; font-size:.75rem; border-radius:10px; border:1px solid var(--line); background:transparent; color:inherit; min-height:38px; }
+.seg { flex:1; width:auto; padding:8px 4px; font-size:.75rem; border-radius:10px; border:1px solid var(--line); background:transparent; color:inherit; min-height:44px; }
 .seg.on { background:var(--paper); color:var(--ink); border-color:var(--paper); opacity:1; } .seg:disabled:not(.on) { opacity:.4; }
 .nav button { font-size:.6rem; letter-spacing:.02em; padding:10px 0; }
 .req-filter { display:flex; align-items:center; gap:8px; padding:8px 0 12px; border-bottom:1px solid var(--line); font-size:.85rem; } .req-filter button { margin-left:auto; width:auto; padding:6px 12px; font-size:.75rem; }
@@ -166,23 +170,25 @@ footer { padding:14px; text-align:center; font-size:.72rem; letter-spacing:.08em
 .ask-log { max-height:55vh; overflow-y:auto; margin:10px 0; display:flex; flex-direction:column; gap:8px; } .ask-msg { padding:9px 11px; border-radius:12px; border:1px solid var(--line); font-size:.88rem; line-height:1.4; } .ask-msg.me { align-self:flex-end; background:var(--paper); color:var(--ink); max-width:85%; } .ask-msg.ai { align-self:flex-start; } .ask-cite, .ask-src { font-size:.72rem; opacity:.7; } .ask-src { margin-top:6px; }
 .cu-photos { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; } .cu-photos a { width:56px; height:56px; border-radius:8px; overflow:hidden; border:1px solid var(--line); } .cu-photos img { width:100%; height:100%; object-fit:cover; }
 .req-top .badge { flex:none; } .badge.urgent { color:#e08b80; border-color:#e08b8066; } .cu-due { font-size:.75rem; color:#e08b80; } .cu-due.late { font-weight:700; }
-.cu-sel { padding:8px 10px; font-size:.85rem; margin-top:6px; }
+.cu-sel { padding:10px; font-size:16px; margin-top:6px; min-height:44px; }
 </style>
 <script src="config.js?v=push1"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.min.js"></script>
 <script>
 // PostHog error tracking (optional): loads only if POSTHOG_KEY is set in config.js
 (function(){ var c = window.GATEPOST_CONFIG || {}; if (!c.POSTHOG_KEY) return;
-  var s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/posthog-js@1/dist/array.full.js'; s.async = true;
-  s.onload = function(){ window.posthog && posthog.init(c.POSTHOG_KEY, { api_host: c.POSTHOG_HOST || 'https://us.i.posthog.com', capture_exceptions: true, autocapture: false, capture_pageview: true, person_profiles: 'identified_only' }); };
-  document.head.appendChild(s); })();
+  // Loaded after first paint and idle so the town starts faster.
+  var go = function(){ var s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/posthog-js@1/dist/array.full.js'; s.async = true;
+  s.onload = function(){ window.posthog && posthog.init(c.POSTHOG_KEY, { api_host: c.POSTHOG_HOST || 'https://us.i.posthog.com', capture_exceptions: true, autocapture: false, capture_pageview: true, person_profiles: 'identified_only' }); try { S.me && posthog.identify(S.me.id || S.me.email); } catch (e) {} };
+  document.head.appendChild(s); };
+  window.addEventListener('load', function(){ (window.requestIdleCallback || setTimeout)(go, { timeout: 4000 }); }); })();
 window.gpReportError = function(err, ctx){ try { window.posthog && posthog.captureException && posthog.captureException(err instanceof Error ? err : new Error(String(err)), ctx || {}); } catch(e) {} };
 window.addEventListener('unhandledrejection', function(e){ gpReportError(e.reason, { source: 'unhandledrejection' }); });
 </script>
 </head>
 <body>
 <header><button id="back-town" onclick="townGo ? townGo('town') : null" aria-label="Back to town">‹ Town</button>
-  <span class="plaque"><img src="arch-mark.png" alt="Gatepost"></span>
+  <span class="plaque"><img src="arch-mark.png" alt="Gatepost" width="30" height="30" decoding="async"></span>
   <div class="word">Gatepost<small>Property Services</small></div>
   <span id="user-label"></span>
 </header>
@@ -245,7 +251,10 @@ const API = {
     // Offline / network blip: keep the stored session instead of dropping to login.
     if (!user && error && !/session|jwt|token/i.test(error.message || '')) user = (sess || (await sb.auth.getSession()).data.session)?.user || null;
     if (!user) { S.me = null; return; }
-    const { data: prof } = await sb.from('profiles').select('*').eq('id', user.id).maybeSingle();
+    let { data: prof, error: pe } = await sb.from('profiles').select('*').eq('id', user.id).maybeSingle();
+    // Offline: reuse the last known profile so an approved user does not see "Access pending".
+    if (pe && !prof) { try { const c = JSON.parse(localStorage.getItem('gp_me_cache') || 'null'); if (c && c.id === user.id) prof = c; } catch (_) {} }
+    else if (prof) { try { localStorage.setItem('gp_me_cache', JSON.stringify({ id: prof.id, email: prof.email, role: prof.role, access: prof.access })); } catch (_) {} }
     S.me = prof || { email: user.email, role: 'pending', access: false };
     if (!S.me.access) return;
     const { data: items } = await sb.from('items').select('*').order('created_at', { ascending: false });
@@ -296,7 +305,7 @@ const API = {
     if (error) return error.message;
     await API.refresh(); return null;
   },
-  async logout() { if (!CLOUD) { L.currentUser = null; lsave(); lsync(); } else { await sb.auth.signOut(); S.me = null; } },
+  async logout() { if (!CLOUD) { L.currentUser = null; lsave(); lsync(); } else { localStorage.removeItem('gp_me_cache'); await sb.auth.signOut(); S.me = null; } },
   async addItem(kind, data) {
     if (!CLOUD) { const rec = { ...data, id: Date.now(), by: L.currentUser, created: Date.now() };
       if (kind === 'estimate') L.estimates.unshift(rec); else { L.events.push(rec); L.events.sort((a,b) => a.date.localeCompare(b.date)); }
@@ -336,7 +345,7 @@ function render() {
   label.innerHTML = `<span id="sync-dot" class="${CLOUD ? 'on' : ''}" title="${CLOUD ? 'Synced' : 'This device only'}"></span>${esc(S.me.email.split('@')[0])}`;
   document.getElementById('admin-tab').classList.toggle('hidden', !isAdmin());
   if (S.me.role === 'customer') { nav.classList.add('hidden'); document.body.classList.remove('has-nav');
-    main.innerHTML = `<div class="card"><h2>Customer account</h2><p class="muted">This is the Gatepost team hub. Your account lives in Gatepost Home.</p><p><a href="customer/" style="color:inherit;">Open Gatepost Home ›</a></p><button class="secondary" onclick="logout()">Log out</button></div>`; return; }
+    main.innerHTML = `<div class="card"><h2>Customer account</h2><p class="muted">This is the Gatepost team hub. Your account lives in Gatepost Home.</p><p><a class="link-btn" href="customer/">Open Gatepost Home ›</a></p><button class="secondary" onclick="logout()">Log out</button></div>`; return; }
   if (!S.me.access) { nav.classList.add('hidden');
     main.innerHTML = `<div class="card"><h2>Access pending</h2><p class="muted">Your account is waiting for an admin to give you access. You will get in automatically once they do.</p><button class="secondary" onclick="logout()">Log out</button></div>`; return; }
   document.querySelectorAll('.nav button[data-admin]').forEach(b => b.classList.toggle('hidden', !isAdmin()));
@@ -610,9 +619,11 @@ document.getElementById('main-nav').addEventListener('click', e => {
   e.target.classList.add('active'); render();
 });
 window.addEventListener('hashchange', () => { const pg = location.hash.slice(1) || 'town'; if (pg !== page()) document.querySelector(`.nav button[data-page="${pg}"]`)?.click(); });
-API.init().then(()=>{ if (location.hash.length>1) document.querySelector(`.nav button[data-page="${location.hash.slice(1)}"]`)?.click(); render(); });
+// Render only after town.js/chat.js have loaded (a fast/offline session could otherwise render a blank town).
+const domReady = new Promise(r => document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', r, { once: true }) : r());
+Promise.all([API.init(), domReady]).then(()=>{ if (location.hash.length>1) document.querySelector(`.nav button[data-page="${location.hash.slice(1)}"]`)?.click(); render(); });
 </script>
-<script src="town.js?v=33"></script>
+<script src="town.js?v=34"></script>
 <script src="chat.js?v=5"></script>
 <script src="pwa.js?v=2"></script>
 </body>
