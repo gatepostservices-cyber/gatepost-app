@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="Gatepost">
 <meta name="theme-color" content="#0e0e0e">
 <title>Gatepost Property Services</title>
-<meta name="app-version" content="2026-10-14-town-space-v5-opt1">
+<meta name="app-version" content="2026-10-15-requests-v1">
 <link rel="preconnect" href="https://hssevqgkoeuludwoxyuo.supabase.co" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="manifest" href="manifest.json?v=9">
@@ -160,6 +160,8 @@ body.town-mode .sheet.town-sheet { top:auto; height:min(76dvh, 680px); border-ra
 .badge.pending { color:var(--warn); border-color:#4a4030; }
 .badge.approved { color:#a9c7ad; border-color:#34463a; }
 .badge.denied { color:#d39a92; border-color:#4e302c; }
+.badge.nc { color:#f0c987; border-color:#f0c98766; background:rgba(240,201,135,.12); }
+.req-sec { display:flex; align-items:center; gap:8px; font-size:.75rem; letter-spacing:.12em; text-transform:uppercase; opacity:.85; margin:16px 0 2px; } .req-sec:first-child { margin-top:4px; } .req-sec .count { font-size:.7rem; padding:1px 8px; border-radius:999px; border:1px solid var(--line); background:var(--ink3); letter-spacing:0; } .req-empty { padding:10px 0; }
 .stat { text-align:center; padding:16px 8px; background:var(--ink3); border-radius:12px; border:1px solid var(--line); }
 .stat b { display:block; font-family:var(--serif); font-size:2.1rem; font-weight:500; }
 .login-hero { background:var(--paper); color:var(--ink); border-radius:var(--r); padding:28px 18px 22px; text-align:center; margin-bottom:14px; }
@@ -172,7 +174,7 @@ footer { padding:14px; text-align:center; font-size:.72rem; letter-spacing:.08em
 .req-top .badge { flex:none; } .badge.urgent { color:#e08b80; border-color:#e08b8066; } .cu-due { font-size:.75rem; color:#e08b80; } .cu-due.late { font-weight:700; }
 .cu-sel { padding:10px; font-size:16px; margin-top:6px; min-height:44px; }
 </style>
-<script src="config.js?v=push1"></script>
+<script src="config.js?v=req1"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.min.js"></script>
 <script>
 // PostHog error tracking (optional): loads only if POSTHOG_KEY is set in config.js
@@ -266,7 +268,7 @@ const API = {
       evs = evs.concat((ol || []).map(e => ({ id: e.id, date: e.date, time: e.time, start: e.start_at, end: e.end_at, allDay: e.all_day, title: e.title, source: 'outlook', by: 'Outlook' })));
     }
     S.events = evs.sort((a,b) => (a.date || '').localeCompare(b.date || '') || (a.time || '').localeCompare(b.time || ''));
-    S.requests = it.filter(i => i.kind === 'request').map(i => ({ ...i.data, _data: i.data, id: i.id, status: i.status, decidedBy: i.decided_by, decidedAt: i.decided_at, createdAt: i.created_at, createdBy: i.created_by }));
+    S.requests = it.filter(i => i.kind === 'request').map(i => ({ ...i.data, _data: i.data, id: i.id, status: i.status, reqKind: i.req_kind || 'todo', needsChristian: !!i.needs_christian, decidedBy: i.decided_by, decidedAt: i.decided_at, createdAt: i.created_at, createdBy: i.created_by }));
     if (S.me.role === 'admin') { const { data: us } = await sb.from('profiles').select('*').order('created_at'); S.users = us || []; await API.loadCustomers(); }
   },
   // Gatepost Home customers (admin only; RLS returns nothing to anyone else).
@@ -509,15 +511,21 @@ async function addEvent() { const date = document.getElementById('ev-date').valu
 function renderEvents() { const el = document.getElementById('event-list'); if (!el) return;
   el.innerHTML = S.events.length ? S.events.map(e => `<div class="item"><strong>${esc(e.date)}</strong>${e.time && !e.allDay ? ` <span class="muted">${esc(e.time)}</span>` : ''} — ${esc(e.title)}${e.location ? `<div class="muted" style="font-size:.85rem;">📍 ${esc(e.location)}</div>` : ''}${e.notes ? `<div style="margin-top:4px;font-size:.88rem;white-space:pre-wrap;">${esc(e.notes)}</div>` : ''}<div class="muted">${esc(e.source === 'outlook' ? 'Outlook' : e.by)}</div></div>`).join('') : '<p class="muted">No events.</p>'; }
 
-function requestsPage() { return (isAdmin() && CLOUD ? customersCard() : '') + `<div class="card"><h2>Agent requests</h2><p class="muted">Tap a request to see details, then approve, decline or add a note.</p><div id="req-list"></div></div>`; }
-function renderRequests() { const el = document.getElementById('req-list'); if (!el) return;
-  const order = { pending: 0 }; let list = [...S.requests].sort((a, b) => (order[a.status] ?? 1) - (order[b.status] ?? 1));
-  if (REQ_FILTER) list = list.filter(r => r.from === REQ_FILTER || (r.sources || []).includes(REQ_FILTER));
-  el.innerHTML = (REQ_FILTER ? `<div class="req-filter">From <strong>${esc(REQ_FILTER)}</strong> · ${list.length}<button class="secondary" onclick="clearReqFilter()">Show all</button></div>` : '') + (list.length ? list.map(r => `<div class="item req-card" role="button" tabindex="0" onclick="openReq(${Number(r.id)})" onkeydown="if(event.key==='Enter')openReq(${Number(r.id)})">
-    <div class="req-top"><span class="badge ${esc(r.status)}">${esc(r.status)}</span> <strong>${esc(r.from)}</strong>${(r.notes || []).length ? ` <span class="muted">· ${r.notes.length} note${r.notes.length > 1 ? 's' : ''}</span>` : ''}<span class="chev">›</span></div>
+function requestsPage() { return (isAdmin() && CLOUD ? customersCard() : '') + `<div class="card"><h2>Agent requests</h2><p class="muted">Decisions need an answer; to-dos are routine work. Tap one to see details, then approve, decline or add a note.</p><div id="req-list"></div></div>`; }
+const isDecision = r => (r.reqKind || 'todo') === 'decision';
+function reqCard(r) { return `<div class="item req-card" role="button" tabindex="0" onclick="openReq(${Number(r.id)})" onkeydown="if(event.key==='Enter')openReq(${Number(r.id)})">
+    <div class="req-top"><span class="badge ${esc(r.status)}">${esc(r.status)}</span>${r.needsChristian ? ' <span class="badge nc" title="Needs Christian">Christian</span>' : ''} <strong>${esc(r.from)}</strong>${(r.notes || []).length ? ` <span class="muted">· ${r.notes.length} note${r.notes.length > 1 ? 's' : ''}</span>` : ''}<span class="chev">›</span></div>
     <div class="req-title">${esc((r.title || '').trim() || r.text)}</div>
     ${r.title ? `<div class="muted req-snip">${esc(r.text)}</div>` : ''}
-    ${r.amount || r.when ? `<div class="req-meta">${r.amount ? `<span>${esc(r.amount)}</span>` : ''}${r.when ? `<span>${esc(r.when)}</span>` : ''}</div>` : ''}</div>`).join('') : '<p class="muted">None.</p>'); }
+    ${r.amount || r.when ? `<div class="req-meta">${r.amount ? `<span>${esc(r.amount)}</span>` : ''}${r.when ? `<span>${esc(r.when)}</span>` : ''}</div>` : ''}</div>`; }
+function renderRequests() { const el = document.getElementById('req-list'); if (!el) return;
+  const order = { pending: 0 }; let list = [...S.requests].sort((a, b) => (order[a.status] ?? 1) - (order[b.status] ?? 1) || (b.needsChristian ? 1 : 0) - (a.needsChristian ? 1 : 0));
+  if (REQ_FILTER) list = list.filter(r => r.from === REQ_FILTER || (r.sources || []).includes(REQ_FILTER));
+  const sec = (title, items, empty) => { const open = items.filter(r => r.status === 'pending').length;
+    return `<div class="req-sec">${title} <span class="count" title="${open} open of ${items.length}">${open}</span></div>` + (items.length ? items.map(reqCard).join('') : `<p class="muted req-empty">${empty}</p>`); };
+  el.innerHTML = (REQ_FILTER ? `<div class="req-filter">From <strong>${esc(REQ_FILTER)}</strong> · ${list.length}<button class="secondary" onclick="clearReqFilter()">Show all</button></div>` : '')
+    + sec('Decisions to make', list.filter(isDecision), 'No decisions waiting on you.')
+    + sec('Things to do', list.filter(r => !isDecision(r)), 'Nothing on the to-do list.'); }
 
 // ---------- Request detail sheet ----------
 let OPEN_REQ = null, REQ_EDIT = false, REQ_FILTER = null;
@@ -539,7 +547,7 @@ function renderReqDetail(animate) {
     ['Received', esc(fmtDate(r.createdAt))], ...facts.map(([k, v]) => [pretty(k), esc(v)])];
   if (r.status !== 'pending') rows.push([r.status === 'approved' ? 'Approved' : r.status === 'denied' ? 'Declined' : pretty(r.status), esc([r.decidedBy, fmtDate(r.decidedAt)].filter(Boolean).join(' · '))]);
   const el = document.createElement('div'); el.id = 'req-sheet'; el.className = 'sheet' + (animate ? ' anim' : ''); el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true');
-  el.innerHTML = `<div class="sheet-head"><button class="sheet-back" onclick="closeReq()" aria-label="Back">‹ Requests</button><span class="badge ${esc(r.status)}">${esc(r.status)}</span></div>
+  el.innerHTML = `<div class="sheet-head"><button class="sheet-back" onclick="closeReq()" aria-label="Back">‹ Requests</button><span><span class="badge">${isDecision(r) ? 'Decision' : 'To-do'}</span>${r.needsChristian ? ' <span class="badge nc">Christian</span>' : ''} <span class="badge ${esc(r.status)}">${esc(r.status)}</span></span></div>
   <div class="sheet-body">
     <h2 class="sheet-title">${esc((d.title || '').trim() || 'Request')}</h2>
     ${REQ_EDIT ? `<label>Request text</label><textarea id="rq-text" rows="5">${esc(d.text)}</textarea>` : `<p class="sheet-text">${esc(d.text)}</p>`}
@@ -674,8 +682,8 @@ window.addEventListener('hashchange', () => { const pg = location.hash.slice(1) 
 const domReady = new Promise(r => document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', r, { once: true }) : r());
 Promise.all([API.init(), domReady]).then(()=>{ if (location.hash.length>1) document.querySelector(`.nav button[data-page="${location.hash.slice(1)}"]`)?.click(); render(); });
 </script>
-<script src="town.js?v=38"></script>
-<script src="chat.js?v=5"></script>
-<script src="pwa.js?v=2"></script>
+<script src="town.js?v=39"></script>
+<script src="chat.js?v=6"></script>
+<script src="pwa.js?v=3"></script>
 </body>
 </html>
