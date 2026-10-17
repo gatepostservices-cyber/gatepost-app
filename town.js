@@ -763,7 +763,7 @@ function drawFrame(t, dt) {
   LABELRECTS = []; labelScale();
   const sign = (b, lines, tap, badges, edge) => { const [X, Y] = S3(b.cx, b.cy, (b.ex && b.ex.top || 3) + 0.35 + Math.sin(t * 1.3 + b.cx) * 0.05), p0 = pill(lines, { pin: true, edge }), p = { img: p0.img, w: p0.w * LS, h: p0.h * LS }; const x = X - p.w / 2, y = Y - p.h; if (!inView(x, y, p.w, p.h)) return;
     ctx.globalAlpha = 0.86 + 0.14 * Math.sin(t * 9 + b.cy * 3) * (Math.sin(t * 0.7 + b.cx) > 0.93 ? 1 : 0.15); ctx.drawImage(p.img, x, y, p.w, p.h); ctx.globalAlpha = 1; LABELRECTS.push({ x, y, w: p.w, h: p.h, tap }); (badges || []).forEach((bd, k) => badge(ctx, k ? x + 2 : x + p.w - 2, y + 2, bd.n, bd.col, t + k, bd.kind)); };
-  if (FAR) { farLabels(t); drawHUD(t); return; }
+  if (FAR) { farLabels(t); hudDraw(t); return; }
   BOTS.forEach((bt, i) => { const s = ADMIN ? stats(bt.name) : null, u = ADMIN ? unread(bt.name) : 0;
     const line2 = ADMIN ? signLine(i, s) : null;
     sign(bt.b, line2 ? [bt.glyph + '  ' + bt.place, line2] : [bt.glyph + '  ' + bt.place], i, ADMIN ? [s.pending && { n: s.pending, col: C.red, kind: 'count' }, u && { n: u, col: C.slate, kind: 'chat' }].filter(Boolean) : [], bt.color); });
@@ -775,7 +775,7 @@ function drawFrame(t, dt) {
   chars.forEach(ch => drawRobotOver(ctx, ch, t));
   pops.forEach(p => { const k = p.t / 1.3, [X, Y] = S3(p.x, p.y, 1.6 + k * 0.9); ctx.globalAlpha = 1 - k; if (p.item) drawItem(ctx, p.item, X, Y, K / 14 * (1 - k * 0.5));
     ctx.fillStyle = 'rgba(61,220,151,.9)'; ctx.beginPath(); ctx.arc(X + K * 0.45, Y - K * 0.2, K * 0.24, 0, 7); ctx.fill(); ctx.fillStyle = C.cream; ctx.font = FONT(700, K * 0.3); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('✓', X + K * 0.45, Y - K * 0.2 + 0.5); ctx.globalAlpha = 1; });
-  drawHUD(t);
+  hudDraw(t);
 }
 // ---------- HUD: scanlines, vignette, live clock + live counts (all from real data) ----------
 // ---------- sky: parallax stars + aurora (screen space, behind the world) ----------
@@ -975,6 +975,8 @@ function farLabels(t) { ctx.setTransform(dpr, 0, 0, dpr, 0, 0); const fs = W < 6
 function districtSigns(t) { DISTRICTS.forEach(d => { const [X, Y] = S3(d.cx, d.cy - d.R * 0.92, 2.8); const st = ADMIN ? ((d.act || 0) > 0.5 ? '● ACTIVE' : (d.act || 0) > 0.05 ? 'recently active' : 'quiet') : null; const p = pill(st ? [d.name.toUpperCase(), st] : [d.name.toUpperCase()], { edge: d.col, fg: '#03070e', fg2: 'rgba(3,7,14,.8)', bg: d.col }), pw = p.w * LS, ph = p.h * LS; const x = X - pw / 2, y = Y - ph; if (!inView(x, y, pw, ph)) return; ctx.drawImage(p.img, x, y, pw, ph); LABELRECTS.push({ x, y, w: pw, h: ph, tap: 'D:' + d.key }); }); }
 let scanPat = null, vign = null, vignKey = '', HUDC = null, HUDR = null, HUD_BOT = 64; const SAFE = { l: 0, r: 0 };
 const HUDF = new Intl.DateTimeFormat('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit', second: '2-digit' });
+let hcv = null, hctx = null;
+function hudDraw(t) { hcv = document.getElementById('town-hud'); if (!hcv) return drawHUD(t); if (hcv.width !== cv.width || hcv.height !== cv.height) { hcv.width = cv.width; hcv.height = cv.height; } hctx = hcv.getContext('2d'); const c0 = ctx; ctx = hctx; ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, hcv.width, hcv.height); try { drawHUD(t); } finally { ctx = c0; } }
 function drawHUD(t) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   if (!scanPat) { const s = document.createElement('canvas'); s.width = 4; s.height = 3; const c = s.getContext('2d'); c.fillStyle = 'rgba(0,0,0,.22)'; c.fillRect(0, 0, 4, 1); scanPat = ctx.createPattern(s, 'repeat'); }
@@ -1040,6 +1042,11 @@ function fitPlan() { if (!cv || !W) return null; c3Apply(); const [x0, y0, x1, y
     const sc = corners.map(([X, Y]) => window.townProject((X - cx) * z, (Y - cy) * z)), w = Math.max(...sc.map(p => p[0])) - Math.min(...sc.map(p => p[0])), h = Math.max(...sc.map(p => p[1])) - Math.min(...sc.map(p => p[1]));
     const k = Math.min(W * 0.98 / w, (A.bot - A.top) * 0.98 / h); z = Math.max(0.03, Math.min(ZMAX, z * Math.pow(k, 0.8))); }
   const [ux, uy] = c3Unproject(tgtX, tgtY); return { z, x: mid[0] - ux / z, y: mid[1] - uy / z }; }
+let touched = false;
+function hqView(instant) { if (!cv || !W) return; c3Apply(); const z = FITZ || 1.15, A = openArea(), [X, Y] = S3(HQ.cx, HQ.cy, 0.8), [ux, uy] = c3Unproject(W / 2, (A.top + A.bot) / 2), cx = X - ux / z, cy = Y - uy / z;
+  cam.tx = cam.ty = null; cam.vx = cam.vy = 0; if (instant) { ZANIM = null; ZM = z; cam.x = cx; cam.y = cy; camMoved = true; return; }
+  ZANIM = { z0: ZM, z1: z, x0: cam.x + VW() / 2, y0: cam.y + VH() / 2, x1: cx + W / z / 2, y1: cy + H / z / 2, t: 0, noclamp: 1 }; }
+window.townHQBox = () => { const [X, Y] = S3(HQ.cx, HQ.cy, 0.8), p = window.townProject((X - cam.x) * ZM, (Y - cam.y) * ZM); return { x: p[0], y: p[1], area: openArea(), W, H, zoom: ZM }; };
 function townFit(instant) { const f = fitPlan(); if (!f) return; cam.tx = cam.ty = null; cam.vx = cam.vy = 0; C3.yaw = C3.yawT = 0;
   if (instant) { ZANIM = null; ZM = f.z; cam.x = f.x; cam.y = f.y; camMoved = true; return; }
   ZANIM = { z0: ZM, z1: f.z, x0: cam.x + VW() / 2, y0: cam.y + VH() / 2, x1: f.x + W / f.z / 2, y1: f.y + H / f.z / 2, t: 0, noclamp: 1 }; }
@@ -1050,8 +1057,8 @@ function focusOn(x, y, z = 1, instant, fy = 0.45) { const [X, Y] = S3(x, y, z); 
 // ---------- 3D camera: the town canvas is a real perspective plane (CSS 3D, GPU composited) ----------
 // Tilt + yaw are applied to the canvas element; pointer input is mapped back onto the plane with the inverse homography,
 // so taps, drags and pinches land exactly where the finger is.
-const C3 = { tilt: 30, yaw: 0, yawT: 0, P: 680, drift: 0, F: null, Fi: null, key: '' };
-function c3Matrix() { const ox = W / 2, oy = H, px = W / 2, py = -H * 0.35, a = C3.tilt + Math.sin(C3.drift * 0.7) * 1.2, r = C3.yaw + Math.sin(C3.drift) * 1.6;
+const C3 = { tilt: 22, yaw: 0, yawT: 0, P: 1500, drift: 0, F: null, Fi: null, key: '' };
+function c3Matrix() { const ox = W / 2, oy = H, px = W / 2, py = -H * 0.35, a = Math.max(15, Math.min(25, C3.tilt + Math.sin(C3.drift * 0.7) * 0.8)), r = 0;
   const pm = new DOMMatrix(); pm.m34 = -1 / C3.P;
   return new DOMMatrix().translate(px, py).multiply(pm).translate(-px, -py).translate(ox, oy).rotate(a, 0, 0).rotate(0, 0, r).translate(-ox, -oy); }
 function c3Apply() { if (!cv) return; const F = c3Matrix(); C3.F = F; const m = F;
@@ -1060,7 +1067,7 @@ function c3Apply() { if (!cv) return; const F = c3Matrix(); C3.F = F; const m = 
   const [a, b, c, d, e, f, g, hh, i] = h, A = e * i - f * hh, B = -(d * i - f * g), Cc = d * hh - e * g, det = a * A + b * B + c * Cc;
   C3.Fi = [A / det, -(b * i - c * hh) / det, (b * f - c * e) / det, B / det, (a * i - c * g) / det, -(a * f - c * d) / det, Cc / det, -(a * hh - b * g) / det, (a * e - b * d) / det];
   cv.style.transformOrigin = '0 0'; cv.style.transform = F.toString();
-  const sp = document.getElementById('t3d-space'); if (sp) { const sx = cam.x * ZM, sy = cam.y * ZM, r = C3.yaw + Math.sin(C3.drift) * 1.6;
+  const sp = document.getElementById('t3d-space'); if (sp) { const sx = cam.x * ZM, sy = cam.y * ZM, r = 0;
     sp.children[0].style.transform = `translate3d(${-(sx * 0.01) % 512}px,${-(sy * 0.01) % 512}px,0) rotate(${r * 0.3}deg)`;
     sp.children[1].style.transform = `translate3d(${-(sx * 0.03) % 512}px,${-(sy * 0.03) % 512}px,0) rotate(${r * 0.6}deg)`;
     sp.children[2].style.transform = `translate3d(${-(sx * 0.07) % 512}px,${-(sy * 0.07) % 512}px,0) rotate(${r}deg)`; } }
@@ -1096,16 +1103,17 @@ function setup() {
   if (HUDC === null) HUDC = W < 600; { const pr = document.createElement('div'); pr.style.cssText = 'position:fixed;visibility:hidden;padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)'; document.body.appendChild(pr); const cs = getComputedStyle(pr); SAFE.l = parseFloat(cs.paddingLeft) || 0; SAFE.r = parseFloat(cs.paddingRight) || 0; pr.remove(); }
   { const lg = document.querySelector('.town-full .town-legend'), cr = cv.getBoundingClientRect(); HUD_BOT = lg ? Math.max(56, cr.bottom - lg.getBoundingClientRect().top + 8) : 64; }
   if (!cv._touch) { cv._touch = 1; cv.addEventListener('touchmove', e => e.preventDefault(), { passive: false }); cv.addEventListener('touchstart', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false }); }
-  c3Apply(); if (!cam.init) { cam.init = true; ZM = Math.min(ZMAX, W < 600 ? 1.3 : 1.1); FITZ = ZM; focusOn(BOTS[0].b.cx, BOTS[0].b.cy + 4, 1, true, 0.62); } clampCam();
+  c3Apply(); if (!cam.init) { cam.init = true; ZM = Math.min(ZMAX, W < 600 ? 1.15 : 1.05); FITZ = ZM; hqView(true); reSetup(500); setTimeout(() => reSetup(0), 1300); } else if (!touched) hqView(true); clampCam();
   hour = syncClock(); dark = darkness(hour); warm = warmth(hour); const nl = dark > 0.15, nh = nl && !atWork(hour); if (nl !== LIT || nh !== HOMELIT) { LIT = nl; HOMELIT = nh; spritesDirty = true; } clockT = 30; updateOverlay();
   const pts = new Map(); let pinch = null;
+  const relRaw = e => { const r = cv.parentElement.getBoundingClientRect(); return [e.clientX - r.left - cv.offsetLeft, e.clientY - r.top - cv.offsetTop]; };
   const rel = e => { const r = cv.parentElement.getBoundingClientRect(); return c3Unproject(e.clientX - r.left - cv.offsetLeft, e.clientY - r.top - cv.offsetTop); };
   const pinchState = () => { const [a, b2] = [...pts.values()]; return { d: Math.hypot(a[0] - b2[0], a[1] - b2[1]) || 1, mx: (a[0] + b2[0]) / 2, my: (a[1] + b2[1]) / 2, ang: Math.atan2(b2[1] - a[1], b2[0] - a[0]) }; };
-  cv.onpointerdown = e => { lastInput = performance.now(); ZANIM = null; if (lastTap && lastTap.timer && lastInput - lastTap.t < 450) { const [qx, qy] = rel(e); if (Math.hypot(qx - lastTap.x, qy - lastTap.y) < 44) { clearTimeout(lastTap.timer); lastTap.timer = 0; lastTap.held = true; } } try { cv.setPointerCapture(e.pointerId); } catch (_) {} pts.set(e.pointerId, rel(e)); cam.vx = cam.vy = 0; cam.tx = cam.ty = null;
+  cv.onpointerdown = e => { touched = true; lastInput = performance.now(); ZANIM = null; if (lastTap && lastTap.timer && lastInput - lastTap.t < 450) { const [qx, qy] = rel(e); if (Math.hypot(qx - lastTap.x, qy - lastTap.y) < 44) { clearTimeout(lastTap.timer); lastTap.timer = 0; lastTap.held = true; } } try { cv.setPointerCapture(e.pointerId); } catch (_) {} pts.set(e.pointerId, rel(e)); cam.vx = cam.vy = 0; cam.tx = cam.ty = null;
     if (pts.size === 2) { pinch = { ...pinchState(), z: ZM }; if (drag) drag.moved = true; return; }
     if (pts.size === 1) { const [rx, ry] = rel(e); drag = { id: e.pointerId, x0: rx, y0: ry, lx: rx, ly: ry, lt: performance.now(), moved: false }; } };
   cv.onpointermove = e => { if (!pts.has(e.pointerId)) return; lastInput = performance.now(); pts.set(e.pointerId, rel(e));
-    if (pinch && pts.size >= 2) { const p2 = pinchState(); zoomAt(pinch.z * p2.d / pinch.d, p2.mx, p2.my); cam.x -= (p2.mx - pinch.mx) / ZM; cam.y -= (p2.my - pinch.my) / ZM; pinch.mx = p2.mx; pinch.my = p2.my; { let da = (p2.ang - pinch.ang) * 180 / Math.PI; if (da > 180) da -= 360; if (da < -180) da += 360; C3.yaw = Math.max(-35, Math.min(35, C3.yaw + da)); C3.yawT = C3.yaw; pinch.ang = p2.ang; c3Apply(); } clampCam(); camMoved = true; return; }
+    if (pinch && pts.size >= 2) { const p2 = pinchState(); zoomAt(pinch.z * p2.d / pinch.d, p2.mx, p2.my); cam.x -= (p2.mx - pinch.mx) / ZM; cam.y -= (p2.my - pinch.my) / ZM; pinch.mx = p2.mx; pinch.my = p2.my; clampCam(); camMoved = true; return; }
     if (!drag || drag.id !== e.pointerId) return; const [ex, ey] = rel(e), dx = ex - drag.lx, dy = ey - drag.ly, now = performance.now(), dtm = Math.max(1, now - drag.lt) / 1000;
     if (!drag.moved && Math.hypot(ex - drag.x0, ey - drag.y0) > 7) drag.moved = true;
     if (drag.moved) { cam.x -= dx / ZM; cam.y -= dy / ZM; clampCam(); cam.vx = cam.vx * 0.6 + dx / ZM / dtm * 0.4; cam.vy = cam.vy * 0.6 + dy / ZM / dtm * 0.4; camMoved = true; }
@@ -1113,13 +1121,13 @@ function setup() {
   cv.onpointerup = cv.onpointercancel = e => { pts.delete(e.pointerId);
     if (pinch) { if (pts.size < 2) { pinch = null; drag = null; cam.vx = cam.vy = 0; const rest = [...pts.entries()][0]; if (rest) { const cx = rest[1][0], cy = rest[1][1]; drag = { id: rest[0], x0: cx, y0: cy, lx: cx, ly: cy, lt: performance.now(), moved: true }; } } return; }
     if (!drag || drag.id !== e.pointerId) return; const d = drag; drag = null; if (performance.now() - d.lt > 90) { cam.vx = cam.vy = 0; }
-    if (!d.moved && e.type === 'pointerup') { const [x, y] = rel(e); if (HUDR && x >= HUDR.x && x <= HUDR.x + HUDR.w && y >= HUDR.y && y <= HUDR.y + HUDR.h) { HUDC = !HUDC; return; } const now = performance.now(), dbl = lastTap && (lastTap.held || now - lastTap.t < 450) && Math.hypot(x - lastTap.x, y - lastTap.y) < 44, wide = ZM <= zOver() * 1.15 || FAR;
+    if (!d.moved && e.type === 'pointerup') { const [hx, hy] = relRaw(e); if (HUDR && hx >= HUDR.x && hx <= HUDR.x + HUDR.w && hy >= HUDR.y && hy <= HUDR.y + HUDR.h) { HUDC = !HUDC; return; } const [x, y] = rel(e); const now = performance.now(), dbl = lastTap && (lastTap.held || now - lastTap.t < 450) && Math.hypot(x - lastTap.x, y - lastTap.y) < 44, wide = ZM <= zOver() * 1.15 || FAR;
       if (dbl) { clearTimeout(lastTap.timer); lastTap = null; if (wide) { animZoom(Math.max(1, zFit() * 2), x / ZM + cam.x, y / ZM + cam.y); return; } if (hit(x, y) === null) { townOverview(); return; } }
       // Zoomed out (overview / far): wait briefly so a double-tap anywhere zooms back in instead of opening what is under the finger (iPad).
       if (wide) { lastTap = { t: now, x, y, timer: setTimeout(() => { lastTap = null; tapAt(x, y); }, 350) }; return; }
       lastTap = { t: now, x, y, timer: 0 }; tapAt(x, y); } };
   const tapAt = (x, y) => { const h = hit(x, y); if (typeof h === 'string' && h.startsWith('T:')) { const pg = h.slice(2); if (canTab(pg)) townGo(pg); else flashLock(pg); } else if (typeof h === 'string' && h.startsWith('D:')) townFly(h.slice(2), true); else if (h === 'hq') openHQ(); else if (h === 'dock') openDock(); else if (h === 'ai') { if (window.openGatepostAI) window.openGatepostAI(); } else if (h !== null && h >= 0) openBot(h); };
-  cv.onwheel = e => { e.preventDefault(); lastInput = performance.now(); const [x, y] = rel(e), k = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1, dy = e.deltaY * k;
+  cv.onwheel = e => { touched = true; e.preventDefault(); lastInput = performance.now(); const [x, y] = rel(e), k = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1, dy = e.deltaY * k;
     const mouseWheel = e.deltaMode !== 0 || (e.deltaX === 0 && Math.abs(e.deltaY) >= 50 && Number.isInteger(e.deltaY));
     if (e.ctrlKey || e.metaKey || mouseWheel) { zoomAt(ZM * Math.exp(-dy * (e.ctrlKey && !mouseWheel ? 0.012 : 0.0018)), x, y); }
     else { cam.x += (e.shiftKey && !e.deltaX ? dy : e.deltaX * k) / ZM; if (!e.shiftKey) cam.y += dy / ZM; }
@@ -1187,7 +1195,7 @@ window.townApprove = async k => { const it = bItems(board('Gatepost', 'follow_up
 window.townPage = () => { ADMIN = typeof isAdmin === 'function' && isAdmin();
   const chips = BOTS.map((bt, i) => { const s = ADMIN ? stats(bt.name) : null, u = ADMIN ? unread(bt.name) : 0;
     return `<button class="town-chip" style="border-color:${bt.color}!important;box-shadow:0 0 10px ${bt.color}55" onclick="townChip(${i})"><span class="dot" style="background:${bt.color}"></span><b style="background:none;color:${bt.color};padding:0">${esc(bt.glyph)}</b> ${esc(bt.short)}${s && s.pending ? ` <b>${s.pending}</b>` : ''}${u ? ` <b class="chat">${u}</b>` : ''}</button>`; }).join('');
-  return `<div class="town-full${window.innerWidth >= 1100 ? ' mini-open' : ''}" id="town-full"><div class="t3d t3d-space" id="t3d-space"><i class="l1"></i><i class="l2"></i><i class="l3"></i></div><div class="t3d t3d-fog"></div><canvas id="town-canvas" role="img" aria-label="Gatepost town map. Drag to look around; tap a building, a bot, HQ or the launch pad."></canvas>
+  return `<div class="town-full${window.innerWidth >= 1100 ? ' mini-open' : ''}" id="town-full"><div class="t3d t3d-space" id="t3d-space"><i class="l1"></i><i class="l2"></i><i class="l3"></i></div><div class="t3d t3d-fog"></div><canvas id="town-hud" class="t3d" style="z-index:2;width:100%;height:100%" aria-hidden="true"></canvas><canvas id="town-canvas" role="img" aria-label="Gatepost town map. Drag to look around; tap a building, a bot, HQ or the launch pad."></canvas>
   <div class="town-top"><div class="town-title"><b>Gatepost AI Grid</b><span id="town-clock"></span></div>${ADMIN ? '<div class="town-ticker" id="town-ticker"></div>' : ''}</div>
   <div class="town-tools"><canvas id="town-mini" aria-label="Minimap: tap to jump"></canvas><button class="town-btn mini-tg" onclick="townMini()" aria-label="Toggle minimap" title="Minimap">▦</button><button class="town-btn zm" onclick="townZoom(1.25)" aria-label="Zoom in" title="Zoom in">+</button><button class="town-btn zm" onclick="townZoom(0.8)" aria-label="Zoom out" title="Zoom out">−</button><button class="town-btn" onclick="townCenter()" aria-label="Center on HQ" title="Center on HQ">⌂</button><button class="town-btn" onclick="townJump()" aria-label="Districts" title="Fly to a district">◎</button></div>
   <div class="town-jump" id="town-jump"><button onclick="townJump();gpPushUI&&gpPushUI()"><span class="dot" style="background:#ffd166"></span>🔔 Enable notifications</button><button onclick="townJump();townChip('hq')"><span class="dot" style="background:#F6F4EF"></span>HQ</button>${chips.replace(/class="town-chip"/g, 'onclick-wrap="1"').replace(/onclick="townChip\((\d)\)"/g, 'onclick="townJump();townChip($1)"')}<button onclick="townJump();townChip('dock')"><span class="dot" style="background:#ff6bd6"></span>Launch Pad</button><button onclick="townJump();townFalls()"><span class="dot" style="background:#5ff3ff"></span>Data Falls &amp; app screens</button>${DISTRICTS.map(d => `<button onclick="townFly('${d.key}')"><span class="dot" style="background:${d.col}"></span>${esc(d.name)}</button>`).join('')}</div>
@@ -1195,7 +1203,7 @@ window.townPage = () => { ADMIN = typeof isAdmin === 'function' && isAdmin();
 window.townMini = () => { const f = document.getElementById('town-full'); if (!f) return; f.classList.toggle('mini-open'); camMoved = true; setTimeout(drawMini, 0); };
 window.townTabHits = () => TABHITS.map(r => ({ page: r.page, x: (r.x - cam.x) * ZM + r.w * ZM / 2, y: (r.y - cam.y) * ZM + r.h * ZM / 2 }));
 window.townFalls = () => { if (ZM > 0.9) zoomAt(0.8, W / 2, H / 2); focusOn(FALLS.cx - 10, LIP_Y + 13, 0); };
-window.townCenter = () => { const z = FITZ || 1.3; C3.yaw = C3.yawT = 0; const [X, Y] = S3(BOTS[0].b.cx, BOTS[0].b.cy + 4, 1); animZoom(z, X, Y + (0.5 - 0.62) * H / z); };
+window.townCenter = () => hqView(false);
 window.townFly = (key, open) => { const d = DISTRICTS.find(x => x.key === key); if (!d) return; if (ZM < 0.8) zoomAt(1, W / 2, H / 2); focusOn(d.cx, d.cy, 1); const j = document.getElementById('town-jump'); if (j) j.classList.remove('on');
   if (open) { if (d.bot === 'hq') openHQ(); else if (d.bot === 'dock') openDock(); else if (d.bot === 'ai') { if (window.openGatepostAI) window.openGatepostAI(); } else openBot(d.bot); } };
 window.townApp = pg => { if (canTab(pg)) townGo(pg); else { flashLock(pg); const tb = TABS.find(x => x.page === pg); if (tb) { if (ZM > 0.9) zoomAt(0.8, W / 2, H / 2); focusOn(tb.x, tb.y, tb.z); } } };

@@ -1,7 +1,7 @@
 // Gatepost TEAM app service worker (scope /gatepost-app/). Bump VERSION on every release that changes the shell.
-const VERSION = 'gp-team-v9';
+const VERSION = 'gp-team-v10';
 const SBJS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.min.js';
-const SHELL = ['./', './index.html', './config.js?v=req1', './quotes-engine.js?v=1', './quotes.js?v=2', './town.js?v=44', './chat.js?v=6', './pwa.js?v=4', './manifest.json?v=9', './icon-192.png?v=4', './icon-512.png?v=4', './apple-touch-icon.png?v=4', './logo.png', './arch-mark.png', SBJS];
+const SHELL = ['./', './index.html', './config.js?v=req1', './quotes-engine.js?v=1', './quotes.js?v=2', './town.js?v=45', './chat.js?v=6', './pwa.js?v=4', './manifest.json?v=9', './icon-192.png?v=4', './icon-512.png?v=4', './apple-touch-icon.png?v=4', './logo.png', './arch-mark.png', SBJS];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => Promise.all(SHELL.map(u => c.add(u).catch(() => {})))).then(() => self.skipWaiting()));
 });
