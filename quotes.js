@@ -2,6 +2,7 @@
 // Saves quote JSON + PDF to Supabase (table public.quotes, private bucket "quotes"). OneDrive and email are not set up yet.
 (function () {
   const QE = window.QuotesEngine, PHONE = '(505) 750-3019';
+  const BASE = document.currentScript ? new URL('.', document.currentScript.src).href : ''; // so the public sign/ page can reuse the PDF builder
   const ORDER = ['handyman', 'yard', 'junk', 'tree', 'pool', 'garage', 'moving', 'gutters', 'custom'];
   const money = n => '$' + (+n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   const e = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -74,14 +75,16 @@
       <fieldset><legend>Tax (GRT) - pick by job address</legend>${sel('v.grt', Object.keys(QE.GRT).map(k => [k, QE.GRT[k].l.replace('Rio Rancho - ', 'RR ').replace(' County side', '') + ' ' + QE.GRT[k].r + '%']))}</fieldset>
       <h3>Customer sees</h3><div id="q-sum">${summary()}</div>
       <div class="q-actions"><button class="primary" id="q-save" onclick="qSave()"${Q.busy ? ' disabled' : ''}>${Q.saved ? 'Save again as new quote' : 'Save quote (PDF + data)'}</button>
-        ${Q.saved ? `<button class="secondary" onclick="qDownload('${Q.saved.id}')">Download PDF</button><button class="secondary" onclick="qText('${Q.saved.id}')">Text customer</button>` : ''}
-        ${setupBtns()}</div><p class="muted q-rt" id="q-status">${Q.saved ? 'Saved as ' + e(Q.saved.number) + '.' : ''}</p></div></div>`; }
+        ${Q.saved ? `<button class="secondary" onclick="qDownload('${Q.saved.id}')">Download PDF</button><button class="secondary" onclick="qText('${Q.saved.id}')">Text customer</button>${signBtns(Q.saved, '')}` : ''}
+        ${setupBtns()}</div><p class="muted q-rt" id="q-status">${Q.saved ? 'Saved as ' + e(Q.saved.number) + '.' + (Q.saved.signed_at ? ' SIGNED.' : '') : ''}</p></div></div>`; }
+  const signBtns = (q, cls) => q.signed_at ? `<button class="secondary ${cls}" onclick="qDownloadSigned('${q.id}')">Download signed PDF</button>` + (q.signer_name ? `<span class="muted q-rt">Signed by ${e(q.signer_name)} ${e(window.GPSign ? GPSign.denver(q.signed_at) : '')}</span>` : '')
+    : `<button class="secondary ${cls}" onclick="qSign('${q.id}')">Customer sign</button><button class="secondary ${cls}" onclick="qCopyLink('${q.id}', this)">Copy sign link</button>`;
   const setupBtns = () => `<button class="secondary" disabled title="Needs Christian's Azure app client ID">Save to OneDrive \u00b7 Setup needed</button><button class="secondary" disabled title="Needs the Gmail app password">Email customer \u00b7 Setup needed</button>`;
   function listHTML() { if (Q.list === null) return '<p class="muted">Loading\u2026</p>'; if (!Q.list.length) return '<p class="muted">No saved quotes yet.</p>';
-    return Q.list.map(q => `<div class="q-item"><div><b>${e(q.number)}</b> \u00b7 ${e(QE.FORMS[q.service]?.t || q.service)}${q.has_pending ? ' <span class="q-tag">PENDING</span>' : ''}<br><span class="muted">${e(q.customer?.name || 'No name')} \u00b7 ${money(q.total)} \u00b7 ${new Date(q.created_at).toLocaleDateString()}</span></div>
-      <div class="q-actions">${q.pdf_path ? `<button class="secondary q-sm" onclick="qDownload('${q.id}')">Download PDF</button><button class="secondary q-sm" onclick="qText('${q.id}')">Text customer</button>` : '<span class="muted">PDF missing</span>'}</div></div>`).join('') + `<div class="q-actions" style="margin-top:8px">${setupBtns()}</div>`; }
+    return Q.list.map(q => `<div class="q-item"><div><b>${e(q.number)}</b> \u00b7 ${e(QE.FORMS[q.service]?.t || q.service)}${q.has_pending ? ' <span class="q-tag">PENDING</span>' : ''}${q.signed_at ? ' <span class="q-tag q-signed">SIGNED</span>' : ''}<br><span class="muted">${e(q.customer?.name || 'No name')} \u00b7 ${money(q.total)} \u00b7 ${new Date(q.created_at).toLocaleDateString()}</span></div>
+      <div class="q-actions">${q.pdf_path ? `<button class="secondary q-sm" onclick="qDownload('${q.id}')">Download PDF</button><button class="secondary q-sm" onclick="qText('${q.id}')">Text customer</button>${signBtns(q, 'q-sm')}` : '<span class="muted">PDF missing</span>'}</div></div>`).join('') + `<div class="q-actions" style="margin-top:8px">${setupBtns()}</div>`; }
   async function loadList() { if (!window.gpSb) { Q.list = []; return paintList(); } Q.busy = true;
-    const { data, error } = await gpSb.from('quotes').select('id,number,service,customer,total,has_pending,pdf_path,created_at').order('created_at', { ascending: false }).limit(50);
+    const { data, error } = await gpSb.from('quotes').select('id,number,service,customer,total,has_pending,pdf_path,created_at,status,signed_at,signer_name,signed_pdf_path').order('created_at', { ascending: false }).limit(50);
     Q.busy = false; if (error) { Q.list = []; window.gpReportError && gpReportError(error, { op: 'quotes' }); } else Q.list = data || []; paintList(); }
   function paintList() { const el = document.getElementById('q-list'); if (el) el.innerHTML = listHTML(); }
   function repaint() { if (typeof page === 'function' && page() !== 'quotes') return; const m = document.getElementById('app'); if (m) { m.innerHTML = quotesPage(); } }
@@ -95,8 +98,8 @@
   // ---------- PDF (Handyman proposal template style; customer-facing only) ----------
   let jsPdfP = null, logoP = null;
   const loadJsPdf = () => jsPdfP || (jsPdfP = new Promise((ok, no) => { if (window.jspdf) return ok(window.jspdf); const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js'; s.onload = () => ok(window.jspdf); s.onerror = () => { jsPdfP = null; no(new Error('Could not load the PDF library. Check the connection and try again.')); }; document.head.appendChild(s); }));
-  const loadLogo = () => logoP || (logoP = fetch('logo.png?v=1').then(r => r.blob()).then(b => new Promise(ok => { const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.readAsDataURL(b); })).catch(() => null));
-  async function buildPdf(rec) { const { jsPDF } = await loadJsPdf(), logo = await loadLogo(); const d = new jsPDF({ unit: 'pt', format: 'letter' });
+  const loadLogo = () => logoP || (logoP = fetch(BASE + 'logo.png?v=1').then(r => r.blob()).then(b => new Promise(ok => { const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.readAsDataURL(b); })).catch(() => null));
+  async function buildPdf(rec, sig) { const { jsPDF } = await loadJsPdf(), logo = await loadLogo(); const d = new jsPDF({ unit: 'pt', format: 'letter' });
     const W = 612, M = 48, R = W - M; let y = 40; const f = QE.FORMS[rec.service], r = rec.result, c = rec.customer;
     const serif = (s, sz) => { d.setFont('times', s); d.setFontSize(sz); }, sans = (s, sz) => { d.setFont('helvetica', s); d.setFontSize(sz); };
     const spaced = (t, x, yy, align) => { d.setCharSpace(2.2); d.text(t.toUpperCase(), x, yy, { align }); d.setCharSpace(0); };
@@ -114,7 +117,10 @@
     sans('normal', 8.5); d.setTextColor(85); const gt = d.splitTextToSize('Gross Receipts Tax is New Mexico\u2019s tax on services. It is charged on the job and remitted by Gatepost. It is not an extra fee we keep.', R - M); d.text(gt, M, y); y += gt.length * 11 + 14; d.setTextColor(17);
     page(190); serif('normal', 15); d.text('Terms', M, y); y += 15; sans('normal', 9.5);
     ['Valid 30 days from the date walked.', 'Payment is due in full when the job is done.', 'Gross Receipts Tax is shown as its own line and paid by Gatepost to the state.', 'Change orders are written and priced before extra work starts.', 'Weather, a locked gate, or loose pets can move the start with no penalty either way.'].forEach((t, i) => { d.text((i + 1) + '. ' + t, M + 4, y); y += 13; });
-    y += 10; serif('normal', 15); d.text('Acceptance', M, y); y += 36; sans('normal', 10); d.line(M, y, M + 220, y); d.line(R - 220, y, R, y); y += 12; sans('normal', 8.5); d.text('Client signature / date', M, y); d.text('Gatepost Property Services signature / date', R - 220, y);
+    if (sig) { page(200); y += 10; serif('normal', 15); d.text('Customer acceptance - signed electronically', M, y); y += 18; sans('bold', 10.5); const al = d.splitTextToSize(sig.line, R - M); d.text(al, M, y); y += al.length * 13 + 6;
+      if (sig.png) d.addImage(sig.png, 'PNG', M, y, 240, 80); y += 84; d.setDrawColor(17); d.line(M, y, M + 260, y); y += 13; sans('normal', 10);
+      d.text('Signed by: ' + sig.name, M, y); y += 13; d.text('Date / time: ' + sig.atText, M, y); y += 13; d.text('Quote: ' + rec.number + '   Total: ' + money(r.total), M, y); y += 13; }
+    else { serif('normal', 15); d.text('Acceptance', M, y); y += 36; sans('normal', 10); d.line(M, y, M + 220, y); d.line(R - 220, y, R, y); y += 12; sans('normal', 8.5); d.text('Client signature / date', M, y); d.text('Gatepost Property Services signature / date', R - 220, y); }
     const pages = d.getNumberOfPages(); for (let p = 1; p <= pages; p++) { d.setPage(p); d.setDrawColor(17); d.line(M, 752, R, 752); sans('normal', 6.5); d.setTextColor(85); spaced('Free estimates \u00b7 Locally owned \u00b7 Seven days a week', W / 2, 764, 'center'); sans('normal', 8.5); d.text('Gatepost Property Services \u00b7 ' + PHONE + ' \u00b7 Moving, yard work, hauling and repairs from one local team.', W / 2, 777, { align: 'center' }); }
     return d.output('blob'); }
 
@@ -158,4 +164,28 @@
       await gpSb.from('quotes').update({ texted_at: new Date().toISOString(), texted_to: to, pending_override: !!q.has_pending }).eq('id', q.id);
       location.href = 'sms:' + to + (/iPhone|iPad|Mac/.test(navigator.userAgent) ? '&' : '?') + 'body=' + encodeURIComponent(body); setTimeout(close, 800); };
   };
+  // ---------- customer e-signing ----------
+  // OneDrive auto-upload stub: once Christian's Azure app client ID is set (ONEDRIVE.clientId) and the OneDrive connect flow exists, signed PDFs go to OneDrive here. Disabled for now.
+  const ONEDRIVE = { clientId: '', enabled: false, folder: 'Gatepost/Quotes/Signed' };
+  window.qOneDriveAutoUpload = async function (blob, filename) { if (!ONEDRIVE.enabled || !ONEDRIVE.clientId) return { skipped: 'OneDrive setup needed' }; /* TODO: MSAL sign-in + PUT /me/drive/root:/{folder}/{filename}:/content */ return { skipped: 'not implemented' }; };
+  const okPending = q => !q.has_pending || q.pending_override || confirm('This quote has PENDING prices. Override: I (Christian) OK these PENDING prices for this customer?');
+  window.qSign = async function (id) { let q; try { q = await fetchQuote(id); } catch (err) { return alert(err.message || err); }
+    if (q.signed_at) return alert('Already signed by ' + q.signer_name + '.'); if (!okPending(q)) return;
+    if (q.has_pending && !q.pending_override) await gpSb.from('quotes').update({ pending_override: true }).eq('id', q.id);
+    const rec = { ...q.data, number: q.number, service: q.service, customer: q.customer || q.data.customer };
+    GPSign.open(rec, { title: (QE.FORMS[q.service]?.t || q.service).replace(/ \(PENDING\)/, ''), logo: BASE + 'logo.png', closeLabel: 'Cancel', onClose: () => {}, name: (q.customer || {}).name || '',
+      onSubmit: async (sig, say) => { say('Making the signed PDF\u2026'); const pdf = await buildPdf(rec, sig), stamp = Date.now(), base = q.id + '/' + q.number;
+        const a = await gpSb.storage.from('quotes').upload(base + '-signature-' + stamp + '.png', GPSign.b64ToBlob(sig.png), { contentType: 'image/png' }); if (a.error) throw a.error;
+        const b = await gpSb.storage.from('quotes').upload(base + '-signed-' + stamp + '.pdf', pdf, { contentType: 'application/pdf' }); if (b.error) throw b.error;
+        const u = await gpSb.from('quotes').update({ signed_at: sig.at, signer_name: sig.name, signature_path: base + '-signature-' + stamp + '.png', signed_pdf_path: base + '-signed-' + stamp + '.pdf', status: 'Signed' }).eq('id', q.id).is('signed_at', null).select('id'); if (u.error) throw u.error; if (!u.data.length) throw new Error('Already signed.');
+        qOneDriveAutoUpload(pdf, q.number + '-signed.pdf').catch(() => {});
+        if (Q.saved && Q.saved.id === q.id) Q.saved = { ...Q.saved, signed_at: sig.at, signer_name: sig.name }; Q.list = null; repaint(); } });
+  };
+  window.qDownloadSigned = async function (id) { const w = window.open('', '_blank'); try { const q = await fetchQuote(id); if (!q.signed_pdf_path) throw new Error('No signed PDF yet.'); const { data, error } = await gpSb.storage.from('quotes').createSignedUrl(q.signed_pdf_path, 120, { download: q.number + '-signed.pdf' }); if (error) throw error; if (w) w.location = data.signedUrl; else location.href = data.signedUrl; } catch (err) { if (w) w.close(); alert('Could not open the signed PDF: ' + (err.message || err)); } };
+  // Copies a private sign link to the clipboard. Nothing is sent to the customer from here.
+  window.qCopyLink = async function (id, btn) { let q; try { q = await fetchQuote(id); } catch (err) { return alert(err.message || err); }
+    if (!okPending(q)) return; if (q.has_pending && !q.pending_override) await gpSb.from('quotes').update({ pending_override: true }).eq('id', q.id);
+    const { data, error } = await gpSb.rpc('create_quote_sign_link', { p_quote_id: id, p_days: 30 }); if (error) return alert('Could not make the link: ' + error.message);
+    const url = new URL('sign/?t=' + data.token, BASE || location.href).href, exp = data.expires_at ? ' (expires ' + new Date(data.expires_at).toLocaleDateString() + ')' : '';
+    try { await navigator.clipboard.writeText(url); if (btn) { const t = btn.textContent; btn.textContent = 'Link copied'; setTimeout(() => { btn.textContent = t; }, 2500); } } catch (_) { prompt('Copy this sign link' + exp + ':', url); } };
 })();
