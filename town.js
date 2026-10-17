@@ -611,9 +611,9 @@ function drawShip(c, t) { // delivery shuttle: hovers on the pad, launches when 
 const clouds = [{ x: 3, y: 8, s: 3.6, v: 0.16 }, { x: 16, y: 20, s: 3.0, v: 0.12 }, { x: 9, y: 30, s: 2.6, v: 0.2 }, { x: 22, y: 4, s: 2.8, v: 0.14 }];
 const flies = Array.from({ length: 48 }, (_, k) => ({ x: (k * 7.3) % WX, y: 4 + (k * 11.7) % 74, p: k * 1.7 }));
 const puffs = [];
-let ZM = 1; const ZMAX = 2.5, VW = () => W / ZM, VH = () => H / ZM;
+let ZM = 1, FITZ = 0; /* FITZ: fitted start zoom; pinch-out stops just past it (no far-away view) */ const ZMAX = 2.5, VW = () => W / ZM, VH = () => H / ZM;
 // far zoom: zFit = whole world just fits; min zoom leaves the world ~40% of the screen's short side (lots of space around it)
-const zFit = () => Math.min(W / WPX, H / HPX), zMin = () => Math.min(0.3, zFit() * 0.42), zOver = () => zFit() * 0.62;
+const zFit = () => Math.min(W / WPX, H / HPX), zMin = () => FITZ ? FITZ * 0.9 : Math.min(0.3, zFit() * 0.42), zOver = () => zFit() * 0.62;
 let FAR = false, ZANIM = null, lastTap = null, lastInput = 0; const REDUCED = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); const isFar = () => (W < 600 ? 13.5 : W < 1000 ? 12.5 : 11.5) / (K * 0.38 * ZM) > 2.8;
 function inView(x, y, w, h) { return x + w > cam.x - 20 && x < cam.x + VW() + 20 && y + h > cam.y - 20 && y < cam.y + VH() + 20; }
 let LABELRECTS = [];
@@ -971,7 +971,7 @@ function update(dt) {
 let camMoved = true, drag = null;
 function clampCam() { const ax = (m, v, V) => { if (m >= 0) return Math.max(0, Math.min(m, v)); const s = -m * 0.5; return Math.max(m - s, Math.min(s, v)); }; cam.x = ax(WPX - VW(), cam.x); cam.y = ax(HPX - VH(), cam.y); }
 function animZoom(z, wx, wy) { z = Math.max(zMin(), Math.min(ZMAX, z)); ZANIM = { z0: ZM, z1: z, x0: cam.x + VW() / 2, y0: cam.y + VH() / 2, x1: wx, y1: wy, t: 0 }; cam.tx = cam.ty = null; cam.vx = cam.vy = 0; }
-window.townOverview = () => animZoom(zOver(), WPX / 2, HPX / 2);
+window.townOverview = () => townFit(false);
 // Fit the town (all neighborhoods) to the open area between the activity log and the bottom bar, through the 3D tilt.
 function openArea() { const box = cv.parentElement.getBoundingClientRect(); let top = 0, bot = H;
   const tp = document.querySelector('.town-full .town-top'); if (tp && tp.offsetHeight) top = Math.max(top, tp.getBoundingClientRect().bottom - box.top + 6);
@@ -982,9 +982,9 @@ function fitPlan() { if (!cv || !W) return null; c3Apply(); const [x0, y0, x1, y
   const tgtX = W / 2, tgtY = (A.top + A.bot) / 2; let z = ZM || 1, cx = cam.x, cy = cam.y;
   for (let it = 0; it < 12; it++) { const [ux, uy] = c3Unproject(tgtX, tgtY); cx = mid[0] - ux / z; cy = mid[1] - uy / z;
     const sc = corners.map(([X, Y]) => window.townProject((X - cx) * z, (Y - cy) * z)), w = Math.max(...sc.map(p => p[0])) - Math.min(...sc.map(p => p[0])), h = Math.max(...sc.map(p => p[1])) - Math.min(...sc.map(p => p[1]));
-    const k = Math.min(W * 0.98 / w, (A.bot - A.top) * 0.98 / h); z = Math.max(zMin(), Math.min(ZMAX, z * Math.pow(k, 0.8))); }
+    const k = Math.min(W * 0.98 / w, (A.bot - A.top) * 0.98 / h); z = Math.max(0.03, Math.min(ZMAX, z * Math.pow(k, 0.8))); }
   const [ux, uy] = c3Unproject(tgtX, tgtY); return { z, x: mid[0] - ux / z, y: mid[1] - uy / z }; }
-function townFit(instant) { const f = fitPlan(); if (!f) return; cam.tx = cam.ty = null; cam.vx = cam.vy = 0; C3.yaw = C3.yawT = 0;
+function townFit(instant) { const f = fitPlan(); if (!f) return; FITZ = f.z; cam.tx = cam.ty = null; cam.vx = cam.vy = 0; C3.yaw = C3.yawT = 0;
   if (instant) { ZANIM = null; ZM = f.z; cam.x = f.x; cam.y = f.y; camMoved = true; return; }
   ZANIM = { z0: ZM, z1: f.z, x0: cam.x + VW() / 2, y0: cam.y + VH() / 2, x1: f.x + W / f.z / 2, y1: f.y + H / f.z / 2, t: 0, noclamp: 1 }; }
 window.townFit = townFit;
@@ -1133,7 +1133,7 @@ window.townPage = () => { ADMIN = typeof isAdmin === 'function' && isAdmin();
     return `<button class="town-chip" style="border-color:${bt.color}!important;box-shadow:0 0 10px ${bt.color}55" onclick="townChip(${i})"><span class="dot" style="background:${bt.color}"></span><b style="background:none;color:${bt.color};padding:0">${esc(bt.glyph)}</b> ${esc(bt.short)}${s && s.pending ? ` <b>${s.pending}</b>` : ''}${u ? ` <b class="chat">${u}</b>` : ''}</button>`; }).join('');
   return `<div class="town-full${window.innerWidth >= 1100 ? ' mini-open' : ''}" id="town-full"><div class="t3d t3d-space" id="t3d-space"><i class="l1"></i><i class="l2"></i><i class="l3"></i></div><div class="t3d t3d-fog"></div><canvas id="town-canvas" role="img" aria-label="Gatepost town map. Drag to look around; tap a building, a bot, HQ or the launch pad."></canvas>
   <div class="town-top"><div class="town-title"><b>Gatepost AI Grid</b><span id="town-clock"></span></div>${ADMIN ? '<div class="town-ticker" id="town-ticker"></div>' : ''}</div>
-  <div class="town-tools"><canvas id="town-mini" aria-label="Minimap: tap to jump"></canvas><button class="town-btn mini-tg" onclick="townMini()" aria-label="Toggle minimap" title="Minimap">▦</button><button class="town-btn zm" onclick="townZoom(1.25)" aria-label="Zoom in" title="Zoom in">+</button><button class="town-btn zm" onclick="townZoom(0.8)" aria-label="Zoom out" title="Zoom out">−</button><button class="town-btn" onclick="townOverview()" aria-label="Zoom out to see the whole town" title="Whole town (or double-tap empty space)">⤢</button><button class="town-btn" onclick="townCenter()" aria-label="Center on HQ" title="Center on HQ">⌂</button><button class="town-btn" onclick="townJump()" aria-label="Districts" title="Fly to a district">◎</button></div>
+  <div class="town-tools"><canvas id="town-mini" aria-label="Minimap: tap to jump"></canvas><button class="town-btn mini-tg" onclick="townMini()" aria-label="Toggle minimap" title="Minimap">▦</button><button class="town-btn zm" onclick="townZoom(1.25)" aria-label="Zoom in" title="Zoom in">+</button><button class="town-btn zm" onclick="townZoom(0.8)" aria-label="Zoom out" title="Zoom out">−</button><button class="town-btn" onclick="townCenter()" aria-label="Center on HQ" title="Center on HQ">⌂</button><button class="town-btn" onclick="townJump()" aria-label="Districts" title="Fly to a district">◎</button></div>
   <div class="town-jump" id="town-jump"><button onclick="townJump();gpPushUI&&gpPushUI()"><span class="dot" style="background:#ffd166"></span>🔔 Enable notifications</button><button onclick="townJump();townChip('hq')"><span class="dot" style="background:#F6F4EF"></span>HQ</button>${chips.replace(/class="town-chip"/g, 'onclick-wrap="1"').replace(/onclick="townChip\((\d)\)"/g, 'onclick="townJump();townChip($1)"')}<button onclick="townJump();townChip('dock')"><span class="dot" style="background:#ff6bd6"></span>Launch Pad</button><button onclick="townJump();townFalls()"><span class="dot" style="background:#5ff3ff"></span>Data Falls &amp; app screens</button>${DISTRICTS.map(d => `<button onclick="townFly('${d.key}')"><span class="dot" style="background:${d.col}"></span>${esc(d.name)}</button>`).join('')}</div>
   <div class="town-legend town-dock">${TABS.map(tb => { const ok = canTab(tb.page); return `<button class="town-chip app${ok ? '' : ' locked'}" style="--c:${tb.col}" onclick="townApp('${tb.page}')" aria-label="${esc(tb.name)}${ok ? '' : ' (admin only)'}"><span class="ic">${ok ? tb.icon : '🔒'}</span><span class="nm">${esc(tb.name)}</span></button>`; }).join('')}<button class="town-chip app more" onclick="townJump()" aria-label="Places: districts, bots, HQ"><span class="ic">◎</span><span class="nm">Places</span></button></div></div>`; };
 window.townMini = () => { const f = document.getElementById('town-full'); if (!f) return; f.classList.toggle('mini-open'); camMoved = true; setTimeout(drawMini, 0); };
