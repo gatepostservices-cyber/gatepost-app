@@ -190,6 +190,25 @@ footer { padding:14px; text-align:center; font-size:.72rem; letter-spacing:.08em
 .q-item{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.1)}
 .q-modal{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;padding:12px}.q-modal-in{width:100%;max-width:560px;max-height:90vh;overflow:auto;background:rgba(12,14,22,.92);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
 .q-chk{display:flex;gap:8px;align-items:flex-start}.q-chk input{width:auto}
+/* Panel fit on phones: nothing may be wider than the screen */
+html, body { max-width:100%; overflow-x:clip; }
+main, .card { max-width:100%; min-width:0; }
+fieldset { min-width:0; max-width:100%; }
+.card table { max-width:100%; }
+body.in-screen input, body.in-screen select, body.in-screen textarea { background:rgba(255,255,255,.08) !important; border:1px solid rgba(95,243,255,.35); color:#f6f4ef; -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); }
+body.in-screen input::placeholder, body.in-screen textarea::placeholder { color:rgba(246,244,239,.5); }
+body.in-screen select option { background:#141826; color:#f6f4ef; }
+body.in-screen header { gap:10px; } body.in-screen header .word { flex:1 1 auto; min-width:0; text-overflow:ellipsis; font-size:.92rem; letter-spacing:.22em; }
+body.in-screen #user-label { min-width:0; max-width:34vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:0 1 auto; }
+.q-form select, .q-row select { width:100%; text-overflow:ellipsis; padding-right:34px; }
+.q-row .q-inl { display:flex; align-items:center; gap:8px; margin-top:6px; flex-wrap:wrap; } .q-row .q-inl input { width:88px; flex:0 0 auto; }
+.q-row > input[type=number] { width:140px; max-width:100%; }
+.q-tbl { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+.q-inv { table-layout:fixed; font-size:.9rem; } .q-inv td, .q-inv th { overflow-wrap:anywhere; padding:7px 6px; } .q-inv th:last-child, .q-inv td:last-child { width:92px; }
+/* App chip bar: one non-overlapping horizontal scroll row */
+.town-full .town-dock { justify-content:flex-start !important; flex-wrap:nowrap !important; overflow-x:auto !important; overflow-y:hidden; gap:8px !important; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+.town-full .town-dock::-webkit-scrollbar { display:none; }
+.town-full .town-dock .town-chip.app { flex:0 0 auto !important; min-width:68px !important; padding:4px 10px !important; font-size:.7rem !important; white-space:nowrap; }
 </style>
 <script src="config.js?v=req1"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.min.js"></script>
@@ -702,7 +721,7 @@ const domReady = new Promise(r => document.readyState === 'loading' ? document.a
 Promise.all([API.init(), domReady]).then(()=>{ if (location.hash.length>1) document.querySelector(`.nav button[data-page="${location.hash.slice(1)}"]`)?.click(); render(); });
 </script>
 <script src="quotes-engine.js?v=2"></script>
-<script src="quotes.js?v=3"></script>
+<script src="quotes.js?v=4"></script>
 <script src="town.js?v=46"></script>
 <script src="chat.js?v=6"></script>
 <script src="pwa.js?v=5"></script>
