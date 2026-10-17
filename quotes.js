@@ -21,13 +21,13 @@
   function itemRow(d) {
     const p = 'v.items.' + d.id; let h = `<div class="q-row${d.pending ? ' q-pend' : ''}"><label>${e(d.l)}${d.rate ? ` <span class="q-rt">$${d.rate}/${e(d.u)}</span>` : ''}</label>`;
     if (!d.type) h += num(p);
-    else if (d.type === 'range') h += sel(p + '.k', Object.keys(d.opts).map(k => [k, d.opts[k][0]])) + ` price $${num(p + '.p')}`;
-    else if (d.type === 'monthly') h += `$${num(p + '.p', 'placeholder="85"')} × months ${num(p + '.n')}`;
+    else if (d.type === 'range') h += sel(p + '.k', Object.keys(d.opts).map(k => [k, d.opts[k][0]])) + `<div class="q-inl">Price $${num(p + '.p')}</div>`;
+    else if (d.type === 'monthly') h += `<div class="q-inl">$/month ${num(p + '.p', 'placeholder="85"')} Months ${num(p + '.n')}</div>`;
     else if (d.type === 'dirt') h += num(p) + ' <span class="q-rt">$200 up to 2 yd, then $100/yd</span>';
     else if (d.type === 'pick') h += sel(p, Object.keys(d.opts).map(k => [k, d.opts[k][0] + (d.opts[k][1] ? ' - $' + d.opts[k][1] : '')]));
-    else if (d.type === 'per') h += `trees ${num(p + '.n')} × $${num(p + '.p', `placeholder="${d.lo}-${d.hi}"`)} <span class="q-rt">$${d.lo}-${d.hi} each</span>`;
+    else if (d.type === 'per') h += `<div class="q-inl">Trees ${num(p + '.n')} $ each ${num(p + '.p', `placeholder="${d.lo}-${d.hi}"`)}</div><span class="q-rt">$${d.lo}-${d.hi} each</span>`;
     else if (d.type === 'floor') h += '$' + num(p, 'placeholder="300+"');
-    else if (d.type === 'gutter') h += sel(p + '.s', [['', '--'], ['1', 'One story - $140 flat'], ['2', 'Two story - $250 up to 175 ft, +$1.40/ft']]) + ` feet ${num(p + '.ft')}`;
+    else if (d.type === 'gutter') h += sel(p + '.s', [['', '--'], ['1', 'One story - $140 flat'], ['2', 'Two story - $250 up to 175 ft, +$1.40/ft']]) + `<div class="q-inl">Feet ${num(p + '.ft')}</div>`;
     else if (d.type === 'custom') h += (Q.v.items.c || []).map((c, i) => `<div class="q-cl">${inp(`v.items.c.${i}.d`, 'placeholder="Description"')} qty ${num(`v.items.c.${i}.q`)} × $${num(`v.items.c.${i}.p`)}</div>`).join('') + `<button type="button" class="secondary q-sm" onclick="qAddLine()">+ Add line</button>`;
     return h + '</div>';
   }
@@ -39,9 +39,9 @@
   // ---------- summary (customer-facing preview) ----------
   function summary() { const r = calcOf(Q.k, vals()), pend = hasPending(Q.k, vals());
     return `${pend ? '<div class="q-warnb">PENDING PRICES - NOT FINAL. Needs Christian\u2019s OK before this goes to a customer.</div>' : ''}
-      <table class="q-inv"><tr><th>Item</th><th class="n">Amount</th></tr>${r.lines.map(l => `<tr><td>${e(l.l)}</td><td class="n">${money(l.a)}</td></tr>`).join('') || '<tr><td colspan="2" class="muted">Enter quantities above.</td></tr>'}
+      <div class="q-tbl"><table class="q-inv"><tr><th>Item</th><th class="n">Amount</th></tr>${r.lines.map(l => `<tr><td>${e(l.l)}</td><td class="n">${money(l.a)}</td></tr>`).join('') || '<tr><td colspan="2" class="muted">Enter quantities above.</td></tr>'}
       <tr class="b"><td>Subtotal</td><td class="n">${money(r.subtotal)}</td></tr><tr><td>NM Gross Receipts Tax - ${e(r.grtLabel)} (${r.grtRate}%)</td><td class="n">${money(r.tax)}</td></tr>
-      <tr class="tot"><td>TOTAL</td><td class="n">${money(r.total)}</td></tr></table>
+      <tr class="tot"><td>TOTAL</td><td class="n">${money(r.total)}</td></tr></table></div>
       ${r.warn.length ? `<ul class="q-w">${r.warn.map(w => `<li>${e(w)}</li>`).join('')}</ul>` : ''}`; }
 
   // ---------- pages ----------
@@ -69,9 +69,9 @@
         <div class="q-row"><label>Contingency (fixed bid, site NOT seen in person)</label>${sel('v.cont', [['0', 'None - site seen / hourly'], ['5', '5%'], ['7.5', '7.5%'], ['10', '10%']])}</div>
         <div class="q-row"><label>Fuel / trip $ <span class="q-rt">$15-25 per job</span></label>${num('v.fuel')}</div>
         <div class="q-row"><label>Miles OUTSIDE service area <span class="q-rt">$0.76/mi</span></label>${num('v.miles')}</div>
-        ${['', '2'].map(n => `<div class="q-row"><label>Dump site ${n || 1}</label>${sel('v.dump' + n, Object.keys(QE.DUMP).map(k => [k, QE.DUMP[k].l]))} tons ${num('v.tons' + n, 'step="0.1"')}</div>`).join('')}
+        ${['', '2'].map(n => `<div class="q-row"><label>Dump site ${n || 1}</label>${sel('v.dump' + n, Object.keys(QE.DUMP).map(k => [k, QE.DUMP[k].l]))}<div class="q-inl">Tons ${num('v.tons' + n, 'step="0.1"')}</div></div>`).join('')}
         <p class="q-rt">Sandoval County Landfill: 2708 Iris Rd NE, Rio Rancho NM 87144. Dump fees at cost.</p></fieldset>
-      <fieldset><legend>Tax (GRT) - pick by job address</legend>${sel('v.grt', Object.keys(QE.GRT).map(k => [k, QE.GRT[k].l + ' - ' + QE.GRT[k].r + '%']))}</fieldset>
+      <fieldset><legend>Tax (GRT) - pick by job address</legend>${sel('v.grt', Object.keys(QE.GRT).map(k => [k, QE.GRT[k].l.replace('Rio Rancho - ', 'RR ').replace(' County side', '') + ' ' + QE.GRT[k].r + '%']))}</fieldset>
       <h3>Customer sees</h3><div id="q-sum">${summary()}</div>
       <div class="q-actions"><button class="primary" id="q-save" onclick="qSave()"${Q.busy ? ' disabled' : ''}>${Q.saved ? 'Save again as new quote' : 'Save quote (PDF + data)'}</button>
         ${Q.saved ? `<button class="secondary" onclick="qDownload('${Q.saved.id}')">Download PDF</button><button class="secondary" onclick="qText('${Q.saved.id}')">Text customer</button>` : ''}
