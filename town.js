@@ -796,9 +796,9 @@ function drawStreams(t, dt) {
     const [x, y] = streamAt(f.st, f.d), [X, Y] = S3(x, y, 0.3); if (!inView(X - K, Y - K, 2 * K, 2 * K)) continue; const g = ctx.createRadialGradient(X, Y, 0, X, Y, K * (f.big ? 0.9 : 0.6)); g.addColorStop(0, `rgba(${f.st.rgb},.9)`); g.addColorStop(1, `rgba(${f.st.rgb},0)`); ctx.fillStyle = g; ctx.fillRect(X - K, Y - K, 2 * K, 2 * K); if (f.item) drawItem(ctx, f.item, X, Y, K / 16); else { ctx.fillStyle = '#fff'; ctx.fillRect(X - K * 0.1, Y - K * 0.1, K * 0.2, K * 0.2); } }
 }
 // ---------- floating app screens beyond the falls (tap to open that tab; locked when your role can't) ----------
-const TABS = [{ page: 'dashboard', name: 'Hub', icon: '◉', col: '#5ff3ff', shape: 'dome' }, { page: 'estimate', name: 'Estimate', icon: '±', col: '#ffd23a', shape: 'steps', admin: 1 }, { page: 'calendar', name: 'Calendar', icon: '▦', col: '#3ddc97', shape: 'cal' },
+const TABS = [{ page: 'dashboard', name: 'Hub', icon: '◉', col: '#5ff3ff', shape: 'dome' }, { page: 'estimate', name: 'Estimate', icon: '±', col: '#ffd23a', shape: 'steps', admin: 1 }, { page: 'quotes', name: 'Quotes', icon: '✉', col: '#ff9f43', shape: 'doc', admin: 1 }, { page: 'calendar', name: 'Calendar', icon: '▦', col: '#3ddc97', shape: 'cal' },
   { page: 'requests', name: 'Requests', icon: '✓', col: '#ff7a1f', shape: 'tower', admin: 1 }, { page: 'ask', name: 'Ask AI', icon: '✦', col: '#ff6bd6', shape: 'orb', admin: 1 }, { page: 'admin', name: 'Team', icon: '☺', col: '#b58cff', shape: 'cluster', admin: 1 }];
-TABS.forEach((tb, k) => { tb.x = 13 + k * 13.8; tb.y = 125 + (k % 2 ? 1.8 : 0) - Math.abs(k - 2.5) * 0.9; tb.z = 3.2; tb.ph = k * 1.3; });
+TABS.forEach((tb, k) => { const n1 = TABS.length - 1; tb.x = 13 + k * (69 / n1); tb.y = 125 + (k % 2 ? 1.8 : 0) - Math.abs(k - n1 / 2) * 0.9 * (5 / n1); tb.z = 3.2; tb.ph = k * 1.3; });
 let TABHITS = [], TABSPR = null, LOCKFLASH = {};
 function canTab(pg) { const b = document.querySelector(`.nav button[data-page="${pg}"]`), nav = document.getElementById('main-nav'); if (b && nav && !nav.classList.contains('hidden')) return !b.classList.contains('hidden'); const tb = TABS.find(x => x.page === pg); return !!tb && (!tb.admin || ADMIN); }
 function flashLock(pg) { LOCKFLASH[pg] = 1.6; }
@@ -810,6 +810,7 @@ function buildTabSprites() { TABSPR = TABS.map(tb => { const b = { cx: tb.x, cy:
     if (tb.shape === 'dome') so.push(boxS(b, 0, 0, 4.2, 3.2, z, z + 1.6, C.wall));
     if (tb.shape === 'steps') { so.push(boxS(b, 0, 0, 4.4, 3.2, z, z + 1.2, C.wall)); so.push(boxS(b, 0, 0, 3.2, 2.3, z + 1.2, z + 2.3, C.wall2)); so.push(boxS(b, 0, 0, 2, 1.4, z + 2.3, z + 3.2, C.wall)); }
     if (tb.shape === 'cal') { so.push(boxS(b, 0, 0, 3.8, 3, z, z + 2.8, C.wall, { front: (c, L, Hh) => { for (let i = 0; i < 4; i++) for (let j = 0; j < 3; j++) R2(c, 0.3 + i * (L - 0.6) / 4, 0.4 + j * 0.7, (L - 0.6) / 4 - 0.15, 0.45, j === 1 && i === 2 ? col : 'rgba(95,243,255,.35)'); } })); }
+    if (tb.shape === 'doc') { so.push(boxS(b, 0, 0, 3.6, 2.8, z, z + 1, C.wall)); so.push(boxS(b, 0, 0, 2.6, 0.6, z + 1, z + 4, C.wall2, { front: (c, L, Hh) => { for (let j = 0; j < 4; j++) R2(c, 0.35, 0.5 + j * 0.65, L - 0.7 - (j === 3 ? 0.8 : 0), 0.18, j === 0 ? col : 'rgba(255,159,67,.45)'); } })); }
     if (tb.shape === 'tower') { so.push(boxS(b, 0, 0, 3, 2.6, z, z + 1, C.wall)); so.push(boxS(b, 0, 0, 1.6, 1.6, z + 1, z + 5.2, C.wall2)); }
     if (tb.shape === 'orb') so.push(boxS(b, 0, 0, 3.2, 2.6, z, z + 0.9, C.wall), boxS(b, 0, 0, 0.6, 0.6, z + 0.9, z + 2.6, C.stone));
     if (tb.shape === 'cluster') so.push(boxS(b, -1.1, 0.4, 2, 2, z, z + 2.2, C.wall), boxS(b, 1.1, -0.4, 1.8, 1.8, z, z + 3, C.wall2), boxS(b, 0.4, 1.2, 1.4, 1.2, z, z + 1.4, C.wall));
