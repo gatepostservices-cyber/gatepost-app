@@ -3,6 +3,9 @@
   if (!('serviceWorker' in navigator) || location.protocol !== 'https:' && location.hostname !== 'localhost') return;
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js', { scope: './' }).catch(err => console.warn('SW register failed', err));
+    // A new release took over: reload once so the installed app never keeps running an old build.
+    { const had = !!navigator.serviceWorker.controller; let done = false; navigator.serviceWorker.addEventListener('controllerchange', () => { if (had && !done) { done = true; location.reload(); } }); }
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) navigator.serviceWorker.getRegistration().then(r => r && r.update()).catch(() => {}); });
   });
   // Web push: GatepostPush.enable() must run from a user tap. Server: supabase/functions/send-push + supabase-push.sql.
   const CFG = window.GATEPOST_CONFIG || {};

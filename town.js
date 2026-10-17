@@ -972,6 +972,24 @@ let camMoved = true, drag = null;
 function clampCam() { const ax = (m, v, V) => { if (m >= 0) return Math.max(0, Math.min(m, v)); const s = -m * 0.5; return Math.max(m - s, Math.min(s, v)); }; cam.x = ax(WPX - VW(), cam.x); cam.y = ax(HPX - VH(), cam.y); }
 function animZoom(z, wx, wy) { z = Math.max(zMin(), Math.min(ZMAX, z)); ZANIM = { z0: ZM, z1: z, x0: cam.x + VW() / 2, y0: cam.y + VH() / 2, x1: wx, y1: wy, t: 0 }; cam.tx = cam.ty = null; cam.vx = cam.vy = 0; }
 window.townOverview = () => animZoom(zOver(), WPX / 2, HPX / 2);
+// Fit the town (all neighborhoods) to the open area between the activity log and the bottom bar, through the 3D tilt.
+function openArea() { const box = cv.parentElement.getBoundingClientRect(); let top = 0, bot = H;
+  const tp = document.querySelector('.town-full .town-top'); if (tp && tp.offsetHeight) top = Math.max(top, tp.getBoundingClientRect().bottom - box.top + 6);
+  const lg = document.querySelector('.town-full .town-legend'); if (lg && lg.offsetHeight) bot = Math.min(bot, lg.getBoundingClientRect().top - box.top - 6);
+  if (bot - top < H * 0.4) { top = 0; bot = H; } return { top, bot }; }
+function townBBox() { let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; DISTRICTS.forEach(d => { const r = d.R * 0.92; x0 = Math.min(x0, d.cx - r); x1 = Math.max(x1, d.cx + r); y0 = Math.min(y0, d.cy - r); y1 = Math.max(y1, d.cy + r); }); TABS.forEach(tb => { x0 = Math.min(x0, tb.x - 3); x1 = Math.max(x1, tb.x + 3); y1 = Math.max(y1, tb.y + 3); }); return [x0, y0, x1, y1]; }
+function fitPlan() { if (!cv || !W) return null; c3Apply(); const [x0, y0, x1, y1] = townBBox(), A = openArea(), corners = [[x0, y0], [x1, y0], [x0, y1], [x1, y1]].map(([x, y]) => S3(x, y, 0)), mid = S3((x0 + x1) / 2, (y0 + y1) / 2, 0);
+  const tgtX = W / 2, tgtY = (A.top + A.bot) / 2; let z = ZM || 1, cx = cam.x, cy = cam.y;
+  for (let it = 0; it < 12; it++) { const [ux, uy] = c3Unproject(tgtX, tgtY); cx = mid[0] - ux / z; cy = mid[1] - uy / z;
+    const sc = corners.map(([X, Y]) => window.townProject((X - cx) * z, (Y - cy) * z)), w = Math.max(...sc.map(p => p[0])) - Math.min(...sc.map(p => p[0])), h = Math.max(...sc.map(p => p[1])) - Math.min(...sc.map(p => p[1]));
+    const k = Math.min(W * 0.98 / w, (A.bot - A.top) * 0.98 / h); z = Math.max(zMin(), Math.min(ZMAX, z * Math.pow(k, 0.8))); }
+  const [ux, uy] = c3Unproject(tgtX, tgtY); return { z, x: mid[0] - ux / z, y: mid[1] - uy / z }; }
+function townFit(instant) { const f = fitPlan(); if (!f) return; cam.tx = cam.ty = null; cam.vx = cam.vy = 0; C3.yaw = C3.yawT = 0;
+  if (instant) { ZANIM = null; ZM = f.z; cam.x = f.x; cam.y = f.y; camMoved = true; return; }
+  ZANIM = { z0: ZM, z1: f.z, x0: cam.x + VW() / 2, y0: cam.y + VH() / 2, x1: f.x + W / f.z / 2, y1: f.y + H / f.z / 2, t: 0, noclamp: 1 }; }
+window.townFit = townFit;
+window.townFitBox = () => { const [x0, y0, x1, y1] = townBBox(), box = cv.parentElement.getBoundingClientRect(), sc = [[x0, y0], [x1, y0], [x0, y1], [x1, y1]].map(([x, y]) => { const [X, Y] = S3(x, y, 0); return window.townProject((X - cam.x) * ZM, (Y - cam.y) * ZM); }), A = openArea();
+  return { left: Math.min(...sc.map(p => p[0])), right: Math.max(...sc.map(p => p[0])), top: Math.min(...sc.map(p => p[1])) , bottom: Math.max(...sc.map(p => p[1])), W, H, area: A, boxTop: box.top }; };
 function focusOn(x, y, z = 1, instant, fy = 0.45) { const [X, Y] = S3(x, y, z); cam.tx = X - VW() / 2; cam.ty = Y - VH() * fy; if (instant) { cam.x = cam.tx; cam.y = cam.ty; cam.tx = cam.ty = null; clampCam(); } camMoved = true; }
 // ---------- 3D camera: the town canvas is a real perspective plane (CSS 3D, GPU composited) ----------
 // Tilt + yaw are applied to the canvas element; pointer input is mapped back onto the plane with the inverse homography,
@@ -1004,7 +1022,7 @@ function loop(ts) {
   if ((clockT -= dt) <= 0) { clockT = 30; const pl = LIT, ph = HOMELIT; hour = syncClock(); dark = darkness(hour); warm = warmth(hour); LIT = dark > 0.15; HOMELIT = LIT && !atWork(hour);
     if (pl !== LIT || ph !== HOMELIT) spritesDirty = true; updateOverlay(); }
   if (spritesDirty || !ground) { buildSprites(); buildGround(); camMoved = true; }
-  if (ZANIM && !drag) { const a = ZANIM; a.t = Math.min(1, a.t + dt / 0.55); const e = a.t * a.t * (3 - 2 * a.t); ZM = Math.exp(Math.log(a.z0) + (Math.log(a.z1) - Math.log(a.z0)) * e); cam.x = a.x0 + (a.x1 - a.x0) * e - VW() / 2; cam.y = a.y0 + (a.y1 - a.y0) * e - VH() / 2; clampCam(); camMoved = true; if (a.t >= 1) ZANIM = null; }
+  if (ZANIM && !drag) { const a = ZANIM; a.t = Math.min(1, a.t + dt / 0.55); const e = a.t * a.t * (3 - 2 * a.t); ZM = Math.exp(Math.log(a.z0) + (Math.log(a.z1) - Math.log(a.z0)) * e); cam.x = a.x0 + (a.x1 - a.x0) * e - VW() / 2; cam.y = a.y0 + (a.y1 - a.y0) * e - VH() / 2; if (!a.noclamp) clampCam(); camMoved = true; if (a.t >= 1) ZANIM = null; }
   else if (cam.tx !== null && !drag) { const k = Math.min(1, dt * 6); cam.x += (cam.tx - cam.x) * k; cam.y += (cam.ty - cam.y) * k; if (Math.abs(cam.tx - cam.x) < 0.5 && Math.abs(cam.ty - cam.y) < 0.5) cam.tx = cam.ty = null; clampCam(); camMoved = true; }
   else if (!drag && (Math.abs(cam.vx) > 5 || Math.abs(cam.vy) > 5)) { cam.x -= cam.vx * dt; cam.y -= cam.vy * dt; const f = Math.pow(0.9, dt * 60); cam.vx *= f; cam.vy *= f; clampCam(); camMoved = true; }
   { const idle = !REDUCED && ts - lastInput > 4000 && !document.body.classList.contains('in-screen'); if (idle) C3.drift += dt * 0.18; if (!drag && ts - lastInput > 2500) C3.yaw += (C3.yawT - C3.yaw) * Math.min(1, dt * 1.5); c3Apply(); }
@@ -1022,7 +1040,7 @@ function setup() {
   if (HUDC === null) HUDC = W < 600; { const pr = document.createElement('div'); pr.style.cssText = 'position:fixed;visibility:hidden;padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)'; document.body.appendChild(pr); const cs = getComputedStyle(pr); SAFE.l = parseFloat(cs.paddingLeft) || 0; SAFE.r = parseFloat(cs.paddingRight) || 0; pr.remove(); }
   { const lg = document.querySelector('.town-full .town-legend'), cr = cv.getBoundingClientRect(); HUD_BOT = lg ? Math.max(56, cr.bottom - lg.getBoundingClientRect().top + 8) : 64; }
   if (!cv._touch) { cv._touch = 1; cv.addEventListener('touchmove', e => e.preventDefault(), { passive: false }); cv.addEventListener('touchstart', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false }); }
-  if (!cam.init) { cam.init = true; ZM = Math.min(ZMAX, W < 600 ? 1.3 : 1.1); focusOn(BOTS[0].b.cx, BOTS[0].b.cy + 4, 1, true, 0.62); } c3Apply(); clampCam();
+  c3Apply(); if (!cam.init) { cam.init = true; townFit(true); requestAnimationFrame(() => { if (performance.now() - lastInput > 1500) townFit(true); }); setTimeout(() => { if (performance.now() - lastInput > 1500 && !document.body.classList.contains('in-screen')) townFit(true); }, 700); } clampCam();
   hour = syncClock(); dark = darkness(hour); warm = warmth(hour); const nl = dark > 0.15, nh = nl && !atWork(hour); if (nl !== LIT || nh !== HOMELIT) { LIT = nl; HOMELIT = nh; spritesDirty = true; } clockT = 30; updateOverlay();
   const pts = new Map(); let pinch = null;
   const rel = e => { const r = cv.parentElement.getBoundingClientRect(); return c3Unproject(e.clientX - r.left - cv.offsetLeft, e.clientY - r.top - cv.offsetTop); };
@@ -1121,7 +1139,7 @@ window.townPage = () => { ADMIN = typeof isAdmin === 'function' && isAdmin();
 window.townMini = () => { const f = document.getElementById('town-full'); if (!f) return; f.classList.toggle('mini-open'); camMoved = true; setTimeout(drawMini, 0); };
 window.townTabHits = () => TABHITS.map(r => ({ page: r.page, x: (r.x - cam.x) * ZM + r.w * ZM / 2, y: (r.y - cam.y) * ZM + r.h * ZM / 2 }));
 window.townFalls = () => { if (ZM > 0.9) zoomAt(0.8, W / 2, H / 2); focusOn(FALLS.cx - 10, LIP_Y + 13, 0); };
-window.townCenter = () => focusOn(HQ.cx, HQ.cy, 1);
+window.townCenter = () => townFit(false);
 window.townFly = (key, open) => { const d = DISTRICTS.find(x => x.key === key); if (!d) return; if (ZM < 0.8) zoomAt(1, W / 2, H / 2); focusOn(d.cx, d.cy, 1); const j = document.getElementById('town-jump'); if (j) j.classList.remove('on');
   if (open) { if (d.bot === 'hq') openHQ(); else if (d.bot === 'dock') openDock(); else if (d.bot === 'ai') { if (window.openGatepostAI) window.openGatepostAI(); } else openBot(d.bot); } };
 window.townApp = pg => { if (canTab(pg)) townGo(pg); else { flashLock(pg); const tb = TABS.find(x => x.page === pg); if (tb) { if (ZM > 0.9) zoomAt(0.8, W / 2, H / 2); focusOn(tb.x, tb.y, tb.z); } } };
