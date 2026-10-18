@@ -1,7 +1,7 @@
 // Gatepost TEAM app service worker (scope /gatepost-app/). Bump VERSION on every release that changes the shell.
-const VERSION = 'gp-team-v15';
+const VERSION = 'gp-team-v16';
 const SBJS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.min.js';
-const SHELL = ['./', './index.html', './config.js?v=req1', './quotes-engine.js?v=2', './quotes-sign.js?v=1', './quotes.js?v=5', './unfinished.js?v=2', './town.js?v=47', './chat.js?v=6', './pwa.js?v=5', './manifest.json?v=9', './icon-192.png?v=4', './icon-512.png?v=4', './apple-touch-icon.png?v=4', './logo.png', './arch-mark.png', SBJS];
+const SHELL = ['./', './index.html', './config.js?v=req1', './quotes-engine.js?v=2', './quotes-sign.js?v=1', './quotes.js?v=5', './unfinished.js?v=3', './town.js?v=47', './chat.js?v=6', './pwa.js?v=6', './manifest.json?v=9', './icon-192.png?v=4', './icon-512.png?v=4', './apple-touch-icon.png?v=4', './logo.png', './arch-mark.png', SBJS];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => Promise.all(SHELL.map(u => c.add(u).catch(() => {})))).then(() => self.skipWaiting()));
 });
@@ -18,7 +18,8 @@ self.addEventListener('fetch', e => {
   if (u.origin !== location.origin) return;
   const base = new URL('./', self.registration.scope).pathname;
   if (!u.pathname.startsWith(base) || u.pathname.startsWith(base + 'customer/') || u.pathname.startsWith(base + 'supabase/')) return;
-  e.respondWith(fetch(req).then(r => {
+  // Navigations skip the 10-min GitHub Pages HTTP cache so a new release's index.html (and its ?v= script URLs) is seen at once.
+  e.respondWith((req.mode === 'navigate' ? fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' }) : fetch(req)).then(r => {
     if (r.ok && r.type === 'basic') { const c = r.clone(); caches.open(VERSION).then(x => x.put(req, c)); }
     return r;
   }).catch(() => caches.match(req).then(r => r || (req.mode === 'navigate' ? caches.match('./index.html', { ignoreSearch: true }) : Response.error()))));
