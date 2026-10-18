@@ -11,6 +11,7 @@
   function card(it, hist) {
     return `<div class="uf-item${hist ? ' uf-hist' : ''}"><div class="uf-top"><b>${e(it.bot_name)}</b><span class="muted">${e(day(it.updated_at || it.created_at))}</span></div>
       <div class="uf-sum">${e(it.summary)}</div>${it.state ? `<div class="muted uf-st">Last state: ${e(it.state)}</div>` : ''}
+      ${hist ? '' : `<div class="uf-pr"><div class="uf-prt">${e(prompt(it))}</div><button class="secondary q-sm" onclick="ufCopy(${it.id})">Copy</button></div>`}
       ${hist ? `<div class="muted uf-st">${it.status === 'aborted' ? 'Aborted ' + e(day(it.aborted_at)) : 'Done'}</div>` : `<div class="q-actions"><button class="primary" onclick="ufContinue(${it.id})">CONTINUE</button><button class="secondary" onclick="ufAbort(${it.id})">ABORT</button></div>`}</div>`;
   }
   window.unfinishedPage = function () {
@@ -27,13 +28,18 @@
     U.busy = false; U.at = Date.now(); if (error) { U.list = U.list || []; window.gpReportError && gpReportError(error, { op: 'unfinished' }); } else U.list = data || []; paint(); }
   function paint() { if (typeof page === 'function' && page() !== 'unfinished') return; const m = document.getElementById('app'); if (m && document.getElementById('uf-root')) { const op = m.querySelector('.uf-h')?.open; m.innerHTML = unfinishedPage(); if (op) m.querySelector('.uf-h').open = true; } }
   const msg = t => { const el = document.getElementById('uf-msg'); if (el) el.textContent = t; };
-  async function copy(t) { try { await navigator.clipboard.writeText(t); return true; } catch (_) {
-    const ta = document.createElement('textarea'); ta.value = t; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0'; document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, t.length);
-    let ok = false; try { ok = document.execCommand('copy'); } catch (_) {} ta.remove(); return ok; } }
-  // Copy first, then navigate.
-  window.ufContinue = async function (id) { const it = (U.list || []).find(x => x.id === id); if (!it) return;
-    const ok = await copy(prompt(it)); msg(ok ? 'Prompt copied. Opening ' + it.bot_name + '\u2026 paste it there.' : 'Could not copy automatically. Prompt: ' + prompt(it));
-    window.ufLastNav = link(it); location.href = link(it); };
+  function fallbackCopy(t) { const ta = document.createElement('textarea'); ta.value = t; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;font-size:16px';
+    document.body.appendChild(ta); ta.focus(); ta.select(); ta.setSelectionRange(0, t.length); let ok = false; try { ok = document.execCommand('copy'); } catch (_) {} ta.remove(); return ok; }
+  // Synchronous inside the tap (iOS needs the user gesture). Resolves true/false.
+  function copyNow(t) { let p = null; try { if (navigator.clipboard && navigator.clipboard.writeText) p = navigator.clipboard.writeText(t); } catch (_) { p = null; }
+    if (!p) return Promise.resolve(fallbackCopy(t)); return p.then(() => true, () => fallbackCopy(t)); }
+  function toast(t) { let el = document.getElementById('uf-toast'); if (!el) { el = document.createElement('div'); el.id = 'uf-toast'; el.setAttribute('role', 'status'); document.body.appendChild(el); }
+    el.textContent = t; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 2200); }
+  window.ufCopy = function (id) { const it = (U.list || []).find(x => x.id === id); if (!it) return; copyNow(prompt(it)).then(ok => toast(ok ? 'Copied' : 'Copy failed - select the text and copy it')); };
+  // Copy first (no await before it), then open the bot once the copy resolves, or after ~400ms if it fails.
+  window.ufContinue = function (id) { const it = (U.list || []).find(x => x.id === id); if (!it) return;
+    const go = () => { window.ufLastNav = link(it); location.href = link(it); };
+    copyNow(prompt(it)).then(ok => { if (ok) { toast('Copied'); msg('Prompt copied. Opening ' + it.bot_name + '\u2026 paste it there.'); go(); } else { toast('Copy failed - copy the text below by hand'); msg('Could not copy automatically.'); setTimeout(go, 400); } }); };
   window.ufAbort = async function (id) { const it = (U.list || []).find(x => x.id === id); if (!it) return;
     if (!confirm('Abort "' + it.summary + '"? ' + it.bot_name + ' will be told to stop.')) return;
     const now = new Date().toISOString(); const { error } = await gpSb.from('unfinished').update({ status: 'aborted', aborted_at: now, updated_at: now }).eq('id', id).eq('status', 'open');
