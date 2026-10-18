@@ -25,3 +25,14 @@ Bots publish with `tools/board.sh "<bot>" <key> '<json>'` (or `@file.json`), usi
 - Bids `quote_clock`: `{"items":[{"street","total","expires":"YYYY-MM-DD"}]}`
 - Any bot `waiting_on_christian`: `{"items":[{"quote","needs","since":"ISO time (optional)"}]}`
 - Tasks `promised_followups`: `{"items":[{"what","due":"YYYY-MM-DD","owner"}]}`
+
+## Unfinished items (bots)
+The app's **Unfinished** screen (town dock chip / building, admin only) lists work Christian started with a bot that isn't done. Bots report with `tools/unfinished.sh`, which uses the same token file as `post-request.sh` (`~/.config/gatepost/request-token`, override `GATEPOST_REQUEST_TOKEN_FILE`):
+
+```
+tools/unfinished.sh add     AGENT_ID BOT_NAME EXT_KEY "One-line summary" ["Last state"]
+tools/unfinished.sh update  AGENT_ID BOT_NAME EXT_KEY "One-line summary" "Last state"
+tools/unfinished.sh close   AGENT_ID EXT_KEY      # done
+tools/unfinished.sh aborted AGENT_ID              # JSON list of items Christian aborted; marks them acknowledged
+```
+`add`/`update` are one idempotent upsert on (AGENT_ID, EXT_KEY); done/aborted items are never reopened. RPCs: `unfinished_upsert(p_token, p_agent_id, p_bot_name, p_ext_key, p_summary, p_state)`, `unfinished_close(p_token, p_agent_id, p_ext_key)`, `unfinished_aborted(p_token, p_agent_id)`. In the app, CONTINUE copies "Continue where you left off on: <summary>. Last state: <state>." then opens `grokbot://app/v1/agent?id=<agent_id>`; ABORT marks it aborted. No push notifications.

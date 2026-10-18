@@ -176,6 +176,7 @@ footer { padding:14px; text-align:center; font-size:.72rem; letter-spacing:.08em
 
 /* Quotes tab */
 .q-menu{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}.q-menu button{text-align:left;min-height:48px}
+.uf-item{border:1px solid rgba(95,243,255,.22);border-radius:12px;padding:10px 12px;margin:10px 0;background:rgba(255,255,255,.04)}.uf-top{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}.uf-sum{margin:4px 0;font-weight:600}.uf-st{font-size:.85em}.uf-hist{opacity:.75}.uf-h summary{font-weight:700;cursor:pointer}.uf-item .q-actions button{min-height:44px}
 .q-signed{border-color:#5ff3ff!important;color:#5ff3ff!important}
 .q-tag{font-size:.65rem;letter-spacing:.08em;border:1px solid #ff6b6b;color:#ff8f8f;border-radius:6px;padding:1px 5px;margin-left:4px}
 .q-form fieldset{border:1px solid rgba(95,243,255,.22);border-radius:12px;margin:12px 0;padding:8px 12px}.q-form legend{padding:0 6px;font-weight:700}
@@ -238,6 +239,7 @@ window.addEventListener('unhandledrejection', function(e){ gpReportError(e.reaso
   <button data-page="quotes" data-admin>Quotes</button>
   <button data-page="calendar">Calendar</button>
   <button data-page="requests" data-admin>Requests</button>
+  <button data-page="unfinished" data-admin>Unfinished</button>
   <button data-page="ask" data-admin>Ask AI</button>
   <button data-page="admin" id="admin-tab" class="hidden" data-admin>Team</button>
 </nav>
@@ -393,7 +395,7 @@ function render() {
   const p = page(); document.body.classList.toggle('in-screen', p !== 'town'); if ((location.hash.slice(1) || 'town') !== p) history.replaceState(null, '', p === 'town' ? location.pathname + location.search : '#' + p);
   const tbg = document.getElementById('town-bg'); if (tbg && window.townPage && (p === 'town' || !tbg.querySelector('#town-canvas'))) tbg.innerHTML = townPage();
   if (p === 'quotes' && document.getElementById('quotes-root')) {} // keep the quote form (and keyboard focus) through background refreshes
-  else main.innerHTML = p === 'town' ? '' : p === 'quotes' ? quotesPage() : p === 'estimate' ? estimatePage() : p === 'calendar' ? calendarPage() : p === 'requests' ? requestsPage() : p === 'admin' ? adminPage() : p === 'ask' ? askPage() : dashboard();
+  else main.innerHTML = p === 'town' ? '' : p === 'quotes' ? quotesPage() : p === 'estimate' ? estimatePage() : p === 'calendar' ? calendarPage() : p === 'requests' ? requestsPage() : p === 'unfinished' ? unfinishedPage() : p === 'admin' ? adminPage() : p === 'ask' ? askPage() : dashboard();
   renderSaved(); renderEvents(); renderRequests(); renderUsers();
   if (OPEN_REQ && !REQ_EDIT) renderReqDetail();
   window.townAfterRender && townAfterRender();
@@ -724,7 +726,8 @@ Promise.all([API.init(), domReady]).then(()=>{ if (location.hash.length>1) docum
 <script src="quotes-engine.js?v=2"></script>
 <script src="quotes-sign.js?v=1"></script>
 <script src="quotes.js?v=5"></script>
-<script src="town.js?v=46"></script>
+<script src="unfinished.js?v=1"></script>
+<script src="town.js?v=47"></script>
 <script src="chat.js?v=6"></script>
 <script src="pwa.js?v=5"></script>
 </body>
