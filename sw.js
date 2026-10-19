@@ -1,5 +1,5 @@
 // Gatepost TEAM app service worker (scope /gatepost-app/). Bump VERSION on every release that changes the shell.
-const VERSION = 'gp-team-v17';
+const VERSION = 'gp-team-v18';
 const SBJS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.min.js';
 const SHELL = ['./', './index.html', './config.js?v=req1', './quotes-engine.js?v=2', './quotes-sign.js?v=1', './quotes.js?v=5', './unfinished.js?v=4', './town.js?v=47', './chat.js?v=6', './pwa.js?v=6', './manifest.json?v=9', './icon-192.png?v=4', './icon-512.png?v=4', './apple-touch-icon.png?v=4', './logo.png', './arch-mark.png', SBJS];
 self.addEventListener('install', e => {

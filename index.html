@@ -159,6 +159,9 @@ body.town-mode .sheet.town-sheet { top:auto; height:min(76dvh, 680px); border-ra
 .badge { display:inline-block; padding:2px 9px; border-radius:999px; font-size:.7rem; letter-spacing:.06em; text-transform:uppercase; background:var(--ink3); border:1px solid var(--line); }
 .badge.pending { color:var(--warn); border-color:#4a4030; }
 .badge.approved { color:#a9c7ad; border-color:#34463a; }
+.perm-box { margin-top:8px; font-size:.8rem; } .perm-box summary { cursor:pointer; opacity:.75; min-height:32px; line-height:32px; }
+.perm-json { width:100%; box-sizing:border-box; font:16px/1.35 ui-monospace,Menlo,monospace; background:transparent; color:inherit; border:1px solid var(--line); border-radius:10px; padding:8px; margin:6px 0; }
+.perm-save { min-height:44px; }
 .badge.denied { color:#d39a92; border-color:#4e302c; }
 .badge.nc { color:#f0c987; border-color:#f0c98766; background:rgba(240,201,135,.12); }
 .req-sec { display:flex; align-items:center; gap:8px; font-size:.75rem; letter-spacing:.12em; text-transform:uppercase; opacity:.85; margin:16px 0 2px; } .req-sec:first-child { margin-top:4px; } .req-sec .count { font-size:.7rem; padding:1px 8px; border-radius:999px; border:1px solid var(--line); background:var(--ink3); letter-spacing:0; } .req-empty { padding:10px 0; }
@@ -298,7 +301,7 @@ const API = {
     let { data: prof, error: pe } = await sb.from('profiles').select('*').eq('id', user.id).maybeSingle();
     // Offline: reuse the last known profile so an approved user does not see "Access pending".
     if (pe && !prof) { try { const c = JSON.parse(localStorage.getItem('gp_me_cache') || 'null'); if (c && c.id === user.id) prof = c; } catch (_) {} }
-    else if (prof) { try { localStorage.setItem('gp_me_cache', JSON.stringify({ id: prof.id, email: prof.email, role: prof.role, access: prof.access })); } catch (_) {} }
+    else if (prof) { try { localStorage.setItem('gp_me_cache', JSON.stringify({ id: prof.id, email: prof.email, role: prof.role, access: prof.access, is_owner: !!prof.is_owner, permissions: prof.permissions || {} })); } catch (_) {} }
     S.me = prof || { email: user.email, role: 'pending', access: false };
     if (!S.me.access) return;
     const { data: items } = await sb.from('items').select('*').order('created_at', { ascending: false });
@@ -373,10 +376,19 @@ const API = {
     if (!CLOUD) { const u = L.users.find(x => x.email === (S.users.find(y => y.id === id) || {}).email); if (u && u.email !== L.currentUser) { u.role = role; u.access = role !== 'pending'; lsave(); lsync(); } return; }
     const { error } = await sb.from('profiles').update({ role }).eq('id', id);
     if (error) { gpReportError(error, { op: 'db' }); alert(error.message); } await API.refresh();
+  },
+  async setPerms(id, permissions) { // owners only (enforced by profiles_guard)
+    const { error } = await sb.from('profiles').update({ permissions }).eq('id', id);
+    if (error) { gpReportError(error, { op: 'db' }); alert(error.message); return false; } await API.refresh(); return true;
   }
 };
 
-const isAdmin = () => S.me && S.me.role === 'admin';
+const isOwner = () => !!(S.me && S.me.is_owner);
+const isAdmin = () => !!(S.me && (S.me.role === 'admin' || S.me.is_owner));
+// Per-user permissions (profiles.permissions jsonb, editable by owners). can('key') -> that user's value, or dflt if unset.
+const myPerms = () => (S.me && S.me.permissions) || {};
+const can = (key, dflt = false) => Object.prototype.hasOwnProperty.call(myPerms(), key) ? myPerms()[key] : dflt;
+window.isOwner = isOwner; window.myPerms = myPerms; window.can = can;
 const page = () => document.querySelector('.nav button.active')?.dataset.page || 'town';
 
 // ---------- Render ----------
@@ -659,24 +671,31 @@ async function addVisit() {
 }
 
 const roleLabel = r => ({ admin: 'Admin', employee: 'Employee', pending: 'No access (pending)', customer: 'Customer' })[r] || r;
-const OWNER = 'moseley0christian@icloud.com';
+const isOwnerRow = u => !!u.is_owner;
 function adminPage() { if (!isAdmin()) return '<div class="card">Admin only.</div>';
   const pend = S.users.filter(u => u.role === 'pending').length;
-  return `<div class="card"><h2>Team</h2><p class="muted">New sign-ups start with no access. Employees see the calendar and their own info. Admins see everything, including requests, pricing and this screen.</p>
+  return `<div class="card"><h2>Team</h2><p class="muted">New sign-ups start with no access. Employees see the calendar and their own info. Admins see everything, including requests, pricing and this screen. Owners are admins who can also set each person's own permissions.</p>
     ${pend ? `<p style="margin-top:10px;"><span class="badge pending">${pend} waiting for access</span></p>` : ''}<div id="user-list"></div></div>`; }
 function renderUsers() { const el = document.getElementById('user-list'); if (!el) return;
   const order = { pending: 0, employee: 1, admin: 2 };
   el.innerHTML = S.users.filter(u => u.role !== 'customer').sort((a, b) => order[a.role] - order[b.role] || a.email.localeCompare(b.email)).map(u => {
-    const me = S.me && u.id === S.me.id, owner = u.email === OWNER, locked = me || owner;
+    const me = S.me && u.id === S.me.id, owner = isOwnerRow(u), locked = me || owner;
     const opt = (r, label) => `<button class="seg ${u.role === r ? 'on' : ''}" ${locked || u.role === r ? 'disabled' : ''} onclick="setRole('${esc(u.id)}','${r}')">${label}</button>`;
-    return `<div class="item team-row"><div class="team-top"><strong>${esc(u.email)}</strong>${owner ? ' <span class="badge approved">Owner</span>' : me ? ' <span class="badge">You</span>' : ''}</div>
-      <div class="muted" style="font-size:.78rem;">${esc(roleLabel(u.role))}${u.created_at ? ' · joined ' + esc(new Date(u.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })) : ''}</div>
-      ${locked ? '' : `<div class="segs">${opt('employee', 'Employee')}${opt('admin', 'Admin')}${opt('pending', 'Remove access')}</div>`}</div>`; }).join('') || '<p class="muted">No users yet.</p>'; }
+    return `<div class="item team-row"><div class="team-top"><strong>${esc(u.email)}</strong>${owner ? ' <span class="badge approved">Owner</span>' : ''}${me ? ' <span class="badge">You</span>' : ''}</div>
+      <div class="muted" style="font-size:.78rem;">${owner ? 'Owner · Admin' : esc(roleLabel(u.role))}${u.created_at ? ' · joined ' + esc(new Date(u.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })) : ''}</div>
+      ${locked ? '' : `<div class="segs">${opt('employee', 'Employee')}${opt('admin', 'Admin')}${opt('pending', 'Remove access')}</div>`}
+      ${isOwner() ? `<details class="perm-box"><summary>Permissions${Object.keys(u.permissions || {}).length ? ' · ' + Object.keys(u.permissions).length : ''}</summary>
+        <textarea id="perm-${esc(u.id)}" class="perm-json" rows="3" spellcheck="false">${esc(JSON.stringify(u.permissions || {}, null, 2))}</textarea>
+        <button class="perm-save" onclick="savePerms('${esc(u.id)}')">Save permissions</button></details>` : ''}</div>`; }).join('') || '<p class="muted">No users yet.</p>'; }
 async function setRole(id, role) {
   const u = S.users.find(x => x.id === id); if (!u) return;
   if (role === 'admin' && !confirm(`Make ${u.email} an admin? Admins see requests, pricing and can change roles.`)) return;
   if (role === 'pending' && !confirm(`Remove access for ${u.email}?`)) return;
   await API.setRole(id, role); render(); }
+async function savePerms(id) { const el = document.getElementById('perm-' + id); if (!el || !isOwner()) return; let v;
+  try { v = JSON.parse(el.value.trim() || '{}'); } catch (e) { alert('Not valid JSON: ' + e.message); return; }
+  if (!v || typeof v !== 'object' || Array.isArray(v)) { alert('Permissions must be a JSON object like {"key": true}.'); return; }
+  if (await API.setPerms(id, v)) render(); }
 
 
 // ---------- Ask AI (admin only; history stays on this device) ----------
