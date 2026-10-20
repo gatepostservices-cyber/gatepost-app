@@ -15,7 +15,7 @@
     leads: () => gpSb.from('leads').select('*').order('created_at', { ascending: false }).limit(200),
     matches: () => gpSb.from('lead_matches').select('id,lead_id,text_id,status,auto,texts(phone,name,work,body,sent_at)').neq('status', 'rejected').order('created_at', { ascending: false }).limit(300),
     timeline: () => gpSb.from('customer_timeline').select('*').order('at_', { ascending: false }).limit(1000),
-    price_book: () => gpSb.from('price_book').select('*').order('service').limit(1000),
+    price_book: () => gpSb.from('price_book').select('*').order('sort',{ nullsFirst: false }).order('service').limit(1000),
     job_log: () => gpSb.from('job_log').select('*').order('job_date', { ascending: false, nullsFirst: false }).limit(300),
     bot_notes: () => gpSb.from('bot_notes').select('*').order('created_at', { ascending: false }).limit(50) };
   const NEED = { leads: ['leads', 'matches'], customers: ['timeline'], pricebook: ['price_book'], joblog: ['job_log'], control: ['bot_notes'] };
@@ -61,12 +61,17 @@
   window.ofRepaint = paint;
   // ----- Price Book (read-only list + search; filled later by the OneDrive sync)
   function pbHTML() {
-    const P = O.d.price_book, q = O.q.toLowerCase(), F = (P || []).filter(r => !q || [r.service, r.unit, r.notes, r.source].join(' ').toLowerCase().includes(q));
-    return `<div class="card"><h2>Price Book</h2><p class="muted">Read-only. Filled from the official price book by a sync (coming later).</p>
+    const P = O.d.price_book, q = O.q.toLowerCase(), F = (P || []).filter(r => !q || [r.section, r.service, r.unit, r.notes].join(' ').toLowerCase().includes(q));
+    return `<div class="card"><h2>Price Book</h2><p class="muted">Read-only. Synced daily from the official rate book. Low / Aim before GRT.</p>
       <input id="pb-q" type="search" placeholder="Search services\u2026" value="${e(O.q)}" oninput="OF.q=this.value;ofPbList()">
       <div id="pb-list">${loading('price_book') || pbRows(F)}</div></div>`; }
-  const pbRows = F => F.length ? `<table class="of-t"><thead><tr><th>Service</th><th>Unit</th><th>Rate</th><th>Notes</th></tr></thead><tbody>${F.map(r => `<tr><td>${e(r.service)}</td><td>${e(r.unit)}</td><td>${money(r.rate)}</td><td class="muted">${e(r.notes)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted">' + ((O.d.price_book || []).length ? 'No matches.' : 'Price book is empty until the sync runs.') + '</p>';
-  window.ofPbList = () => { const q = O.q.toLowerCase(), el = document.getElementById('pb-list'); if (el) el.innerHTML = pbRows((O.d.price_book || []).filter(r => !q || [r.service, r.unit, r.notes, r.source].join(' ').toLowerCase().includes(q))); };
+  const pbRows = F => { if (!F.length) return '<p class="muted">' + ((O.d.price_book || []).length ? 'No matches.' : 'Price book is empty until the sync runs.') + '</p>';
+    const G = []; F.forEach(r => { const k = r.section || 'Other'; let g = G.find(x => x.k === k); if (!g) G.push(g = { k, rows: [] }); g.rows.push(r); });
+    const src = (F.find(r => r.source) || {}).source;
+    return G.map(g => `<h3 class="pb-sec">${e(g.k)}</h3>` + (g.rows.every(r => r.unit === 'rule') ? `<ul class="pb-rules">${g.rows.map(r => `<li>${e(r.service)}</li>`).join('')}</ul>`
+      : `<table class="of-t"><thead><tr><th>Job</th><th>Unit</th><th>Low</th><th>Aim</th><th>Notes</th></tr></thead><tbody>${g.rows.map(r => r.unit === 'rule' ? `<tr><td colspan="5" class="muted">${e(r.service)}</td></tr>` : `<tr><td>${e(r.service)}</td><td>${e(r.unit)}</td><td>${money(r.low)}</td><td>${money(r.aim)}</td><td class="muted">${e(r.notes)}</td></tr>`).join('')}</tbody></table>`)).join('')
+      + (src ? `<p class="muted uf-st">Source: ${e(src)}</p>` : ''); };
+  window.ofPbList = () => { const q = O.q.toLowerCase(), el = document.getElementById('pb-list'); if (el) el.innerHTML = pbRows((O.d.price_book || []).filter(r => !q || [r.section, r.service, r.unit, r.notes].join(' ').toLowerCase().includes(q))); };
   // ----- Job Log (for reference only)
   function jlHTML() {
     const J = O.d.job_log, loc = localEstimates();

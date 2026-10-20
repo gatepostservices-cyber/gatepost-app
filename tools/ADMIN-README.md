@@ -25,3 +25,9 @@ tools/leads.sh notes               # JSON list of unread notes the owners left i
 tools/leads.sh notes-read ID [ID..] # mark them read after handling
 ```
 RPCs `bot_notes_unread(p_token)`, `bot_notes_mark_read(p_token, p_ids)`. Notes are non-urgent; handle them in the daily run. No new routines.
+
+### Price book (`tools/price_book_sync.sh`), daily run
+Source (chosen by Christian): OneDrive `/Gatepost/99_Archive/Pricing_2026-10-16/Gatepost_Full_Rate_Book_copy_formerly_named_Pricing_Reference.md` (item id `D0F4007D996EA966!s2245658aaa64477082feec1373d1c977`). Never move, rename or edit it.
+1. Download it with your OneDrive tool (DownloadFile, connection user-Onedrive) to `/workspace/gatepost/price-book.md`, and set the file's mtime to the OneDrive `lastModifiedDateTime` (e.g. `touch -d 2026-10-16T13:47:58Z /workspace/gatepost/price-book.md`).
+2. Run `tools/price_book_sync.sh` (default file above; `--dry-run` to only parse).
+It parses each `## Section`, every `| Job | Unit | Low | Aim | Notes |` row and the bullet rules under "How to use", "Rules" and "Open conflicts" (stored as unit `rule`), then replaces all of `price_book` via `price_book_replace(p_token, p_rows)`; source = file name + modified date. Non-numeric Low/Aim are left blank and printed as `AMBIGUOUS:` lines; report those, don't guess. It refuses to replace if 20 rows or fewer parse.

@@ -225,6 +225,7 @@ body.in-screen #user-label { min-width:0; max-width:34vw; overflow:hidden; text-
 .of-match { margin-top:8px; padding:8px; border-radius:10px; background:var(--ink3); border-left:3px solid var(--warn); font-size:.88rem; } .of-match.confirmed { border-left-color:var(--ok); }
 .of-cust { display:block; width:100%; text-align:left; background:var(--ink2); border:1px solid var(--line); color:var(--text); padding:10px 12px; border-radius:10px; margin:6px 0; }
 .of-body { white-space:pre-wrap; font-size:.9rem; } .of-t { width:100%; border-collapse:collapse; font-size:.85rem; } .of-t th, .of-t td { text-align:left; padding:6px 4px; border-bottom:1px solid var(--line); vertical-align:top; }
+.pb-sec { font-family:var(--serif); font-size:1.05rem; margin:16px 0 4px; } .pb-rules { font-size:.85rem; color:var(--mute); padding-left:18px; }
 .of-form { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:6px; }
 .of-launch { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:8px; } .of-bot { display:block; text-align:center; padding:14px 8px; border-radius:12px; background:var(--paper); color:var(--ink); font-weight:600; text-decoration:none; }
 </style>
@@ -760,7 +761,7 @@ Promise.all([API.init(), domReady]).then(()=>{ if (location.hash.length>1) docum
 <script src="quotes-sign.js?v=1"></script>
 <script src="quotes.js?v=5"></script>
 <script src="unfinished.js?v=4"></script>
-<script src="admin.js?v=1"></script>
+<script src="admin.js?v=2"></script>
 <script src="town.js?v=48"></script>
 <script src="chat.js?v=6"></script>
 <script src="pwa.js?v=6"></script>
