@@ -1,7 +1,7 @@
 // Gatepost TEAM app service worker (scope /gatepost-app/). Bump VERSION on every release that changes the shell.
-const VERSION = 'gp-team-v21';
+const VERSION = 'gp-team-v22';
 const SBJS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.min.js';
-const SHELL = ['./', './index.html', './config.js?v=req1', './quotes-engine.js?v=2', './quotes-sign.js?v=1', './quotes.js?v=5', './unfinished.js?v=4', './admin.js?v=2', './town.js?v=49', './chat.js?v=6', './pwa.js?v=6', './manifest.json?v=11', './icon-192.png?v=4', './icon-512.png?v=4', './apple-touch-icon.png?v=4', './logo.png', './arch-mark.png', SBJS];
+const SHELL = ['./', './index.html', './config.js?v=req1', './quotes-engine.js?v=2', './quotes-sign.js?v=1', './quotes.js?v=5', './unfinished.js?v=4', './admin.js?v=2', './town.js?v=50', './chat.js?v=6', './pwa.js?v=6', './manifest.json?v=12', './icon-192.png?v=4', './icon-512.png?v=4', './apple-touch-icon.png?v=4', './logo.png', './arch-mark.png', './assets/bots/alabaster.png', './assets/bots/marv.png', './assets/bots/wendy.png', './assets/bots/abe.png', './assets/bots/alfred.png', SBJS];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => Promise.all(SHELL.map(u => c.add(u).catch(() => {})))).then(() => self.skipWaiting()));
 });

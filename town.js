@@ -6,11 +6,11 @@ const TZ = 'America/Denver';
 const C = { ink: '#05080f', cream: '#F6F4EF', paper: '#18212f', wall: '#121a27', wall2: '#1a2433', stone: '#222c3c', lit: '#5ff3ff', door: '#0a111c', red: '#ff4d6d', tan: '#f2c96b', sage: '#3ddc97', slate: '#7aa7ff', tree: '#1b6f7a', tree2: '#0e3e4a', tree3: '#7ff7ff', dirt: '#0f2236', dirt2: '#163a55', g1: '#0a111d', g2: '#070c16', g3: '#0c1422', neon: '#5ff3ff' };
 const NEON = 'rgba(95,243,255,', GOLD = 'rgba(242,201,107,';
 const BOTS = [
-  { name: 'Gatepost', short: 'Gatepost', role: 'Office admin: bids, calendar and cash', color: '#b58cff', place: 'Command Hall', glyph: '$', type: 'hall', at: [34, 22], work: 'At the town hall, keeping the calendar and the cash straight.' },
-  { name: 'Gatepost Leads', short: 'Leads', role: 'Lead finder: Nextdoor, Facebook and Craigslist', color: '#22ff8a', place: 'Signal Tower', glyph: '!', type: 'tower', at: [14, 15], work: 'Up in the lookout tower, scanning the neighborhood for leads.' },
-  { name: 'Gatepost Bids', short: 'Bids', role: 'Bids and OneDrive filing', color: '#ffd23a', place: 'Bid Lab', glyph: '✎', type: 'shop', at: [60, 18], work: 'In the drafting office, filing bids in the cabinets.' },
-  { name: 'Gatepost Tasks', short: 'Tasks', role: 'Christian\u2019s to-do list', color: '#ff7a1f', place: 'Task Board', glyph: '✓', type: 'kiosk', at: [16, 50], work: 'At the notice board, pinning up to-dos.' },
-  { name: 'Gatepost App', short: 'App', role: 'Builds and maintains this app', color: '#4f8dff', place: 'Dev Forge', glyph: '</>', type: 'garage', at: [74, 52], work: 'In the tech garage, tinkering with the app.' },
+  { name: 'Alabaster', short: 'Alabaster', role: 'Daily run, leads and texts', color: '#9fb38a', place: 'Alabaster', id: 'fe067e3a-c664-5d47-bbcb-e92f394a76a6', avatar: 'assets/bots/alabaster.png', glyph: '$', type: 'hall', at: [34, 22], work: 'At the town hall, keeping the calendar and the cash straight.' },
+  { name: 'Marv', short: 'Marv', role: 'Team bot', color: '#d8bf92', place: 'Marv', id: '20bbeb34-ce2b-546b-bcaf-471275c29022', avatar: 'assets/bots/marv.png', glyph: '!', type: 'tower', at: [14, 15], work: 'Up in the lookout tower, scanning the neighborhood for leads.' },
+  { name: 'Wendy', short: 'Wendy', role: 'Team bot', color: '#8fa9b8', place: 'Wendy', id: '4606ba13-0fbd-4caf-9d5e-982b7ecd0a9d', avatar: 'assets/bots/wendy.png', glyph: '✎', type: 'shop', at: [60, 18], work: 'In the drafting office, filing bids in the cabinets.' },
+  { name: 'Alfred', short: 'Alfred', role: 'Christian\u2019s assistant', color: '#c9764f', place: 'Alfred', id: '7ed5d130-2b5c-4285-9285-1e9b8b65814b', avatar: 'assets/bots/alfred.png', glyph: '✓', type: 'kiosk', at: [16, 50], work: 'At the notice board, pinning up to-dos.' },
+  { name: 'Gatepost App', short: 'Abe', role: 'Builds and maintains this app', color: '#7f9f6a', place: 'Abe', id: 'ee0d9746-08c7-469c-bb15-a6664fcbd659', avatar: 'assets/bots/abe.png', glyph: '</>', type: 'garage', at: [74, 52], work: 'In the tech garage, tinkering with the app.' },
 ];
 const HOME_AT = [[28.5, 15.5], [8.5, 21.5], [66.5, 24.5], [10.5, 56.5], [80.5, 58.5]];
 const WX = 96, WY = 92, TILT = 0.62, ZK = 0.82;
@@ -1113,7 +1113,11 @@ window.openHQ = () => { OPEN = { kind: 'hq' }; renderSheet(true); };
 window.openDock = () => { OPEN = { kind: 'dock' }; renderSheet(true); };
 window.closeBot = () => { OPEN = null; document.getElementById('bot-sheet')?.remove(); if (!document.getElementById('req-sheet')) document.body.classList.remove('sheet-open'); };
 window.townTab = tab => { if (!OPEN) return; OPEN.tab = tab; renderSheet(false); if (tab === 'chat') { markRead(BOTS[OPEN.i].name); setTimeout(() => { const l = document.querySelector('.chat-log'); if (l) l.scrollTop = l.scrollHeight; }, 0); } };
-window.townBotList = () => BOTS.map((b, i) => ({ i, name: b.name, short: b.short, role: b.role, place: b.place, unread: ADMIN ? unread(b.name) : 0 }));
+const botAva = (b, cls) => `<span class="${cls} ava-img"><img src="${b.avatar}" alt="" onerror="const p=this.parentNode;this.remove();p.textContent='${b.short[0]}'"></span>`;
+window.botAva = botAva;
+// Active desks only, filtered by the signed-in user's permissions.launcher. Paused/old/personal bots (Gus, Lou, Bea, Tess, Hazel) are not in BOTS; their bot_messages rows are kept.
+const deskOK = b => { const ids = (typeof can === 'function' ? can('launcher', []) : []) || []; return ids.includes(b.id); };
+window.townBotList = () => BOTS.map((b, i) => ({ i, id: b.id, name: b.name, short: b.short, role: b.role, avatar: b.avatar, unread: ADMIN ? unread(b.name) : 0 })).filter(deskOK);
 window.townGo = (pageName, filter) => { closeBot(); document.querySelector(`.nav button[data-page="${pageName}"]`)?.click(); if (filter) { REQ_FILTER = filter; render(); } window.scrollTo(0, 0); };
 window.townDecide = async (id, status) => { if (await API.updateRequest(id, { status })) render(); };
 window.townModify = id => { openReq(id); REQ_EDIT = true; renderReqDetail(false); };
@@ -1148,7 +1152,7 @@ function calendarHtml() { const ev = eventsInfo(), row = e => `<li><div><b>${esc
 function dockSheetHtml() {
   const st = { docked: ship.cargo ? `Loading ${ship.cargo} item${ship.cargo > 1 ? 's' : ''}, about to sail` : 'Docked at the pier', leaving: 'Diving over the Data Falls into the internet', away: 'Out on the internet, back soon', returning: 'Flying back up to the pad' }[ship.state];
   const sends = ADMIN ? ACTS.filter(a => SEND_RE.test(a.body || '') && !/^Approved by Christian/.test(a.body || '')).slice(0, 8) : [];
-  return `<div class="sheet-head"><button class="sheet-back" onclick="closeBot()" aria-label="Back to town">‹ Town</button><span class="badge">Launch Pad</span></div>
+  return `<div class="sheet-head"><button class="sheet-back" onclick="closeBot()" aria-label="Back to home">‹ Home</button><span class="badge">Launch Pad</span></div>
   <div class="sheet-body"><div class="bot-hero"><span class="hq-ava" style="font-size:1.6rem">⛵</span><div><h2 class="sheet-title" style="margin:0">Launch Pad</h2><div class="muted">Where the bots send things out</div></div></div>
   <dl class="facts"><dt>Ship</dt><dd>${esc(st)}</dd>${pierCrates.length ? `<dt>On the pier</dt><dd>${pierCrates.length} waiting</dd>` : ''}${ADMIN ? `<dt>Sent today</dt><dd>${sentToday()}</dd>` : ''}</dl>
   ${ADMIN ? `<h3>Recently sent (from bot activity)</h3>${sends.length ? `<ol class="timeline">${sends.map(a => `<li><span class="tl-ico">✉</span><div><div>${esc(a.body)}</div><div class="muted">${esc(a.bot)} · ${esc(when(a.created_at))}</div></div></li>`).join('')}</ol>` : '<p class="muted">Nothing logged as sent yet. When a bot logs that it sent an email, text or follow-up, it runs it down to the ship.</p>'}` : ''}
@@ -1165,7 +1169,7 @@ function renderSheet(animate) {
     const q = ADMIN ? waitingQueue() : [];
     const queue = ADMIN ? `<div class="tboard"><div class="tb-h"><b>Waiting on Christian</b><span class="muted">${q.filter(x => !x.top).length} open</span></div>${q.length ? `<ul class="tb-list">${q.map(x => `<li${x.id ? ` class="tap" onclick="openReq(${Number(x.id)})"` : ''}><span class="tb-ico">${x.icon}</span><div><b>${esc(x.title)}</b><div class="muted">${esc(x.sub || '')}</div></div>${x.phone ? `<a class="tb-btn secondary" href="tel:${esc(v(x.phone).replace(/[^0-9+]/g, ''))}" onclick="event.stopPropagation()">Call</a>` : x.id ? '<span class="chev">›</span>' : ''}</li>`).join('')}</ul>` : emptyRow('Nothing is waiting on you.')}
       ${!board('Gatepost', 'todays_jobs') ? '<p class="muted tb-empty" style="margin-top:4px">Today\u2019s jobs: waiting for Gatepost to publish.</p>' : ''}${!BOARDS.some(b => b.board_key === 'waiting_on_christian') ? '<p class="muted tb-empty" style="margin-top:2px">Bot waiting lists: none published yet.</p>' : ''}</div>` : '';
-    el.innerHTML = `<div class="sheet-head"><button class="sheet-back" onclick="closeBot()" aria-label="Back to town">‹ Town</button><span class="badge">HQ</span></div>
+    el.innerHTML = `<div class="sheet-head"><button class="sheet-back" onclick="closeBot()" aria-label="Back to home">‹ Home</button><span class="badge">HQ</span></div>
     <div class="sheet-body"><div class="bot-hero"><span class="hq-ava"><img src="arch-mark.png" alt=""></span><div><h2 class="sheet-title" style="margin:0">${ADMIN ? 'Christian\u2019s HQ' : 'Gatepost HQ'}</h2><div class="muted">${ADMIN ? 'Run the business from here.' : 'Schedule and your account.'}</div></div></div>
       ${ADMIN ? RENDER.todays_jobs('Gatepost') : ''}${queue}${calendarHtml()}${ADMIN ? RENDER.promised_followups('Gatepost Tasks') : ''}
       <div class="hq-list">${row('📅', 'Calendar', up ? `${up} upcoming` : 'Schedule and jobs', "townGo('calendar')")}
@@ -1200,8 +1204,8 @@ function renderSheet(animate) {
         <div class="town-reqs">${list.slice(0, 12).map(reqRow).join('') || ''}</div>${list.length > 12 ? `<p class="muted">+ ${list.length - 12} more</p>` : ''}`;
       }
     }
-    el.innerHTML = `<div class="sheet-head"><button class="sheet-back" onclick="closeBot()" aria-label="Back to town">‹ Town</button><span class="badge" style="border-color:${bt.color};color:${bt.color === '#2b2b2b' ? 'var(--paper)' : bt.color};white-space:nowrap">${esc(bt.place)}</span></div>
-    <div class="sheet-body"><div class="bot-hero"><span class="bot-ava" style="background:${bt.color}"><i></i></span><div><h2 class="sheet-title" style="margin:0">${esc(bt.name)}</h2><div class="muted">${esc(bt.role)}</div></div></div>${body}</div>
+    el.innerHTML = `<div class="sheet-head"><button class="sheet-back" onclick="closeBot()" aria-label="Back to home">‹ Home</button><span class="badge" style="border-color:${bt.color};color:${bt.color === '#2b2b2b' ? 'var(--paper)' : bt.color};white-space:nowrap">${esc(bt.place)}</span></div>
+    <div class="sheet-body"><div class="bot-hero">${botAva(bt, 'bot-ava')}<div><h2 class="sheet-title" style="margin:0">${esc(bt.short)}</h2><div class="muted">${esc(bt.role)}</div></div></div>${body}</div>
     ${ADMIN && OPEN.tab === 'chat' ? `<div class="sheet-actions chat-compose"><textarea id="chat-text" rows="1" placeholder="Message ${esc(bt.short)}…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();townSend()}"></textarea><button class="primary" id="chat-send" onclick="townSend()">Send</button></div>`
       : ADMIN && OPEN.tab === 'requests' ? `<div class="sheet-actions"><button class="secondary" onclick="townGo('requests', '${esc(bt.name)}')">Open in Requests${s.total ? ` (${s.total})` : ''}</button></div>` : ''}`;
   }

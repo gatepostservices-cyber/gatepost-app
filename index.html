@@ -7,12 +7,12 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="GP Admin">
-<meta name="theme-color" content="#0f1a14">
+<meta name="theme-color" content="#1f3a2b">
 <title>Gatepost Admin</title>
 <meta name="app-version" content="2026-10-15-requests-v1">
 <link rel="preconnect" href="https://hssevqgkoeuludwoxyuo.supabase.co" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-<link rel="manifest" href="manifest.json?v=11">
+<link rel="manifest" href="manifest.json?v=12">
 <link rel="icon" href="favicon.ico?v=4" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=4">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=4">
@@ -229,24 +229,24 @@ body.in-screen #user-label { min-width:0; max-width:34vw; overflow:hidden; text-
 .of-form { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:6px; }
 .of-launch { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:8px; } .of-bot { display:block; text-align:center; padding:14px 8px; border-radius:12px; background:var(--paper); color:var(--ink); font-weight:600; text-decoration:none; }
 /* ===== Nature theme (admin-nature): solid cards on forest charcoal, sage/moss, sandstone, terracotta ===== */
-:root { --ink:#0f1a14; --ink2:#16241b; --ink3:#1d2e23; --line:#2d4234; --paper:#e8dcc4; --paper2:#d6c6a6; --mute:#a3ad9f; --text:#ece6d8;
+:root { --ink:#1f3a2b; --ink2:#2a4a36; --ink3:#335640; --line:#45694f; --paper:#e8dcc4; --paper2:#d6c6a6; --mute:#a3ad9f; --text:#ece6d8;
   --ok:#7f9f6a; --danger:#c0694e; --warn:#c9a46a; --sage:#9fb38a; --moss:#5f7d4f; --sand:#d8bf92; --terra:#c9764f; --sky:#8fa9b8; }
 html, body { background:var(--ink); color:var(--text); }
-body { background: linear-gradient(180deg, #0f1a14 0%, #132119 55%, #16241b 100%) fixed; }
+body { background: linear-gradient(180deg, #1f3a2b 0%, #24412f 55%, #2a4a36 100%) fixed; }
 body::before { content:''; position:fixed; left:0; right:0; bottom:0; height:180px; z-index:0; pointer-events:none; opacity:.55;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 180' preserveAspectRatio='none'%3E%3Cpath d='M0 120 L140 95 L210 110 L300 62 L360 62 L420 100 L560 88 L640 50 L760 50 L820 92 L960 80 L1040 104 L1200 90 L1200 180 L0 180Z' fill='%23182a1f'/%3E%3Cpath d='M0 150 L180 128 L320 140 L480 118 L620 136 L800 120 L980 140 L1200 126 L1200 180 L0 180Z' fill='%231c3024'/%3E%3C/svg%3E") bottom/100% 100% no-repeat; }
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 180' preserveAspectRatio='none'%3E%3Cpath d='M0 120 L140 95 L210 110 L300 62 L360 62 L420 100 L560 88 L640 50 L760 50 L820 92 L960 80 L1040 104 L1200 90 L1200 180 L0 180Z' fill='%23284633'/%3E%3Cpath d='M0 150 L180 128 L320 140 L480 118 L620 136 L800 120 L980 140 L1200 126 L1200 180 L0 180Z' fill='%232e4f3a'/%3E%3C/svg%3E") bottom/100% 100% no-repeat; }
 header, main, footer { position:relative; z-index:1; }
 #town-bg { display:none !important; }
-header, body.in-screen header { background:rgba(15,26,20,.97) !important; -webkit-backdrop-filter:none !important; backdrop-filter:none !important; border-bottom:1px solid var(--line) !important; }
+header, body.in-screen header { background:rgba(31,58,43,.97) !important; -webkit-backdrop-filter:none !important; backdrop-filter:none !important; border-bottom:1px solid var(--line) !important; }
 header .word { color:var(--paper); } header .word small { color:var(--sage); }
 #back-town, body.in-screen #back-town { background:var(--ink2) !important; color:var(--sand) !important; border:1px solid var(--line) !important; box-shadow:none !important; }
 body.in-screen header .plaque { display:inline-flex !important; } header .plaque { background:var(--paper); }
 .card, body.in-screen .card { background:var(--ink2) !important; -webkit-backdrop-filter:none !important; backdrop-filter:none !important; border:1px solid var(--line) !important; box-shadow:0 1px 0 rgba(255,255,255,.02) inset, 0 6px 18px rgba(0,0,0,.25) !important; }
 .card .card, body.in-screen .card .card { background:var(--ink3) !important; }
-input, select, textarea, body.in-screen input, body.in-screen select, body.in-screen textarea { background:#0c150f !important; border:1px solid var(--line) !important; color:var(--text) !important; font-size:16px !important; -webkit-backdrop-filter:none !important; backdrop-filter:none !important; }
+input, select, textarea, body.in-screen input, body.in-screen select, body.in-screen textarea { background:#1a3022 !important; border:1px solid var(--line) !important; color:var(--text) !important; font-size:16px !important; -webkit-backdrop-filter:none !important; backdrop-filter:none !important; }
 input:focus, select:focus, textarea:focus { outline:2px solid var(--sage); outline-offset:1px; border-color:var(--sage) !important; }
 input::placeholder, textarea::placeholder { color:#7f8a7c !important; }
-select option, body.in-screen select option { background:#16241b; color:var(--text); }
+select option, body.in-screen select option { background:#2a4a36; color:var(--text); }
 .muted, body.in-screen .muted { color:var(--mute) !important; }
 h1, h2, h3 { color:var(--paper); }
 button.primary, .primary { background:var(--sand) !important; color:#1a1408 !important; border-color:var(--sand) !important; }
@@ -257,9 +257,9 @@ a, .link-btn { color:var(--sky); }
 .sheet .sheet-actions, .sheet .chat-compose { background:var(--ink2) !important; }
 .msg.bot .bubble, .town-sheet .msg.bot .bubble, .ask-msg, body.in-screen .ask-msg { background:var(--ink3) !important; color:var(--text) !important; }
 .msg.admin .bubble, .town-sheet .msg.admin .bubble, .ask-msg.user, body.in-screen .ask-msg.user { background:var(--paper) !important; color:#1a1408 !important; }
-.nav { background:rgba(15,26,20,.97) !important; }
+.nav { background:rgba(31,58,43,.97) !important; }
 footer { color:var(--mute); }
-.of-tabs button { background:var(--ink2) !important; color:var(--mute) !important; border-color:var(--line) !important; } .of-tabs button.on { background:var(--sage) !important; color:#0f1a14 !important; }
+.of-tabs button { background:var(--ink2) !important; color:var(--mute) !important; border-color:var(--line) !important; } .of-tabs button.on { background:var(--sage) !important; color:#1f3a2b !important; }
 .of-match { background:var(--ink3) !important; border-left-color:var(--terra) !important; } .of-match.confirmed { border-left-color:var(--sage) !important; }
 .of-bot { background:var(--sand) !important; color:#1a1408 !important; } .of-cust { background:var(--ink3) !important; border-color:var(--line) !important; color:var(--text) !important; }
 .pb-sec { color:var(--sand); border-bottom:1px solid var(--line); padding-bottom:4px; } .of-t th { color:var(--sage); }
@@ -278,6 +278,9 @@ main { padding-left:max(16px, env(safe-area-inset-left)); padding-right:max(16px
 #ai-chat-panel { background:var(--ink2) !important; border-top-color:var(--line) !important; } #ai-chat-compose { background:var(--ink2) !important; border-top-color:var(--line) !important; }
 #ai-chat-close { border-color:var(--line) !important; color:var(--sand) !important; } #ai-chat-send { background:var(--sand) !important; color:#1a1408 !important; }
 @media (max-width:430px) { body.in-screen #user-label { display:none; } }
+.ava-img { display:inline-flex; align-items:center; justify-content:center; border-radius:50%; overflow:hidden; background:var(--moss); color:var(--paper); font-weight:700; flex:0 0 auto; border:2px solid var(--line); }
+.ava-img img { width:100%; height:100%; object-fit:cover; display:block; }
+.tile-ava { width:44px; height:44px; font-size:1.1rem; margin-bottom:4px; } .bot-ava.ava-img { width:52px; height:52px; font-size:1.3rem; }
 </style>
 <script src="config.js?v=req1"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.min.js"></script>
@@ -487,7 +490,7 @@ function homePage() {
   const tiles = [...document.querySelectorAll('#main-nav button[data-page]')].filter(b => b.dataset.page !== 'town' && !b.classList.contains('hidden') && HOME_TILES[b.dataset.page])
     .map(b => { const [n, d] = HOME_TILES[b.dataset.page], pend = b.dataset.page === 'requests' ? (S.requests || []).filter(r => r.status === 'pending').length : 0;
       return `<button type="button" class="tile" data-tile="${b.dataset.page}" onclick="townGo('${b.dataset.page}')"><b>${n}${pend ? ` <span class="tile-n">${pend}</span>` : ''}</b><span>${d}</span></button>`; }).join('');
-  const bots = isAdmin() && window.townBotList ? townBotList().map(bt => `<button type="button" class="tile tile-bot" data-bot="${bt.i}" onclick="openBot(${bt.i})"><b>${esc(bt.short)}${bt.unread ? ` <span class="tile-n">${bt.unread}</span>` : ''}</b><span>${esc(bt.role)}</span></button>`).join('') : '';
+  const bots = isAdmin() && window.townBotList ? townBotList().map(bt => `<button type="button" class="tile tile-bot" data-bot="${bt.i}" onclick="openBot(${bt.i})">${botAva(bt, 'tile-ava')}<b>${esc(bt.short)}${bt.unread ? ` <span class="tile-n">${bt.unread}</span>` : ''}</b><span>${esc(bt.role)}</span></button>`).join('') : '';
   const extra = (isAdmin() && window.openHQ ? `<button type="button" class="tile tile-bot" data-tile="hq" onclick="openHQ()"><b>HQ</b><span>Today at a glance</span></button>` : '')
     + (window.openGatepostAI ? `<button type="button" class="tile tile-bot" data-tile="ai" onclick="openGatepostAI()"><b>Gatepost AI</b><span>Chat assistant</span></button>` : '')
     + (window.openDock ? `<button type="button" class="tile tile-bot" data-tile="dock" onclick="openDock()"><b>Dock</b><span>Notifications and shortcuts</span></button>` : '');
@@ -827,7 +830,7 @@ Promise.all([API.init(), domReady]).then(()=>{ if (location.hash.length>1) docum
 <script src="quotes.js?v=5"></script>
 <script src="unfinished.js?v=4"></script>
 <script src="admin.js?v=2"></script>
-<script src="town.js?v=49"></script>
+<script src="town.js?v=50"></script>
 <script src="chat.js?v=6"></script>
 <script src="pwa.js?v=6"></script>
 </body>
