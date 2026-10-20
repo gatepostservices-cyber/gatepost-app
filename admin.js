@@ -1,0 +1,95 @@
+// Gatepost Admin "Office" screen (owners only): Leads, Customers (timeline), Price Book, Job Log, Control (bot launcher + notes for bots).
+// Data: public.leads / texts / lead_matches / customer_timeline / price_book / job_log / bot_notes (admin-only RLS). Bots write via tools/leads.sh + call_notes_sync.sh.
+(function () {
+  const O = window.OF = { tab: 'leads', d: {}, at: {}, busy: {}, q: '', cust: null };
+  const e = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const day = d => d ? new Date(d).toLocaleString('en-US', { timeZone: 'America/Denver', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+  const money = n => n == null || n === '' ? '—' : '$' + Number(n).toLocaleString('en-US', { maximumFractionDigits: 2 });
+  const fmtPh = p => { const d = String(p || '').replace(/\D/g, '').slice(-10); return d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : e(p); };
+  const safeUrl = u => /^https:\/\/([a-z0-9-]+\.)*nextdoor\.com\//i.test(u || '') ? u : '';
+  const BOTS = { 'fe067e3a-c664-5d47-bbcb-e92f394a76a6': 'Alabaster', '20bbeb34-ce2b-546b-bcaf-471275c29022': 'Marv', '4606ba13-0fbd-4caf-9d5e-982b7ecd0a9d': 'Wendy',
+    'ee0d9746-08c7-469c-bb15-a6664fcbd659': 'Abe', '7ed5d130-2b5c-4285-9285-1e9b8b65814b': 'Alfred' };
+  window.OF_BOTS = BOTS;
+  const own = () => typeof isOwner === 'function' && isOwner();
+  const Q = {
+    leads: () => gpSb.from('leads').select('*').order('created_at', { ascending: false }).limit(200),
+    matches: () => gpSb.from('lead_matches').select('id,lead_id,text_id,status,auto,texts(phone,name,work,body,sent_at)').neq('status', 'rejected').order('created_at', { ascending: false }).limit(300),
+    timeline: () => gpSb.from('customer_timeline').select('*').order('at_', { ascending: false }).limit(1000),
+    price_book: () => gpSb.from('price_book').select('*').order('service').limit(1000),
+    job_log: () => gpSb.from('job_log').select('*').order('job_date', { ascending: false, nullsFirst: false }).limit(300),
+    bot_notes: () => gpSb.from('bot_notes').select('*').order('created_at', { ascending: false }).limit(50) };
+  const NEED = { leads: ['leads', 'matches'], customers: ['timeline'], pricebook: ['price_book'], joblog: ['job_log'], control: ['bot_notes'] };
+  async function load(k, force) {
+    if (!window.gpSb || O.busy[k] || (!force && O.d[k] && Date.now() - (O.at[k] || 0) < 20000)) return;
+    O.busy[k] = 1; try { const { data, error } = await Q[k](); if (error) { O.d[k] = O.d[k] || []; window.gpReportError && gpReportError(error, { op: 'office ' + k }); } else O.d[k] = data || []; O.at[k] = Date.now(); }
+    finally { O.busy[k] = 0; } paint(); }
+  function paint() { const r = document.getElementById('of-root'); if (r && typeof page === 'function' && page() === 'office') r.outerHTML = officePage(true); }
+  const toast = m => { const el = document.getElementById('of-msg'); if (el) el.textContent = m; };
+  const TABS = [['leads', 'Leads'], ['customers', 'Customers'], ['pricebook', 'Price Book'], ['joblog', 'Job Log'], ['control', 'Control']];
+  window.officePage = function (noLoad) {
+    if (!own()) return '<div class="card" id="of-root"><h2>Office</h2><p class="muted">Owners only.</p></div>';
+    if (!noLoad) setTimeout(() => NEED[O.tab].forEach(k => load(k)), 0);
+    const body = { leads: leadsHTML, customers: custHTML, pricebook: pbHTML, joblog: jlHTML, control: ctlHTML }[O.tab]();
+    return `<div id="of-root"><div class="of-tabs" role="tablist">${TABS.map(([k, n]) => `<button type="button" role="tab" class="${O.tab === k ? 'on' : ''}" onclick="ofTab('${k}')">${n}</button>`).join('')}</div>
+      <div id="of-msg" class="muted q-rt" aria-live="polite"></div>${body}</div>`; };
+  window.ofTab = k => { O.tab = k; O.q = ''; O.cust = null; paint(); NEED[k].forEach(x => load(x)); };
+  const loading = k => O.d[k] == null ? '<p class="muted">Loading\u2026</p>' : '';
+  // ----- Leads
+  function leadsHTML() {
+    const L = O.d.leads, M = O.d.matches || [];
+    const rows = (L || []).map(l => { const ms = M.filter(m => m.lead_id === l.id), u = safeUrl(l.nextdoor_post_url);
+      return `<div class="of-item"><div class="uf-top"><b>${e(l.name)}</b><span class="muted">${e(day(l.created_at))}</span></div>
+        <div>${e(l.work)} <span class="badge">${e(l.status)}</span>${l.phone ? ` <span class="muted">${fmtPh(l.phone)}</span>` : ''}</div>
+        ${l.message ? `<div class="muted uf-st">${e(l.message)}</div>` : ''}
+        <div class="of-row">${u ? `<a class="link-btn" href="${e(u)}" target="_blank" rel="noopener">Nextdoor post \u203a</a>` : ''}<span class="muted">${e(l.source || '')}</span></div>
+        ${ms.map(m => { const t = m.texts || {}; return `<div class="of-match ${m.status}"><div><b>${m.status === 'confirmed' ? 'Matched text' : 'Possible match'}</b>${m.auto ? ' <span class="muted">(auto: name + work)</span>' : ''} \u00b7 ${fmtPh(t.phone)} ${t.name ? '\u00b7 ' + e(t.name) : ''} ${t.work ? '\u00b7 ' + e(t.work) : ''}</div>
+          <div class="muted uf-st">${e(t.body)}</div>${m.status === 'possible' ? `<div class="q-actions"><button type="button" class="primary q-sm" onclick="ofDecide(${m.id},'confirmed')">Confirm</button><button type="button" class="secondary q-sm" onclick="ofDecide(${m.id},'rejected')">Reject</button></div>` : ''}</div>`; }).join('')}</div>`; }).join('');
+    return `<div class="card"><h2>Leads</h2><p class="muted">From Nextdoor and texts. A text is matched automatically only when the name and the work both match exactly; anything else waits for you to confirm or reject.</p>
+      ${loading('leads') || rows || '<p class="muted">No leads yet.</p>'}</div>`; }
+  window.ofDecide = async (id, st) => { const { error } = await gpSb.rpc('decide_match', { p_id: id, p_status: st }); if (error) return toast('Not saved: ' + error.message); toast(st === 'confirmed' ? 'Confirmed' : 'Rejected'); load('leads', 1); load('matches', 1); };
+  // ----- Customers (timeline merged by phone)
+  function custHTML() {
+    const T = O.d.timeline; if (T == null) return `<div class="card"><h2>Customers</h2>${loading('timeline')}</div>`;
+    const by = {}; T.forEach(r => { if (!r.phone) return; (by[r.phone] = by[r.phone] || []).push(r); });
+    if (O.cust && by[O.cust]) { const rs = by[O.cust], nm = (rs.find(r => r.who) || {}).who || '';
+      return `<div class="card"><button type="button" class="secondary q-sm" onclick="OF.cust=null;ofRepaint()">\u2039 All customers</button><h2>${e(nm) || fmtPh(O.cust)}</h2><p class="muted">${fmtPh(O.cust)}</p>
+        ${rs.map(r => `<div class="of-item of-tl"><div class="uf-top"><span class="badge">${e({ lead: 'Lead', text: 'Text', quote: 'Quote', call: 'Call notes' }[r.kind] || r.kind)}</span><span class="muted">${e(day(r.at_))}</span></div>
+          <div class="of-body">${e(r.body)}</div>${safeUrl(r.url) ? `<a class="link-btn" href="${e(r.url)}" target="_blank" rel="noopener">Nextdoor post \u203a</a>` : ''}</div>`).join('')}</div>`; }
+    const ks = Object.keys(by);
+    return `<div class="card"><h2>Customers</h2><p class="muted">Confirmed customers: leads, matched texts, quotes and call notes merged by phone.</p>
+      ${ks.length ? ks.map(p => { const rs = by[p], nm = (rs.find(r => r.who) || {}).who || ''; return `<button type="button" class="of-cust" onclick="OF.cust='${e(p)}';ofRepaint()"><b>${e(nm) || 'Unknown'}</b> <span class="muted">${fmtPh(p)} \u00b7 ${rs.length} entries \u00b7 ${e(day(rs[0].at_))}</span></button>`; }).join('') : '<p class="muted">No confirmed customers yet.</p>'}</div>`; }
+  window.ofRepaint = paint;
+  // ----- Price Book (read-only list + search; filled later by the OneDrive sync)
+  function pbHTML() {
+    const P = O.d.price_book, q = O.q.toLowerCase(), F = (P || []).filter(r => !q || [r.service, r.unit, r.notes, r.source].join(' ').toLowerCase().includes(q));
+    return `<div class="card"><h2>Price Book</h2><p class="muted">Read-only. Filled from the official price book by a sync (coming later).</p>
+      <input id="pb-q" type="search" placeholder="Search services\u2026" value="${e(O.q)}" oninput="OF.q=this.value;ofPbList()">
+      <div id="pb-list">${loading('price_book') || pbRows(F)}</div></div>`; }
+  const pbRows = F => F.length ? `<table class="of-t"><thead><tr><th>Service</th><th>Unit</th><th>Rate</th><th>Notes</th></tr></thead><tbody>${F.map(r => `<tr><td>${e(r.service)}</td><td>${e(r.unit)}</td><td>${money(r.rate)}</td><td class="muted">${e(r.notes)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted">' + ((O.d.price_book || []).length ? 'No matches.' : 'Price book is empty until the sync runs.') + '</p>';
+  window.ofPbList = () => { const q = O.q.toLowerCase(), el = document.getElementById('pb-list'); if (el) el.innerHTML = pbRows((O.d.price_book || []).filter(r => !q || [r.service, r.unit, r.notes, r.source].join(' ').toLowerCase().includes(q))); };
+  // ----- Job Log (for reference only)
+  function jlHTML() {
+    const J = O.d.job_log, loc = localEstimates();
+    return `<div class="card"><h2>Job Log</h2><p class="muted"><b>For reference only.</b> Listed vs. actual price on past jobs. Not a price list.</p>
+      <div class="of-form"><input id="jl-ref" placeholder="Job / quote ref"><input id="jl-svc" placeholder="Service"><input id="jl-lp" type="number" inputmode="decimal" placeholder="Listed $"><input id="jl-ap" type="number" inputmode="decimal" placeholder="Actual $"><input id="jl-dt" type="date"><input id="jl-nt" placeholder="Notes"></div>
+      <div class="q-actions"><button type="button" class="primary" onclick="ofJlAdd()">Add</button>${loc.length ? `<button type="button" class="secondary" onclick="ofJlImport()">Import ${loc.length} saved estimate(s) from this device</button>` : ''}</div>
+      ${loading('job_log') || ((J || []).length ? `<table class="of-t"><thead><tr><th>Date</th><th>Ref</th><th>Service</th><th>Listed</th><th>Actual</th><th>Notes</th></tr></thead><tbody>${J.map(r => `<tr><td>${e(r.job_date || '')}</td><td>${e(r.ref)}</td><td>${e(r.service)}</td><td>${money(r.listed_price)}</td><td>${money(r.actual_price)}</td><td class="muted">${e(r.notes)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted">No jobs logged yet.</p>')}</div>`; }
+  // Old local-only mode kept estimates in localStorage 'gatepost_app_v1'; offer a one-time copy into job_log (marked imported, skipped if already there).
+  function localEstimates() { try { const L = JSON.parse(localStorage.getItem('gatepost_app_v1') || 'null'); const done = new Set((O.d.job_log || []).map(r => r.ref));
+    return ((L && L.estimates) || []).filter(x => !done.has('local-' + (x.id || x.created || x.client))); } catch (_) { return []; } }
+  window.ofJlImport = async () => { const rows = localEstimates().map(x => ({ ref: 'local-' + (x.id || x.created || x.client), service: x.job || x.service || x.title || 'Estimate', listed_price: Number(x.total || x.price) || null, notes: ['Imported from device', x.client || x.customer || ''].filter(Boolean).join(' \u00b7 ') }));
+    if (!rows.length) return; const { error } = await gpSb.from('job_log').insert(rows); if (error) return toast('Not imported: ' + error.message); toast('Imported ' + rows.length); load('job_log', 1); };
+  window.ofJlAdd = async () => { const v = id => (document.getElementById(id) || {}).value || '';
+    const row = { ref: v('jl-ref').trim() || null, service: v('jl-svc').trim(), listed_price: v('jl-lp') === '' ? null : Number(v('jl-lp')), actual_price: v('jl-ap') === '' ? null : Number(v('jl-ap')), job_date: v('jl-dt') || null, notes: v('jl-nt').trim() || null };
+    if (!row.service) return toast('Service is required');
+    const { error } = await gpSb.from('job_log').insert(row); if (error) return toast('Not added: ' + error.message); toast('Added'); load('job_log', 1); };
+  // ----- Control: bot launcher (permissions.launcher) + notes for bots
+  function ctlHTML() {
+    const ids = (typeof can === 'function' ? can('launcher', []) : []) || [], N = O.d.bot_notes;
+    return `<div class="card"><h2>Control</h2><p class="muted">Open a bot.</p><div class="of-launch">${ids.filter(id => BOTS[id]).map(id => `<a class="of-bot" href="grokbot://app/v1/agent?id=${encodeURIComponent(id)}">${e(BOTS[id])}</a>`).join('') || '<p class="muted">No bots set for your account.</p>'}</div></div>
+      <div class="card"><h2>Notes for bots</h2><p class="muted">Non-urgent. Read at the 6:30 PM daily run.</p><textarea id="bn-new" rows="3" placeholder="Type a note\u2026"></textarea>
+      <div class="q-actions"><button type="button" class="primary" onclick="ofNote()">Save note</button></div>
+      ${loading('bot_notes') || ((N || []).length ? `<ul class="ib-list">${N.map(n => `<li><span class="ib-t">${e(n.text)}</span><span class="muted uf-st">${e(day(n.created_at))} \u00b7 ${n.read_at ? 'read' : 'unread'}</span></li>`).join('')}</ul>` : '<p class="muted">No notes.</p>')}</div>`; }
+  window.ofNote = async () => { const ta = document.getElementById('bn-new'), t = (ta && ta.value || '').trim(); if (!t) return;
+    const { error } = await gpSb.from('bot_notes').insert({ text: t }); if (error) return toast('Not saved: ' + error.message); toast('Saved'); load('bot_notes', 1); };
+})();

@@ -6,13 +6,13 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Gatepost">
+<meta name="apple-mobile-web-app-title" content="GP Admin">
 <meta name="theme-color" content="#0e0e0e">
-<title>Gatepost Property Services</title>
+<title>Gatepost Admin</title>
 <meta name="app-version" content="2026-10-15-requests-v1">
 <link rel="preconnect" href="https://hssevqgkoeuludwoxyuo.supabase.co" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-<link rel="manifest" href="manifest.json?v=9">
+<link rel="manifest" href="manifest.json?v=10">
 <link rel="icon" href="favicon.ico?v=4" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=4">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=4">
@@ -216,6 +216,17 @@ body.in-screen #user-label { min-width:0; max-width:34vw; overflow:hidden; text-
 .town-full .town-dock { justify-content:flex-start !important; flex-wrap:nowrap !important; overflow-x:auto !important; overflow-y:hidden; gap:8px !important; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
 .town-full .town-dock::-webkit-scrollbar { display:none; }
 .town-full .town-dock .town-chip.app { flex:0 0 auto !important; min-width:68px !important; padding:4px 10px !important; font-size:.7rem !important; white-space:nowrap; }
+@media (max-width:430px) { header .word, body.in-screen header .word { letter-spacing:.1em; font-size:.88rem; } header .word small { letter-spacing:.2em; } }
+.login-word { font-family:var(--serif); letter-spacing:.22em; text-transform:uppercase; font-size:1.2rem; color:var(--paper); margin:10px 0 0; }
+.of-tabs { display:flex; gap:6px; overflow-x:auto; margin:0 0 10px; }
+.of-tabs button { flex:0 0 auto; width:auto; background:var(--ink2); border:1px solid var(--line); color:var(--mute); padding:8px 12px; border-radius:999px; font-size:.8rem; }
+.of-tabs button.on { background:var(--paper); color:var(--ink); }
+.of-item { border-top:1px solid var(--line); padding:10px 0; } .of-row { display:flex; gap:10px; align-items:center; margin-top:6px; }
+.of-match { margin-top:8px; padding:8px; border-radius:10px; background:var(--ink3); border-left:3px solid var(--warn); font-size:.88rem; } .of-match.confirmed { border-left-color:var(--ok); }
+.of-cust { display:block; width:100%; text-align:left; background:var(--ink2); border:1px solid var(--line); color:var(--text); padding:10px 12px; border-radius:10px; margin:6px 0; }
+.of-body { white-space:pre-wrap; font-size:.9rem; } .of-t { width:100%; border-collapse:collapse; font-size:.85rem; } .of-t th, .of-t td { text-align:left; padding:6px 4px; border-bottom:1px solid var(--line); vertical-align:top; }
+.of-form { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:6px; }
+.of-launch { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:8px; } .of-bot { display:block; text-align:center; padding:14px 8px; border-radius:12px; background:var(--paper); color:var(--ink); font-weight:600; text-decoration:none; }
 </style>
 <script src="config.js?v=req1"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.min.js"></script>
@@ -234,7 +245,7 @@ window.addEventListener('unhandledrejection', function(e){ gpReportError(e.reaso
 <body>
 <header><button id="back-town" onclick="townGo ? townGo('town') : null" aria-label="Back to town">‹ Town</button>
   <span class="plaque"><img src="arch-mark.png" alt="Gatepost" width="30" height="30" decoding="async"></span>
-  <div class="word">Gatepost<small>Property Services</small></div>
+  <div class="word">Gatepost Admin<small>Property Services</small></div>
   <span id="user-label"></span>
 </header>
 <nav class="nav hidden" id="main-nav">
@@ -245,6 +256,7 @@ window.addEventListener('unhandledrejection', function(e){ gpReportError(e.reaso
   <button data-page="calendar">Calendar</button>
   <button data-page="requests" data-admin>Requests</button>
   <button data-page="unfinished" data-admin>Unfinished</button>
+  <button data-page="office" data-admin data-owner>Office</button>
   <button data-page="ask" data-admin>Ask AI</button>
   <button data-page="admin" id="admin-tab" class="hidden" data-admin>Team</button>
 </nav>
@@ -404,12 +416,12 @@ function render() {
     main.innerHTML = `<div class="card"><h2>Customer account</h2><p class="muted">This is the Gatepost team hub. Your account lives in Gatepost Home.</p><p><a class="link-btn" href="customer/">Open Gatepost Home ›</a></p><button class="secondary" onclick="logout()">Log out</button></div>`; return; }
   if (!S.me.access) { nav.classList.add('hidden');
     main.innerHTML = `<div class="card"><h2>Access pending</h2><p class="muted">Your account is waiting for an admin to give you access. You will get in automatically once they do.</p><button class="secondary" onclick="logout()">Log out</button></div>`; return; }
-  document.querySelectorAll('.nav button[data-admin]').forEach(b => b.classList.toggle('hidden', !isAdmin()));
+  document.querySelectorAll('.nav button[data-admin]').forEach(b => b.classList.toggle('hidden', !isAdmin() || (b.hasAttribute('data-owner') && !isOwner())));
   if (!isAdmin() && document.querySelector('.nav button.active')?.hasAttribute('data-admin')) { document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('active', b.dataset.page === 'town')); }
   const p = page(); document.body.classList.toggle('in-screen', p !== 'town'); if ((location.hash.slice(1) || 'town') !== p) history.replaceState(null, '', p === 'town' ? location.pathname + location.search : '#' + p);
   const tbg = document.getElementById('town-bg'); if (tbg && window.townPage && (p === 'town' || !tbg.querySelector('#town-canvas'))) tbg.innerHTML = townPage();
   if (p === 'quotes' && document.getElementById('quotes-root')) {} // keep the quote form (and keyboard focus) through background refreshes
-  else main.innerHTML = p === 'town' ? '' : p === 'quotes' ? quotesPage() : p === 'estimate' ? estimatePage() : p === 'calendar' ? calendarPage() : p === 'requests' ? requestsPage() : p === 'unfinished' ? unfinishedPage() : p === 'admin' ? adminPage() : p === 'ask' ? askPage() : dashboard();
+  else main.innerHTML = p === 'town' ? '' : p === 'quotes' ? quotesPage() : p === 'estimate' ? estimatePage() : p === 'calendar' ? calendarPage() : p === 'requests' ? requestsPage() : p === 'unfinished' ? unfinishedPage() : p === 'office' ? officePage() : p === 'admin' ? adminPage() : p === 'ask' ? askPage() : dashboard();
   renderSaved(); renderEvents(); renderRequests(); renderUsers();
   if (OPEN_REQ && !REQ_EDIT) renderReqDetail();
   window.townAfterRender && townAfterRender();
@@ -419,7 +431,7 @@ function render() {
 function authScreen() {
   const fileNote = location.protocol === 'file:' ? '<p class="muted" style="color:var(--warn);">Opened as a file. Serve the folder so images and home-screen install work.</p>' : '';
   return `
-    <div class="login-hero"><img src="logo.png" alt="Gatepost Property Services"><p>Internal operating hub</p></div>
+    <div class="login-hero"><img src="logo.png" alt="Gatepost Property Services"><p class="login-word">Gatepost Admin</p><p>Internal operating hub</p></div>
     <div class="card">
       <h2>Sign in</h2>
       <p class="muted">Employees self-register. New accounts start with 0 access until an admin approves.</p>
@@ -748,7 +760,8 @@ Promise.all([API.init(), domReady]).then(()=>{ if (location.hash.length>1) docum
 <script src="quotes-sign.js?v=1"></script>
 <script src="quotes.js?v=5"></script>
 <script src="unfinished.js?v=4"></script>
-<script src="town.js?v=47"></script>
+<script src="admin.js?v=1"></script>
+<script src="town.js?v=48"></script>
 <script src="chat.js?v=6"></script>
 <script src="pwa.js?v=6"></script>
 </body>
