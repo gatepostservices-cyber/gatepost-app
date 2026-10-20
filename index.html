@@ -7,12 +7,12 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="GP Admin">
-<meta name="theme-color" content="#0e0e0e">
+<meta name="theme-color" content="#0f1a14">
 <title>Gatepost Admin</title>
 <meta name="app-version" content="2026-10-15-requests-v1">
 <link rel="preconnect" href="https://hssevqgkoeuludwoxyuo.supabase.co" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-<link rel="manifest" href="manifest.json?v=10">
+<link rel="manifest" href="manifest.json?v=11">
 <link rel="icon" href="favicon.ico?v=4" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=4">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=4">
@@ -228,6 +228,56 @@ body.in-screen #user-label { min-width:0; max-width:34vw; overflow:hidden; text-
 .pb-sec { font-family:var(--serif); font-size:1.05rem; margin:16px 0 4px; } .pb-rules { font-size:.85rem; color:var(--mute); padding-left:18px; }
 .of-form { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:6px; }
 .of-launch { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:8px; } .of-bot { display:block; text-align:center; padding:14px 8px; border-radius:12px; background:var(--paper); color:var(--ink); font-weight:600; text-decoration:none; }
+/* ===== Nature theme (admin-nature): solid cards on forest charcoal, sage/moss, sandstone, terracotta ===== */
+:root { --ink:#0f1a14; --ink2:#16241b; --ink3:#1d2e23; --line:#2d4234; --paper:#e8dcc4; --paper2:#d6c6a6; --mute:#a3ad9f; --text:#ece6d8;
+  --ok:#7f9f6a; --danger:#c0694e; --warn:#c9a46a; --sage:#9fb38a; --moss:#5f7d4f; --sand:#d8bf92; --terra:#c9764f; --sky:#8fa9b8; }
+html, body { background:var(--ink); color:var(--text); }
+body { background: linear-gradient(180deg, #0f1a14 0%, #132119 55%, #16241b 100%) fixed; }
+body::before { content:''; position:fixed; left:0; right:0; bottom:0; height:180px; z-index:0; pointer-events:none; opacity:.55;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 180' preserveAspectRatio='none'%3E%3Cpath d='M0 120 L140 95 L210 110 L300 62 L360 62 L420 100 L560 88 L640 50 L760 50 L820 92 L960 80 L1040 104 L1200 90 L1200 180 L0 180Z' fill='%23182a1f'/%3E%3Cpath d='M0 150 L180 128 L320 140 L480 118 L620 136 L800 120 L980 140 L1200 126 L1200 180 L0 180Z' fill='%231c3024'/%3E%3C/svg%3E") bottom/100% 100% no-repeat; }
+header, main, footer { position:relative; z-index:1; }
+#town-bg { display:none !important; }
+header, body.in-screen header { background:rgba(15,26,20,.97) !important; -webkit-backdrop-filter:none !important; backdrop-filter:none !important; border-bottom:1px solid var(--line) !important; }
+header .word { color:var(--paper); } header .word small { color:var(--sage); }
+#back-town, body.in-screen #back-town { background:var(--ink2) !important; color:var(--sand) !important; border:1px solid var(--line) !important; box-shadow:none !important; }
+body.in-screen header .plaque { display:inline-flex !important; } header .plaque { background:var(--paper); }
+.card, body.in-screen .card { background:var(--ink2) !important; -webkit-backdrop-filter:none !important; backdrop-filter:none !important; border:1px solid var(--line) !important; box-shadow:0 1px 0 rgba(255,255,255,.02) inset, 0 6px 18px rgba(0,0,0,.25) !important; }
+.card .card, body.in-screen .card .card { background:var(--ink3) !important; }
+input, select, textarea, body.in-screen input, body.in-screen select, body.in-screen textarea { background:#0c150f !important; border:1px solid var(--line) !important; color:var(--text) !important; font-size:16px !important; -webkit-backdrop-filter:none !important; backdrop-filter:none !important; }
+input:focus, select:focus, textarea:focus { outline:2px solid var(--sage); outline-offset:1px; border-color:var(--sage) !important; }
+input::placeholder, textarea::placeholder { color:#7f8a7c !important; }
+select option, body.in-screen select option { background:#16241b; color:var(--text); }
+.muted, body.in-screen .muted { color:var(--mute) !important; }
+h1, h2, h3 { color:var(--paper); }
+button.primary, .primary { background:var(--sand) !important; color:#1a1408 !important; border-color:var(--sand) !important; }
+button.secondary, .secondary { background:transparent !important; color:var(--sand) !important; border:1px solid #4a5d48 !important; }
+a, .link-btn { color:var(--sky); }
+.badge { background:#22362a !important; color:var(--sage) !important; border-color:var(--line) !important; }
+.sheet, .sheet.town-sheet, body.town-mode .sheet.town-sheet { background:var(--ink2) !important; -webkit-backdrop-filter:none !important; backdrop-filter:none !important; border-top:1px solid var(--line) !important; color:var(--text); }
+.sheet .sheet-actions, .sheet .chat-compose { background:var(--ink2) !important; }
+.msg.bot .bubble, .town-sheet .msg.bot .bubble, .ask-msg, body.in-screen .ask-msg { background:var(--ink3) !important; color:var(--text) !important; }
+.msg.admin .bubble, .town-sheet .msg.admin .bubble, .ask-msg.user, body.in-screen .ask-msg.user { background:var(--paper) !important; color:#1a1408 !important; }
+.nav { background:rgba(15,26,20,.97) !important; }
+footer { color:var(--mute); }
+.of-tabs button { background:var(--ink2) !important; color:var(--mute) !important; border-color:var(--line) !important; } .of-tabs button.on { background:var(--sage) !important; color:#0f1a14 !important; }
+.of-match { background:var(--ink3) !important; border-left-color:var(--terra) !important; } .of-match.confirmed { border-left-color:var(--sage) !important; }
+.of-bot { background:var(--sand) !important; color:#1a1408 !important; } .of-cust { background:var(--ink3) !important; border-color:var(--line) !important; color:var(--text) !important; }
+.pb-sec { color:var(--sand); border-bottom:1px solid var(--line); padding-bottom:4px; } .of-t th { color:var(--sage); }
+.home { padding:4px 0 24px; max-width:1100px; margin:0 auto; }
+.home-hello h1 { font-family:var(--serif); font-weight:500; font-size:1.7rem; margin:8px 0 2px; color:var(--paper); }
+.home-h { font-size:.72rem; letter-spacing:.18em; text-transform:uppercase; color:var(--sage); margin:22px 0 10px; font-family:var(--sans); }
+.tiles { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px; }
+@media (min-width:700px) { .tiles { grid-template-columns:repeat(3, minmax(0,1fr)); } } @media (min-width:1050px) { .tiles { grid-template-columns:repeat(4, minmax(0,1fr)); } }
+.tile { display:flex; flex-direction:column; align-items:flex-start; gap:4px; min-height:96px; width:100%; text-align:left; padding:16px 14px; border-radius:14px; background:var(--ink2); border:1px solid var(--line); border-top:3px solid var(--moss); color:var(--text); cursor:pointer; }
+.tile b { font-size:1.05rem; color:var(--paper); font-weight:600; } .tile span { font-size:.8rem; color:var(--mute); line-height:1.3; }
+.tile:hover, .tile:focus-visible { border-color:var(--sage); outline:none; } .tile:active { background:var(--ink3); }
+.tile[data-tile="estimate"], .tile[data-tile="quotes"] { border-top-color:var(--sand); } .tile[data-tile="office"], .tile[data-tile="requests"] { border-top-color:var(--terra); } .tile[data-tile="calendar"], .tile[data-tile="ask"] { border-top-color:var(--sky); }
+.tile-bot { border-top-color:#3f5a46; } .tile-n { display:inline-block; min-width:20px; padding:0 6px; border-radius:10px; background:var(--terra); color:#fff; font-size:.72rem; text-align:center; }
+body:not(.in-screen) main { max-width:1100px; }
+main { padding-left:max(16px, env(safe-area-inset-left)); padding-right:max(16px, env(safe-area-inset-right)); padding-bottom:calc(env(safe-area-inset-bottom) + 24px); }
+#ai-chat-panel { background:var(--ink2) !important; border-top-color:var(--line) !important; } #ai-chat-compose { background:var(--ink2) !important; border-top-color:var(--line) !important; }
+#ai-chat-close { border-color:var(--line) !important; color:var(--sand) !important; } #ai-chat-send { background:var(--sand) !important; color:#1a1408 !important; }
+@media (max-width:430px) { body.in-screen #user-label { display:none; } }
 </style>
 <script src="config.js?v=req1"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.min.js"></script>
@@ -244,13 +294,13 @@ window.addEventListener('unhandledrejection', function(e){ gpReportError(e.reaso
 </script>
 </head>
 <body>
-<header><button id="back-town" onclick="townGo ? townGo('town') : null" aria-label="Back to town">‹ Town</button>
+<header><button id="back-town" onclick="townGo ? townGo('town') : null" aria-label="Back to home">‹ Home</button>
   <span class="plaque"><img src="arch-mark.png" alt="Gatepost" width="30" height="30" decoding="async"></span>
   <div class="word">Gatepost Admin<small>Property Services</small></div>
   <span id="user-label"></span>
 </header>
 <nav class="nav hidden" id="main-nav">
-  <button data-page="town" class="active">Town</button>
+  <button data-page="town" class="active">Home</button>
   <button data-page="dashboard">Hub</button>
   <button data-page="estimate" data-admin>Estimate</button>
   <button data-page="quotes" data-admin>Quotes</button>
@@ -420,15 +470,30 @@ function render() {
   document.querySelectorAll('.nav button[data-admin]').forEach(b => b.classList.toggle('hidden', !isAdmin() || (b.hasAttribute('data-owner') && !isOwner())));
   if (!isAdmin() && document.querySelector('.nav button.active')?.hasAttribute('data-admin')) { document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('active', b.dataset.page === 'town')); }
   const p = page(); document.body.classList.toggle('in-screen', p !== 'town'); if ((location.hash.slice(1) || 'town') !== p) history.replaceState(null, '', p === 'town' ? location.pathname + location.search : '#' + p);
-  const tbg = document.getElementById('town-bg'); if (tbg && window.townPage && (p === 'town' || !tbg.querySelector('#town-canvas'))) tbg.innerHTML = townPage();
+  
   if (p === 'quotes' && document.getElementById('quotes-root')) {} // keep the quote form (and keyboard focus) through background refreshes
-  else main.innerHTML = p === 'town' ? '' : p === 'quotes' ? quotesPage() : p === 'estimate' ? estimatePage() : p === 'calendar' ? calendarPage() : p === 'requests' ? requestsPage() : p === 'unfinished' ? unfinishedPage() : p === 'office' ? officePage() : p === 'admin' ? adminPage() : p === 'ask' ? askPage() : dashboard();
+  else main.innerHTML = p === 'town' ? homePage() : p === 'quotes' ? quotesPage() : p === 'estimate' ? estimatePage() : p === 'calendar' ? calendarPage() : p === 'requests' ? requestsPage() : p === 'unfinished' ? unfinishedPage() : p === 'office' ? officePage() : p === 'admin' ? adminPage() : p === 'ask' ? askPage() : dashboard();
   renderSaved(); renderEvents(); renderRequests(); renderUsers();
   if (OPEN_REQ && !REQ_EDIT) renderReqDetail();
   window.townAfterRender && townAfterRender();
   if (p === 'ask') askAfterRender();
 }
 
+// ---------- Home: tile grid (replaces the town scene) ----------
+const HOME_TILES = { dashboard: ['Hub', 'Account, settings and overview'], estimate: ['Estimate', 'Manual pricing calculator'], quotes: ['Quotes', 'Customer quotes and signing'],
+  calendar: ['Calendar', 'Schedule and jobs'], requests: ['Requests', 'Approvals from the bots'], unfinished: ['Unfinished', 'Inbox and work in progress'],
+  office: ['Office', 'Leads, customers, price book, job log, control'], ask: ['Ask AI', 'Search the company docs'], admin: ['Team', 'Users, roles and access'] };
+function homePage() {
+  const tiles = [...document.querySelectorAll('#main-nav button[data-page]')].filter(b => b.dataset.page !== 'town' && !b.classList.contains('hidden') && HOME_TILES[b.dataset.page])
+    .map(b => { const [n, d] = HOME_TILES[b.dataset.page], pend = b.dataset.page === 'requests' ? (S.requests || []).filter(r => r.status === 'pending').length : 0;
+      return `<button type="button" class="tile" data-tile="${b.dataset.page}" onclick="townGo('${b.dataset.page}')"><b>${n}${pend ? ` <span class="tile-n">${pend}</span>` : ''}</b><span>${d}</span></button>`; }).join('');
+  const bots = isAdmin() && window.townBotList ? townBotList().map(bt => `<button type="button" class="tile tile-bot" data-bot="${bt.i}" onclick="openBot(${bt.i})"><b>${esc(bt.short)}${bt.unread ? ` <span class="tile-n">${bt.unread}</span>` : ''}</b><span>${esc(bt.role)}</span></button>`).join('') : '';
+  const extra = (isAdmin() && window.openHQ ? `<button type="button" class="tile tile-bot" data-tile="hq" onclick="openHQ()"><b>HQ</b><span>Today at a glance</span></button>` : '')
+    + (window.openGatepostAI ? `<button type="button" class="tile tile-bot" data-tile="ai" onclick="openGatepostAI()"><b>Gatepost AI</b><span>Chat assistant</span></button>` : '')
+    + (window.openDock ? `<button type="button" class="tile tile-bot" data-tile="dock" onclick="openDock()"><b>Dock</b><span>Notifications and shortcuts</span></button>` : '');
+  return `<section class="home"><div class="home-hello"><h1>Good to see you${S.me && S.me.email ? ', ' + esc(S.me.email.split('@')[0]) : ''}</h1><p class="muted">Gatepost Property Services · Rio Rancho &amp; Albuquerque</p></div>
+    <h2 class="home-h">Screens</h2><div class="tiles">${tiles}</div>${bots || extra ? `<h2 class="home-h">Bots &amp; desks</h2><div class="tiles">${bots}${extra}</div>` : ''}</section>`;
+}
 function authScreen() {
   const fileNote = location.protocol === 'file:' ? '<p class="muted" style="color:var(--warn);">Opened as a file. Serve the folder so images and home-screen install work.</p>' : '';
   return `
@@ -762,7 +827,7 @@ Promise.all([API.init(), domReady]).then(()=>{ if (location.hash.length>1) docum
 <script src="quotes.js?v=5"></script>
 <script src="unfinished.js?v=4"></script>
 <script src="admin.js?v=2"></script>
-<script src="town.js?v=48"></script>
+<script src="town.js?v=49"></script>
 <script src="chat.js?v=6"></script>
 <script src="pwa.js?v=6"></script>
 </body>

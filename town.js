@@ -1113,6 +1113,7 @@ window.openHQ = () => { OPEN = { kind: 'hq' }; renderSheet(true); };
 window.openDock = () => { OPEN = { kind: 'dock' }; renderSheet(true); };
 window.closeBot = () => { OPEN = null; document.getElementById('bot-sheet')?.remove(); if (!document.getElementById('req-sheet')) document.body.classList.remove('sheet-open'); };
 window.townTab = tab => { if (!OPEN) return; OPEN.tab = tab; renderSheet(false); if (tab === 'chat') { markRead(BOTS[OPEN.i].name); setTimeout(() => { const l = document.querySelector('.chat-log'); if (l) l.scrollTop = l.scrollHeight; }, 0); } };
+window.townBotList = () => BOTS.map((b, i) => ({ i, name: b.name, short: b.short, role: b.role, place: b.place, unread: ADMIN ? unread(b.name) : 0 }));
 window.townGo = (pageName, filter) => { closeBot(); document.querySelector(`.nav button[data-page="${pageName}"]`)?.click(); if (filter) { REQ_FILTER = filter; render(); } window.scrollTo(0, 0); };
 window.townDecide = async (id, status) => { if (await API.updateRequest(id, { status })) render(); };
 window.townModify = id => { openReq(id); REQ_EDIT = true; renderReqDetail(false); };
@@ -1215,7 +1216,7 @@ window.townAfterRender = () => {
   if (ADMIN) diffRequests();
   if (ADMIN) queueChat(); else { MSGS = []; ACTS = []; BOARDS = []; }
   const el = document.getElementById('town-canvas');
-  if (!el) { document.body.classList.remove('town-mode'); stop(); cv = null; if (OPEN && !document.getElementById('req-sheet')) closeBot(); return; }
+  if (!el) { document.body.classList.remove('town-mode'); stop(); cv = null; if (OPEN && !document.getElementById('req-sheet') && !(document.activeElement && document.activeElement.id === 'chat-text')) renderSheet(false); return; }
   const scr = document.body.classList.contains('in-screen'); document.body.classList.toggle('town-mode', !scr); if (!scr && window.scrollY) window.scrollTo(0, 0);
   if (el !== cv) { cv = el; setup(); }
   if (!raf) { last = 0; raf = requestAnimationFrame(loop); }
