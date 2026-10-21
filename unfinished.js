@@ -25,7 +25,7 @@
       <div class="card"><details class="uf-h"><summary>History (${hist.length} done / aborted)</summary>${hist.length ? hist.map(x => card(x, 1)).join('') : '<p class="muted">None yet.</p>'}</details></div></div>`;
   };
   function inboxHTML() { const I = U.inbox, un = (I || []).filter(x => !x.sent_at), sent = (I || []).filter(x => x.sent_at).slice(0, 30);
-    return `<div class="card" id="ib-card"><h2>Inbox</h2><p class="muted">Jot prompts for Alfred, then send them all as one message.</p>
+    return `<div class="card" id="ib-card"><h2>Prompts for Alfred</h2><p class="muted">Jot prompts for Alfred, then send them all as one message.</p>
       <textarea id="ib-new" rows="3" placeholder="Type a prompt\u2026" oninput="UF.draft=this.value">${e(U.draft)}</textarea>
       <div class="q-actions"><button type="button" class="secondary" onclick="ibAdd()">Add</button><button type="button" class="primary" onclick="ibSend()"${un.length ? '' : ' disabled'}>Send to Alfred${un.length ? ' (' + un.length + ')' : ''}</button></div>
       ${I === null ? '<p class="muted">Loading\u2026</p>' : un.length ? `<ol class="ib-list">${un.map(x => `<li><span class="ib-t">${e(x.text)}</span><button type="button" class="ib-x" aria-label="Delete prompt" onclick="ibDel(${x.id})">\u00d7</button></li>`).join('')}</ol>` : '<p class="muted">No unsent prompts.</p>'}

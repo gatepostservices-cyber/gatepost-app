@@ -67,7 +67,7 @@
   const num = v => v == null || v === '' || isNaN(Number(v)) ? '—' : Number(v).toLocaleString('en-US');
   function reportBody(r) {
     const d = r.data && typeof r.data === 'object' ? r.data : {}, c = d.counts || {}, $ = d.dollars || {};
-    const jt = Array.isArray(d.by_job_type) ? d.by_job_type : [], pf = Array.isArray(d.pricing_flags) ? d.pricing_flags : [];
+    const jt = (Array.isArray(d.by_job_type) ? d.by_job_type : []).filter(j => j && typeof j === 'object' && j.type), pf = (Array.isArray(d.pricing_flags) ? d.pricing_flags : []).filter(f => f && typeof f === 'object' && (f.type || f.reason));
     const names = v => Array.isArray(v) ? v.map(x => typeof x === 'string' ? x : (x && (x.name || x.lead)) || '').filter(Boolean) : [];
     const won = names(d.won || d.won_leads), lost = names(d.lost || d.lost_leads);
     const hasC = ['quoted', 'won', 'lost', 'open'].some(k => c[k] != null);

@@ -6,7 +6,7 @@
 
   function addMsg(text, who) {
     const d = document.createElement('div');
-    d.style.cssText = `max-width:82%;padding:9px 12px;border-radius:16px;font-size:.92rem;line-height:1.4;white-space:pre-wrap;${who==='me'?'align-self:flex-end;background:#f6f4ef;color:#0e0e0e;':'align-self:flex-start;background:#1f1f1f;border:1px solid #2c2c2c;'}`;
+    d.style.cssText = `max-width:82%;padding:9px 12px;border-radius:16px;font-size:.92rem;line-height:1.4;white-space:pre-wrap;${who==='me'?'align-self:flex-end;background:#1f3a2b;color:#ffffff;':'align-self:flex-start;background:#f3eee2;color:#1d2a22;border:1px solid #e2dccd;'}`;
     d.textContent = text;
     log.appendChild(d);
     log.scrollTop = log.scrollHeight;
