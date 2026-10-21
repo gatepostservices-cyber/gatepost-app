@@ -24,15 +24,20 @@
     if (!window.gpSb || O.busy[k] || (!force && O.d[k] && Date.now() - (O.at[k] || 0) < 20000)) return;
     O.busy[k] = 1; try { const { data, error } = await Q[k](); if (error) { O.d[k] = O.d[k] || []; window.gpReportError && gpReportError(error, { op: 'office ' + k }); } else O.d[k] = data || []; O.at[k] = Date.now(); }
     finally { O.busy[k] = 0; } paint(); }
-  function paint() { const r = document.getElementById('of-root'); if (r && typeof page === 'function' && page() === 'office') r.outerHTML = officePage(true); }
+  function paint() { const r = document.getElementById('of-root'); if (r && typeof page === 'function' && ['office', 'leads', 'joblog'].includes(page())) r.outerHTML = officePage(true); }
   const toast = m => { const el = document.getElementById('of-msg'); if (el) el.textContent = m; };
   const TABS = [['leads', 'Leads'], ['customers', 'Customers'], ['pricebook', 'Price Book'], ['joblog', 'Job Log'], ['control', 'Control']];
   window.officePage = function (noLoad) {
     if (!own()) return '<div class="card" id="of-root"><h2>Office</h2><p class="muted">Owners only.</p></div>';
+    // Simplified nav: Leads lives in Sales, Job Log in Schedule; Office keeps Customers, Price Book, Control.
+    const pg = typeof page === 'function' ? page() : 'office', solo = pg === 'leads' || pg === 'joblog';
+    if (solo) O.tab = pg; else if (O.tab === 'leads' || O.tab === 'joblog') { O.tab = 'customers'; O.q = ''; O.ol = null; O.oadd = 0; }
+    const tabs = solo ? [] : TABS.filter(([k]) => k !== 'leads' && k !== 'joblog');
     if (!noLoad) setTimeout(() => NEED[O.tab].forEach(k => load(k)), 0);
     const body = { leads: leadsHTML, customers: custHTML, pricebook: pbHTML, joblog: jlHTML, control: ctlHTML }[O.tab]();
-    return `<div id="of-root"><div class="of-tabs" role="tablist">${TABS.map(([k, n]) => `<button type="button" role="tab" class="${O.tab === k ? 'on' : ''}" onclick="ofTab('${k}')">${n}</button>`).join('')}</div>
+    return `<div id="of-root">${tabs.length ? `<div class="of-tabs" role="tablist">${tabs.map(([k, n]) => `<button type="button" role="tab" class="${O.tab === k ? 'on' : ''}" onclick="ofTab('${k}')">${n}</button>`).join('')}</div>` : ''}
       <div id="of-msg" class="muted q-rt" aria-live="polite"></div>${body}</div>`; };
+  window.ofLoad = (k, f) => load(k, f);
   window.ofTab = k => { O.tab = k; O.q = ''; O.cust = null; O.ol = null; O.oadd = 0; paint(); NEED[k].forEach(x => load(x)); };
   const loading = k => O.d[k] == null ? '<p class="muted">Loading\u2026</p>' : '';
   // ----- Leads

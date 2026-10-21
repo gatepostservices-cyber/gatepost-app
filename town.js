@@ -1158,6 +1158,11 @@ function dockSheetHtml() {
   ${ADMIN ? `<h3>Recently sent (from bot activity)</h3>${sends.length ? `<ol class="timeline">${sends.map(a => `<li><span class="tl-ico">✉</span><div><div>${esc(a.body)}</div><div class="muted">${esc(a.bot)} · ${esc(when(a.created_at))}</div></div></li>`).join('')}</ol>` : '<p class="muted">Nothing logged as sent yet. When a bot logs that it sent an email, text or follow-up, it runs it down to the ship.</p>'}` : ''}
   <p class="muted" style="font-size:.74rem;margin-top:14px;">The shuttle launches whenever a bot drops a data packet on the pad, dives over the Data Falls into the internet, and comes back a little later.</p></div>`;
 }
+function hqQueueHtml() { const q = ADMIN ? waitingQueue() : []; return ADMIN ? `<div class="tboard"><div class="tb-h"><b>Waiting on you</b><span class="muted">${q.filter(x => !x.top).length} open</span></div>${q.length ? `<ul class="tb-list">${q.map(x => `<li${x.id ? ` class="tap" onclick="openReq(${Number(x.id)})"` : ''}><span class="tb-ico">${x.icon}</span><div><b>${esc(x.title)}</b><div class="muted">${esc(x.sub || '')}</div></div>${x.phone ? `<a class="tb-btn secondary" href="tel:${esc(v(x.phone).replace(/[^0-9+]/g, ''))}" onclick="event.stopPropagation()">Call</a>` : x.id ? '<span class="chev">›</span>' : ''}</li>`).join('')}</ul>` : emptyRow('Nothing is waiting on you.')}
+      ${!board('Gatepost', 'todays_jobs') ? '<p class="muted tb-empty" style="margin-top:4px">Today\u2019s jobs: waiting for Gatepost to publish.</p>' : ''}${!BOARDS.some(b => b.board_key === 'waiting_on_christian') ? '<p class="muted tb-empty" style="margin-top:2px">Bot waiting lists: none published yet.</p>' : ''}</div>` : ''; }
+// Today screen (simplified nav): HQ content inline.
+window.townTodayHTML = () => { ADMIN = typeof isAdmin === 'function' && isAdmin(); return `${ADMIN ? RENDER.todays_jobs('Gatepost') : ''}${hqQueueHtml()}${calendarHtml()}${ADMIN ? RENDER.promised_followups('Gatepost Tasks') : ''}`; };
+window.townWaitingCount = () => { ADMIN = typeof isAdmin === 'function' && isAdmin(); return ADMIN ? waitingQueue().filter(x => !x.top).length : 0; };
 function renderSheet(animate) {
   const prev = document.getElementById('bot-sheet'), sc = prev?.querySelector('.sheet-body')?.scrollTop || 0, draft = document.getElementById('chat-text')?.value; prev?.remove(); if (!OPEN) return;
   ADMIN = typeof isAdmin === 'function' && isAdmin();
@@ -1166,9 +1171,7 @@ function renderSheet(animate) {
   else if (OPEN.kind === 'hq') {
     const up = (S.events || []).filter(e => (e.date || '') >= today()).length, pend = reqs().filter(r => r.status === 'pending').length, waiting = (S.users || []).filter(u => u.role === 'pending').length;
     const row = (icon, title, sub, onclick, n) => `<button class="hq-row" onclick="${onclick}"><span class="hq-ico">${icon}</span><span class="hq-txt"><b>${esc(title)}</b><span class="muted">${esc(sub)}</span></span>${n ? `<span class="hq-n">${n}</span>` : ''}<span class="chev">›</span></button>`;
-    const q = ADMIN ? waitingQueue() : [];
-    const queue = ADMIN ? `<div class="tboard"><div class="tb-h"><b>Waiting on Christian</b><span class="muted">${q.filter(x => !x.top).length} open</span></div>${q.length ? `<ul class="tb-list">${q.map(x => `<li${x.id ? ` class="tap" onclick="openReq(${Number(x.id)})"` : ''}><span class="tb-ico">${x.icon}</span><div><b>${esc(x.title)}</b><div class="muted">${esc(x.sub || '')}</div></div>${x.phone ? `<a class="tb-btn secondary" href="tel:${esc(v(x.phone).replace(/[^0-9+]/g, ''))}" onclick="event.stopPropagation()">Call</a>` : x.id ? '<span class="chev">›</span>' : ''}</li>`).join('')}</ul>` : emptyRow('Nothing is waiting on you.')}
-      ${!board('Gatepost', 'todays_jobs') ? '<p class="muted tb-empty" style="margin-top:4px">Today\u2019s jobs: waiting for Gatepost to publish.</p>' : ''}${!BOARDS.some(b => b.board_key === 'waiting_on_christian') ? '<p class="muted tb-empty" style="margin-top:2px">Bot waiting lists: none published yet.</p>' : ''}</div>` : '';
+    const queue = hqQueueHtml();
     el.innerHTML = `<div class="sheet-head"><button class="sheet-back" onclick="closeBot()" aria-label="Back to home">‹ Home</button><span class="badge">HQ</span></div>
     <div class="sheet-body"><div class="bot-hero"><span class="hq-ava"><img src="arch-mark.png" alt=""></span><div><h2 class="sheet-title" style="margin:0">${ADMIN ? 'Christian\u2019s HQ' : 'Gatepost HQ'}</h2><div class="muted">${ADMIN ? 'Run the business from here.' : 'Schedule and your account.'}</div></div></div>
       ${ADMIN ? RENDER.todays_jobs('Gatepost') : ''}${queue}${calendarHtml()}${ADMIN ? RENDER.promised_followups('Gatepost Tasks') : ''}
@@ -1209,7 +1212,7 @@ function renderSheet(animate) {
     ${ADMIN && OPEN.tab === 'chat' ? `<div class="sheet-actions chat-compose"><textarea id="chat-text" rows="1" placeholder="Message ${esc(bt.short)}…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();townSend()}"></textarea><button class="primary" id="chat-send" onclick="townSend()">Send</button></div>`
       : ADMIN && OPEN.tab === 'requests' ? `<div class="sheet-actions"><button class="secondary" onclick="townGo('requests', '${esc(bt.name)}')">Open in Requests${s.total ? ` (${s.total})` : ''}</button></div>` : ''}`;
   }
-  const nav = document.getElementById('main-nav'); if (nav && !nav.classList.contains('hidden')) el.style.bottom = nav.getBoundingClientRect().height + 'px';
+  const nav = document.getElementById('sec-nav'); if (nav && !nav.classList.contains('hidden')) el.style.bottom = nav.getBoundingClientRect().height + 'px';
   document.body.insertBefore(el, document.getElementById('req-sheet')); document.body.classList.add('sheet-open');
   const b = el.querySelector('.sheet-body'); if (!animate && sc && b) b.scrollTop = sc;
   if (draft) { const ta = document.getElementById('chat-text'); if (ta) ta.value = draft; }

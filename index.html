@@ -284,6 +284,40 @@ main { padding-left:max(16px, env(safe-area-inset-left)); padding-right:max(16px
 .ava-img { display:inline-flex; align-items:center; justify-content:center; border-radius:50%; overflow:hidden; background:var(--moss); color:var(--paper); font-weight:700; flex:0 0 auto; border:2px solid var(--line); }
 .ava-img img { width:100%; height:100%; object-fit:cover; display:block; }
 .tile-ava { width:44px; height:44px; font-size:1.1rem; margin-bottom:4px; } .bot-ava.ava-img { width:52px; height:52px; font-size:1.3rem; }
+
+/* Simplified nav (5 sections + sub-tabs) */
+.sec-nav { position:fixed; left:0; right:0; bottom:0; z-index:30; display:flex; gap:2px; padding:6px 6px calc(env(safe-area-inset-bottom) + 6px); background:rgba(31,58,43,.97); border-top:1px solid var(--line); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); }
+.sec-nav.hidden { display:none; }
+.sec-nav button { flex:1 1 0; min-width:0; width:auto; margin:0; background:transparent; border:1px solid transparent; color:var(--mute); padding:11px 2px; border-radius:10px; font-size:.72rem; letter-spacing:.03em; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sec-nav button.on { background:var(--sage, #9db59a); color:#1f3a2b; font-weight:700; }
+.sec-n { display:inline-block; min-width:1.3em; padding:0 .35em; border-radius:999px; background:#c8643c; color:#fff; font-size:.68rem; line-height:1.35em; text-align:center; letter-spacing:0; font-weight:700; }
+body.has-nav { padding-bottom:calc(env(safe-area-inset-bottom) + 78px) !important; }
+#back-town { display:none !important; }
+#sub-nav { max-width:100%; }
+.sub-tabs { display:flex; gap:6px; overflow-x:auto; padding:2px 2px 10px; -webkit-overflow-scrolling:touch; }
+.sub-tabs button { flex:0 0 auto; width:auto; margin:0; background:#2a4a36; border:1px solid var(--line); color:var(--mute); padding:8px 14px; border-radius:999px; font-size:.82rem; }
+.sub-tabs button.on { background:#d9c9a3; color:#1f3a2b; font-weight:700; border-color:#d9c9a3; }
+.t-stats { display:grid; grid-template-columns:repeat(auto-fit, minmax(72px, 1fr)); gap:8px; margin:0 0 12px; }
+.t-stat { margin:0; width:auto; display:flex; flex-direction:column; align-items:center; gap:2px; padding:10px 4px; border-radius:12px; background:#2a4a36; border:1px solid var(--line); color:var(--paper); }
+.t-stat b { font-size:1.35rem; } .t-stat span { font-size:.68rem; color:var(--mute); text-transform:uppercase; letter-spacing:.04em; text-align:center; }
+.t-stat.hot { border-color:#c8643c; } .t-stat.hot b { color:#e08a5f; }
+.t-hq { margin:0 0 12px; } .t-hq .tboard { margin-bottom:10px; }
+.rp-item { border:1px solid var(--line); border-radius:12px; margin:8px 0; background:#335640; overflow:hidden; }
+.rp-head { width:100%; margin:0; display:flex; justify-content:space-between; align-items:center; gap:8px; background:transparent; border:0; color:var(--paper); padding:10px 12px; text-align:left; }
+.rp-head > span:first-child { display:flex; flex-direction:column; min-width:0; } .rp-head .muted { font-size:.75rem; }
+.rp-body { padding:0 12px 12px; font-size:.86rem; overflow-wrap:anywhere; }
+.rp-counts { display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; margin:8px 0; }
+.rp-c { text-align:center; padding:6px 2px; border-radius:10px; background:#2a4a36; } .rp-c b { display:block; font-size:1.1rem; } .rp-c span { font-size:.66rem; text-transform:uppercase; color:var(--mute); }
+.rp-c.won b, .ok { color:#9fd39a; } .rp-c.lost b, .bad { color:#e08a5f; }
+.rp-usd { display:flex; gap:16px; flex-wrap:wrap; margin:6px 0; }
+.rp-tw { overflow-x:auto; max-width:100%; } .rp-t { width:100%; border-collapse:collapse; font-size:.8rem; } .rp-t th { white-space:nowrap; } .rp-t th, .rp-t td { padding:4px 5px; border-bottom:1px solid var(--line); text-align:right; } .rp-t th:first-child, .rp-t td:first-child { text-align:left; }
+.rp-flags { padding-left:18px; margin:4px 0; } .rp-dir { font-size:.72rem; font-weight:700; padding:1px 6px; border-radius:6px; background:#c8643c; color:#fff; } .rp-dir.low { background:#d9c9a3; color:#1f3a2b; }
+.rp-body h4 { margin:10px 0 4px; font-size:.8rem; text-transform:uppercase; color:var(--mute); } .rp-meta { font-size:.72rem; margin-top:8px; }
+.ib2-h { margin:14px 0 6px; font-size:.82rem; text-transform:uppercase; letter-spacing:.05em; color:#d9c9a3; }
+.ib2-item { border:1px solid var(--line); border-radius:12px; padding:10px; margin:8px 0; background:#335640; overflow-wrap:anywhere; }
+.ib2-item .mini-actions { margin-top:8px; display:flex; gap:6px; flex-wrap:wrap; } .ib2-item .mini-actions button { width:auto; flex:1 1 0; margin:0; }
+.ib2-item textarea { width:100%; margin-top:8px; box-sizing:border-box; } .fd-body { white-space:pre-wrap; margin-top:6px; }
+.ib2-done summary { cursor:pointer; margin-top:12px; color:var(--mute); }
 </style>
 <script src="config.js?v=req1"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.min.js"></script>
@@ -314,10 +348,14 @@ window.addEventListener('unhandledrejection', function(e){ gpReportError(e.reaso
   <button data-page="requests" data-admin>Requests</button>
   <button data-page="unfinished" data-admin>Unfinished</button>
   <button data-page="office" data-admin data-owner>Office</button>
-  <button data-page="ask" data-admin>Ask AI</button>
+  <button data-page="ask">AI</button>
+  <button data-page="inbox" data-admin>Inbox</button>
+  <button data-page="leads" data-admin data-owner>Leads</button>
+  <button data-page="joblog" data-admin data-owner>Job Log</button>
   <button data-page="admin" id="admin-tab" class="hidden" data-admin>Team</button>
 </nav>
-<div id="town-bg"></div><main id="app"></main>
+<nav class="sec-nav hidden" id="sec-nav" aria-label="Sections"></nav>
+<div id="town-bg"></div><div id="sub-nav"></div><main id="app"></main>
 <footer>Gatepost Property Services · Internal · (505) 750-3019</footer>
 
 <script>
@@ -465,20 +503,21 @@ function render() {
   const main = document.getElementById('app'), nav = document.getElementById('main-nav');
   const label = document.getElementById('user-label');
   document.body.classList.toggle('has-nav', !!(S.me && S.me.access));
-  if (!S.me) { nav.classList.add('hidden'); label.innerHTML = ''; main.innerHTML = authScreen(); return; }
+  if (!S.me) { nav.classList.add('hidden'); window.gpNavAfter && gpNavAfter(); label.innerHTML = ''; main.innerHTML = authScreen(); return; }
   nav.classList.remove('hidden');
   label.innerHTML = `<span id="sync-dot" class="${CLOUD ? 'on' : ''}" title="${CLOUD ? 'Synced' : 'This device only'}"></span>${esc(S.me.email.split('@')[0])}`;
   document.getElementById('admin-tab').classList.toggle('hidden', !isAdmin());
-  if (S.me.role === 'customer') { nav.classList.add('hidden'); document.body.classList.remove('has-nav');
+  if (S.me.role === 'customer') { nav.classList.add('hidden'); window.gpNavAfter && gpNavAfter(); document.body.classList.remove('has-nav');
     main.innerHTML = `<div class="card"><h2>Customer account</h2><p class="muted">This is the Gatepost team hub. Your account lives in Gatepost Home.</p><p><a class="link-btn" href="customer/">Open Gatepost Home ›</a></p><button class="secondary" onclick="logout()">Log out</button></div>`; return; }
-  if (!S.me.access) { nav.classList.add('hidden');
+  if (!S.me.access) { nav.classList.add('hidden'); window.gpNavAfter && gpNavAfter();
     main.innerHTML = `<div class="card"><h2>Access pending</h2><p class="muted">Your account is waiting for an admin to give you access. You will get in automatically once they do.</p><button class="secondary" onclick="logout()">Log out</button></div>`; return; }
   document.querySelectorAll('.nav button[data-admin]').forEach(b => b.classList.toggle('hidden', !isAdmin() || (b.hasAttribute('data-owner') && !isOwner())));
   if (!isAdmin() && document.querySelector('.nav button.active')?.hasAttribute('data-admin')) { document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('active', b.dataset.page === 'town')); }
   const p = page(); document.body.classList.toggle('in-screen', p !== 'town'); if ((location.hash.slice(1) || 'town') !== p) history.replaceState(null, '', p === 'town' ? location.pathname + location.search : '#' + p);
   
   if (p === 'quotes' && document.getElementById('quotes-root')) {} // keep the quote form (and keyboard focus) through background refreshes
-  else main.innerHTML = p === 'town' ? homePage() : p === 'quotes' ? quotesPage() : p === 'estimate' ? estimatePage() : p === 'calendar' ? calendarPage() : p === 'requests' ? requestsPage() : p === 'unfinished' ? unfinishedPage() : p === 'office' ? officePage() : p === 'admin' ? adminPage() : p === 'ask' ? askPage() : dashboard();
+  else main.innerHTML = p === 'town' ? (window.todayPage ? todayPage() : homePage()) : p === 'inbox' ? inboxPage() : p === 'leads' || p === 'joblog' ? officePage() : p === 'quotes' ? quotesPage() : p === 'estimate' ? estimatePage() : p === 'calendar' ? calendarPage() : p === 'requests' ? requestsPage() : p === 'unfinished' ? unfinishedPage() : p === 'office' ? officePage() : p === 'admin' ? adminPage() : p === 'ask' ? askPage() : dashboard();
+  window.gpNavAfter && gpNavAfter();
   renderSaved(); renderEvents(); renderRequests(); renderUsers();
   if (OPEN_REQ && !REQ_EDIT) renderReqDetail();
   window.townAfterRender && townAfterRender();
@@ -700,7 +739,7 @@ function renderReqDetail(animate) {
   ${admin ? `<div class="sheet-actions">${REQ_EDIT
       ? `<button class="secondary" onclick="REQ_EDIT=false;renderReqDetail()">Cancel</button><button class="primary" onclick="saveReqEdit()">Save</button>`
       : `<button class="ok" onclick="reqDecide('approved')">Approve</button><button class="danger" onclick="reqDecide('denied')">Decline</button><button class="secondary" onclick="REQ_EDIT=true;renderReqDetail()">Modify</button>`}</div>` : ''}`;
-  const nav = document.getElementById('main-nav'); if (nav && !nav.classList.contains('hidden')) el.style.bottom = nav.getBoundingClientRect().height + 'px';
+  const nav = document.getElementById('sec-nav'); if (nav && !nav.classList.contains('hidden')) el.style.bottom = nav.getBoundingClientRect().height + 'px';
   document.body.appendChild(el);
   if (!animate && scroll) el.querySelector('.sheet-body').scrollTop = scroll;
 }
@@ -789,9 +828,11 @@ const askLoad = () => { try { return JSON.parse(localStorage.getItem(ASK_KEY)) |
 const askSave = h => localStorage.setItem(ASK_KEY, JSON.stringify(h.slice(-60)));
 const askFmt = t => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\[([^\]\n]{3,200})\]/g, '<span class="ask-cite">[$1]</span>').replace(/\n/g, '<br>');
 function askPage() {
-  if (!isAdmin()) return '<div class="card"><p class="muted">Admins only.</p></div>';
+  // One AI entry point: the Gatepost AI chat (everyone) + Ask AI company-docs search (admins), both kept as they were.
+  const chat = `<div class="card ai-card"><h2>AI assistant</h2><p class="muted" style="font-size:.8rem;">Gatepost AI is a quick chat about jobs, bids, hours, services and GRT.${isAdmin() ? ' Ask AI below searches the company files and live app data, with sources.' : ''}</p><button type="button" class="primary" id="open-gp-ai" onclick="window.openGatepostAI && openGatepostAI()">Open Gatepost AI chat</button></div>`;
+  if (!isAdmin()) return chat;
   const h = askLoad();
-  return `<div class="card"><h2>Ask AI</h2><p class="muted" style="font-size:.8rem;">Answers come from the Gatepost files and live app data, with sources. Free Gemini tier. History is saved on this device only.</p>
+  return chat + `<div class="card"><h2>Ask AI · company docs</h2><p class="muted" style="font-size:.8rem;">Answers come from the Gatepost files and live app data, with sources. Free Gemini tier. History is saved on this device only.</p>
     <div id="ask-log" class="ask-log">${h.length ? h.map(m => `<div class="ask-msg ${m.role}">${askFmt(m.text)}${m.sources && m.sources.length ? `<div class="ask-src">Sources: ${m.sources.map(esc).join(' · ')}</div>` : ''}</div>`).join('') : '<p class="muted">Try: "What do we charge for gutter cleaning?" or "What is on the calendar this week?"</p>'}${ASK_BUSY ? '<div class="ask-msg ai muted">Thinking…</div>' : ''}</div>
     <textarea id="ask-q" rows="3" placeholder="Ask about jobs, bids, pricing, leads, the calendar…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();askSend();}"></textarea>
     <div class="row" style="margin-top:8px;"><button class="primary" onclick="askSend()" ${ASK_BUSY ? 'disabled' : ''}>Ask</button><button class="secondary" onclick="askClear()">Clear history</button></div></div>`;
@@ -828,13 +869,14 @@ window.addEventListener('hashchange', () => { const pg = location.hash.slice(1) 
 const domReady = new Promise(r => document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', r, { once: true }) : r());
 Promise.all([API.init(), domReady]).then(()=>{ if (location.hash.length>1) document.querySelector(`.nav button[data-page="${location.hash.slice(1)}"]`)?.click(); render(); });
 </script>
-<script src="quotes-engine.js?v=2"></script>
-<script src="quotes-sign.js?v=1"></script>
-<script src="quotes.js?v=5"></script>
-<script src="unfinished.js?v=4"></script>
-<script src="admin.js?v=3"></script>
-<script src="town.js?v=50"></script>
-<script src="chat.js?v=6"></script>
-<script src="pwa.js?v=6"></script>
+<script src="quotes-engine.js?v=3"></script>
+<script src="quotes-sign.js?v=2"></script>
+<script src="quotes.js?v=6"></script>
+<script src="unfinished.js?v=5"></script>
+<script src="admin.js?v=4"></script>
+<script src="town.js?v=51"></script>
+<script src="simplify.js?v=1"></script>
+<script src="chat.js?v=7"></script>
+<script src="pwa.js?v=7"></script>
 </body>
 </html>

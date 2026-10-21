@@ -45,7 +45,8 @@
   async function load() { if (!window.gpSb) { U.list = []; return paint(); } U.busy = true;
     const [{ data, error }] = await Promise.all([gpSb.from('unfinished').select('*').order('updated_at', { ascending: false }).limit(100), loadInbox()]);
     U.busy = false; U.at = Date.now(); if (error) { U.list = U.list || []; window.gpReportError && gpReportError(error, { op: 'unfinished' }); } else U.list = data || []; paint(); }
-  function paint() { if (typeof page === 'function' && page() !== 'unfinished') return; const m = document.getElementById('app'); if (m && document.getElementById('uf-root')) { const op = [...m.querySelectorAll('details')].map(d => d.open), f = document.activeElement && document.activeElement.id === 'ib-new'; m.innerHTML = unfinishedPage(); m.querySelectorAll('details').forEach((d, i) => { if (op[i]) d.open = true; }); if (f) document.getElementById('ib-new')?.focus(); } }
+  window.ufLoad = () => { if (!U.busy && (U.list === null || Date.now() - U.at > 20000)) load(); };
+  function paint() { if (typeof page === 'function' && ['town', 'inbox'].includes(page())) return render(); if (typeof page === 'function' && page() !== 'unfinished') return; const m = document.getElementById('app'); if (m && document.getElementById('uf-root')) { const op = [...m.querySelectorAll('details')].map(d => d.open), f = document.activeElement && document.activeElement.id === 'ib-new'; m.innerHTML = unfinishedPage(); m.querySelectorAll('details').forEach((d, i) => { if (op[i]) d.open = true; }); if (f) document.getElementById('ib-new')?.focus(); } }
   const msg = t => { const el = document.getElementById('uf-msg'); if (el) el.textContent = t; };
   // iOS-reliable copy: must run synchronously inside the click, before any await/navigation.
   function execCopy(t) { const ta = document.createElement('textarea'); ta.value = t; ta.contentEditable = 'true'; ta.readOnly = false;
