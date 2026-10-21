@@ -19,6 +19,13 @@ tools/call_notes_sync.sh [DIR]     # default /workspace/gatepost/call-notes
 ```
 Each `<phone>.md` file (e.g. `5055551234.md`) is upserted into `call_notes` (one row per phone; the file replaces the old text). RPC `call_notes_upsert(p_token, p_phone, p_body, p_modified)`. They appear in the Customer timeline with leads, matched texts and quotes, merged by phone.
 
+### Outreach (`tools/outreach.sh log`), daily run
+```
+tools/outreach.sh log LEAD CHANNEL "Summary" [out|in] [STATUS] [SENT_BY] [SENT_AT_ISO] [EXT_KEY]
+# e.g. tools/outreach.sh log nd-12345 nextdoor "Replied to post with intro + quote offer" out sent Alabaster
+```
+After each reply/message you send (or a reply you see come in), log it. LEAD = the lead's EXT_KEY (or numeric id). CHANNEL `nextdoor|text|email|call|other`, STATUS `sent|replied|no_reply|won|lost` (default `sent`), SENT_BY your name. Pass an EXT_KEY (e.g. the message id) to make re-runs idempotent. RPC `lead_outreach_upsert(p_token, p_lead, p_channel, p_summary, p_direction, p_status, p_sent_by, p_sent_at, p_ext_key)`. Owners see the latest entry on each lead in Office > Leads and can tap it for the full history.
+
 ### Notes for bots (`tools/leads.sh notes`)
 ```
 tools/leads.sh notes               # JSON list of unread notes the owners left in Office > Control

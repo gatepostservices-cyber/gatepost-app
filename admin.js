@@ -1,7 +1,7 @@
 // Gatepost Admin "Office" screen (owners only): Leads, Customers (timeline), Price Book, Job Log, Control (bot launcher + notes for bots).
 // Data: public.leads / texts / lead_matches / customer_timeline / price_book / job_log / bot_notes (admin-only RLS). Bots write via tools/leads.sh + call_notes_sync.sh.
 (function () {
-  const O = window.OF = { tab: 'leads', d: {}, at: {}, busy: {}, q: '', cust: null };
+  const O = window.OF = { tab: 'leads', d: {}, at: {}, busy: {}, q: '', cust: null, ol: null, oadd: 0 };
   const e = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const day = d => d ? new Date(d).toLocaleString('en-US', { timeZone: 'America/Denver', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
   const money = n => n == null || n === '' ? '—' : '$' + Number(n).toLocaleString('en-US', { maximumFractionDigits: 2 });
@@ -14,11 +14,12 @@
   const Q = {
     leads: () => gpSb.from('leads').select('*').order('created_at', { ascending: false }).limit(200),
     matches: () => gpSb.from('lead_matches').select('id,lead_id,text_id,status,auto,texts(phone,name,work,body,sent_at)').neq('status', 'rejected').order('created_at', { ascending: false }).limit(300),
+    outreach: () => gpSb.from('lead_outreach').select('*').order('sent_at', { ascending: false }).limit(1000),
     timeline: () => gpSb.from('customer_timeline').select('*').order('at_', { ascending: false }).limit(1000),
     price_book: () => gpSb.from('price_book').select('*').order('sort',{ nullsFirst: false }).order('service').limit(1000),
     job_log: () => gpSb.from('job_log').select('*').order('job_date', { ascending: false, nullsFirst: false }).limit(300),
     bot_notes: () => gpSb.from('bot_notes').select('*').order('created_at', { ascending: false }).limit(50) };
-  const NEED = { leads: ['leads', 'matches'], customers: ['timeline'], pricebook: ['price_book'], joblog: ['job_log'], control: ['bot_notes'] };
+  const NEED = { leads: ['leads', 'matches', 'outreach'], customers: ['timeline'], pricebook: ['price_book'], joblog: ['job_log'], control: ['bot_notes'] };
   async function load(k, force) {
     if (!window.gpSb || O.busy[k] || (!force && O.d[k] && Date.now() - (O.at[k] || 0) < 20000)) return;
     O.busy[k] = 1; try { const { data, error } = await Q[k](); if (error) { O.d[k] = O.d[k] || []; window.gpReportError && gpReportError(error, { op: 'office ' + k }); } else O.d[k] = data || []; O.at[k] = Date.now(); }
@@ -32,16 +33,32 @@
     const body = { leads: leadsHTML, customers: custHTML, pricebook: pbHTML, joblog: jlHTML, control: ctlHTML }[O.tab]();
     return `<div id="of-root"><div class="of-tabs" role="tablist">${TABS.map(([k, n]) => `<button type="button" role="tab" class="${O.tab === k ? 'on' : ''}" onclick="ofTab('${k}')">${n}</button>`).join('')}</div>
       <div id="of-msg" class="muted q-rt" aria-live="polite"></div>${body}</div>`; };
-  window.ofTab = k => { O.tab = k; O.q = ''; O.cust = null; paint(); NEED[k].forEach(x => load(x)); };
+  window.ofTab = k => { O.tab = k; O.q = ''; O.cust = null; O.ol = null; O.oadd = 0; paint(); NEED[k].forEach(x => load(x)); };
   const loading = k => O.d[k] == null ? '<p class="muted">Loading\u2026</p>' : '';
   // ----- Leads
+  const OCH = { nextdoor: 'Nextdoor', text: 'Text', email: 'Email', call: 'Call', other: 'Other' }, OST = { sent: 'Sent', replied: 'Replied', no_reply: 'No reply', won: 'Won', lost: 'Lost' };
+  const outFor = id => (O.d.outreach || []).filter(o => o.lead_id === id);
+  const outLine = o => `<span class="badge">${e(OCH[o.channel] || o.channel)}</span> ${o.direction === 'in' ? '\u2190 in' : '\u2192 out'} \u00b7 ${e(day(o.sent_at))} \u00b7 <span class="of-ost ${e(o.status)}">${e(OST[o.status] || o.status)}</span>`;
+  const sel = (id, m, v) => `<select id="${id}">${Object.entries(m).map(([k, n]) => `<option value="${k}"${k === v ? ' selected' : ''}>${n}</option>`).join('')}</select>`;
+  function outreachHTML(l) {
+    const os = outFor(l.id);
+    return `<div class="card" id="of-outreach"><button type="button" class="secondary q-sm" onclick="OF.ol=null;OF.oadd=0;ofRepaint()">\u2039 All leads</button><h2>Outreach: ${e(l.name)}</h2><p class="muted">${e(l.work)} \u00b7 ${os.length} entr${os.length === 1 ? 'y' : 'ies'}</p>
+      ${O.oadd ? `<div class="of-form" id="oo-form">${sel('oo-ch', OCH, 'nextdoor')}${sel('oo-dir', { out: 'Out (we sent)', in: 'In (they sent)' }, 'out')}${sel('oo-st', OST, 'sent')}<input id="oo-by" placeholder="Sent by" value="${e((window.S && S.me && (S.me.full_name || S.me.name)) || '')}"><label class="muted">When (blank = now)<input id="oo-at" type="datetime-local" aria-label="When"></label></div>
+        <textarea id="oo-sum" rows="3" placeholder="What was said"></textarea><div class="q-actions"><button type="button" class="primary q-sm" onclick="ofOutAdd(${l.id})">Save outreach</button><button type="button" class="secondary q-sm" onclick="OF.oadd=0;ofRepaint()">Cancel</button></div>`
+        : `<div class="q-actions"><button type="button" class="primary q-sm" onclick="OF.oadd=1;ofRepaint()">+ Add outreach</button></div>`}
+      ${os.length ? os.map(o => `<div class="of-item of-tl"><div class="uf-top"><span>${outLine(o)}</span><span class="muted">${e(o.sent_by || '')}</span></div>${o.summary ? `<div class="of-body">${e(o.summary)}</div>` : ''}</div>`).join('') : '<p class="muted">No outreach logged yet.</p>'}</div>`; }
+  window.ofOutAdd = async id => { const v = x => (document.getElementById(x) || {}).value || '', at = v('oo-at');
+    const row = { lead_id: id, channel: v('oo-ch'), direction: v('oo-dir'), status: v('oo-st'), sent_by: v('oo-by').trim() || 'owner', summary: v('oo-sum').trim() || null, sent_at: at ? new Date(at).toISOString() : new Date().toISOString() };
+    const { error } = await gpSb.from('lead_outreach').insert(row); if (error) return toast('Not saved: ' + error.message); O.oadd = 0; toast('Outreach saved'); load('outreach', 1); };
   function leadsHTML() {
     const L = O.d.leads, M = O.d.matches || [];
+    const ol = O.ol != null && (L || []).find(l => l.id === O.ol); if (ol) return outreachHTML(ol);
     const rows = (L || []).map(l => { const ms = M.filter(m => m.lead_id === l.id), u = safeUrl(l.nextdoor_post_url);
       return `<div class="of-item"><div class="uf-top"><b>${e(l.name)}</b><span class="muted">${e(day(l.created_at))}</span></div>
         <div>${e(l.work)} <span class="badge">${e(l.status)}</span>${l.phone ? ` <span class="muted">${fmtPh(l.phone)}</span>` : ''}</div>
         ${l.message ? `<div class="muted uf-st">${e(l.message)}</div>` : ''}
         <div class="of-row">${u ? `<a class="link-btn" href="${e(u)}" target="_blank" rel="noopener">Nextdoor post \u203a</a>` : ''}<span class="muted">${e(l.source || '')}</span></div>
+        ${(o => `<button type="button" class="of-out" onclick="OF.ol=${l.id};OF.oadd=0;ofRepaint()">${o ? `<span class="muted">Last outreach:</span> ${outLine(o)}` : '<span class="muted">No outreach yet \u00b7 add</span>'} <span class="of-out-n">${outFor(l.id).length ? outFor(l.id).length + ' \u203a' : '\u203a'}</span></button>`)(outFor(l.id)[0])}
         ${ms.map(m => { const t = m.texts || {}; return `<div class="of-match ${m.status}"><div><b>${m.status === 'confirmed' ? 'Matched text' : 'Possible match'}</b>${m.auto ? ' <span class="muted">(auto: name + work)</span>' : ''} \u00b7 ${fmtPh(t.phone)} ${t.name ? '\u00b7 ' + e(t.name) : ''} ${t.work ? '\u00b7 ' + e(t.work) : ''}</div>
           <div class="muted uf-st">${e(t.body)}</div>${m.status === 'possible' ? `<div class="q-actions"><button type="button" class="primary q-sm" onclick="ofDecide(${m.id},'confirmed')">Confirm</button><button type="button" class="secondary q-sm" onclick="ofDecide(${m.id},'rejected')">Reject</button></div>` : ''}</div>`; }).join('')}</div>`; }).join('');
     return `<div class="card"><h2>Leads</h2><p class="muted">From Nextdoor and texts. A text is matched automatically only when the name and the work both match exactly; anything else waits for you to confirm or reject.</p>
