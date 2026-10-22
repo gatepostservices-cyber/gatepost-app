@@ -5,11 +5,12 @@
 #   tools/unfinished.sh update  AGENT_ID BOT_NAME EXT_KEY "One-line summary" "Last state"
 #   tools/unfinished.sh close   AGENT_ID EXT_KEY            # mark done
 #   tools/unfinished.sh aborted AGENT_ID                    # JSON list of items Christian aborted (not yet seen); marks them seen
+#   tools/unfinished.sh list    [AGENT_ID]                  # read-only: open items (ext_key, bot, summary, state, updated), oldest first
 # add/update are the same idempotent upsert on (AGENT_ID, EXT_KEY); an empty state keeps the old one. Done/aborted items are not reopened.
 # Same token as post-request.sh: ~/.config/gatepost/request-token (override with GATEPOST_REQUEST_TOKEN_FILE),
 # checked server-side by the SECURITY DEFINER RPCs (only its SHA-256 hash is in the DB). No service_role key. No push notifications.
 set -euo pipefail
-CMD="${1:?usage: unfinished.sh add|update|close|aborted ...}"; shift
+CMD="${1:?usage: unfinished.sh add|update|close|aborted|list ...}"; shift
 DIR="$(cd "$(dirname "$0")/.." && pwd)"
 TOKEN_FILE="${GATEPOST_REQUEST_TOKEN_FILE:-$HOME/.config/gatepost/request-token}"
 [ -r "$TOKEN_FILE" ] || { echo "token file not found: $TOKEN_FILE" >&2; exit 2; }
@@ -22,7 +23,8 @@ case "$CMD" in
     FN=unfinished_close; ARGS=$(python3 -c 'import json,sys;print(json.dumps({"p_agent_id":sys.argv[1],"p_ext_key":sys.argv[2]}))' "$1" "$2");;
   aborted) [ $# -ge 1 ] || { echo "usage: unfinished.sh aborted AGENT_ID" >&2; exit 2; }
     FN=unfinished_aborted; ARGS=$(python3 -c 'import json,sys;print(json.dumps({"p_agent_id":sys.argv[1]}))' "$1");;
-  *) echo "unknown command: $CMD (add|update|close|aborted)" >&2; exit 2;;
+  list) FN=unfinished_list; ARGS=$(python3 -c 'import json,sys;print(json.dumps({"p_agent_id":sys.argv[1] if len(sys.argv)>1 else None}))' "$@");;
+  *) echo "unknown command: $CMD (add|update|close|aborted|list)" >&2; exit 2;;
 esac
 BODY=$(ARGS="$ARGS" TF="$TOKEN_FILE" python3 -c 'import json,os;d=json.loads(os.environ["ARGS"]);d["p_token"]=open(os.environ["TF"]).read().strip();print(json.dumps(d))')
 RES=$(curl -sS -w '\n%{http_code}' "$URL/rest/v1/rpc/$FN" -H "apikey: $KEY" -H "Content-Type: application/json" -d "$BODY")
