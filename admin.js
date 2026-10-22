@@ -8,7 +8,7 @@
   const fmtPh = p => { const d = String(p || '').replace(/\D/g, '').slice(-10); return d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : e(p); };
   const safeUrl = u => /^https:\/\/([a-z0-9-]+\.)*nextdoor\.com\//i.test(u || '') ? u : '';
   const BOTS = { 'fe067e3a-c664-5d47-bbcb-e92f394a76a6': 'Alabaster', '20bbeb34-ce2b-546b-bcaf-471275c29022': 'Marv', '4606ba13-0fbd-4caf-9d5e-982b7ecd0a9d': 'Wendy',
-    'ee0d9746-08c7-469c-bb15-a6664fcbd659': 'Abe', '7ed5d130-2b5c-4285-9285-1e9b8b65814b': 'Alfred' };
+    'ee0d9746-08c7-469c-bb15-a6664fcbd659': 'Abe', '7ed5d130-2b5c-4285-9285-1e9b8b65814b': 'Alfred', 'fd99b358-d467-44ad-b0d6-aa9cadbf549e': 'Gatepost' };
   window.OF_BOTS = BOTS;
   const own = () => typeof isOwner === 'function' && isOwner();
   const Q = {

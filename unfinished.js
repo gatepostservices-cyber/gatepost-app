@@ -2,7 +2,7 @@
 // Bots write via tools/unfinished.sh (token RPCs unfinished_upsert / unfinished_close / unfinished_aborted). No push, no polling.
 (function () {
   const U = window.UF = { list: null, at: 0, busy: false, inbox: null, draft: '' };
-  const ALFRED = '7ed5d130-2b5c-4285-9285-1e9b8b65814b';
+  const ALFRED = 'fd99b358-d467-44ad-b0d6-aa9cadbf549e';
   const e = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const day = d => new Date(d).toLocaleString('en-US', { timeZone: 'America/Denver', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
   const prompt = it => 'Continue where you left off on: ' + it.summary + '. Last state: ' + (it.state || 'not recorded') + '.';
@@ -25,9 +25,9 @@
       <div class="card"><details class="uf-h"><summary>History (${hist.length} done / aborted)</summary>${hist.length ? hist.map(x => card(x, 1)).join('') : '<p class="muted">None yet.</p>'}</details></div></div>`;
   };
   function inboxHTML() { const I = U.inbox, un = (I || []).filter(x => !x.sent_at), sent = (I || []).filter(x => x.sent_at).slice(0, 30);
-    return `<div class="card" id="ib-card"><h2>Prompts for Alfred</h2><p class="muted">Jot prompts for Alfred, then send them all as one message.</p>
+    return `<div class="card" id="ib-card"><h2>Prompts for Gatepost</h2><p class="muted">Jot prompts for Gatepost, then send them all as one message.</p>
       <textarea id="ib-new" rows="3" placeholder="Type a prompt\u2026" oninput="UF.draft=this.value">${e(U.draft)}</textarea>
-      <div class="q-actions"><button type="button" class="secondary" onclick="ibAdd()">Add</button><button type="button" class="primary" onclick="ibSend()"${un.length ? '' : ' disabled'}>Send to Alfred${un.length ? ' (' + un.length + ')' : ''}</button></div>
+      <div class="q-actions"><button type="button" class="secondary" onclick="ibAdd()">Add</button><button type="button" class="primary" onclick="ibSend()"${un.length ? '' : ' disabled'}>Send to Gatepost${un.length ? ' (' + un.length + ')' : ''}</button></div>
       ${I === null ? '<p class="muted">Loading\u2026</p>' : un.length ? `<ol class="ib-list">${un.map(x => `<li><span class="ib-t">${e(x.text)}</span><button type="button" class="ib-x" aria-label="Delete prompt" onclick="ibDel(${x.id})">\u00d7</button></li>`).join('')}</ol>` : '<p class="muted">No unsent prompts.</p>'}
       <details class="uf-h ib-h"><summary>Sent (${sent.length})</summary>${sent.length ? `<ul class="ib-list ib-sent">${sent.map(x => `<li><span class="ib-t">${e(x.text)}</span><span class="muted uf-st">${e(day(x.sent_at))}</span></li>`).join('')}</ul>` : '<p class="muted">None yet.</p>'}</details></div>`; }
   async function loadInbox() { if (!window.gpSb) { U.inbox = []; return; } const { data, error } = await gpSb.from('prompt_inbox').select('*').order('created_at', { ascending: true }).limit(200);
