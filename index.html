@@ -400,6 +400,8 @@ body.br-on header #back-town { color:#fbf7ee; background:transparent; border-col
 body.br-on footer { color:rgba(251,247,238,.55) !important; }
 body.br-on .of-tabs button { background:rgba(6,24,15,.7) !important; color:#e9f3ec !important; border:1px solid rgba(120,215,160,.3) !important; }
 body.br-on .of-tabs button.on { background:#2f6e4b !important; color:#fff !important; border-color:#8fd3ad !important; box-shadow:0 0 12px rgba(120,215,160,.35); }
+html:has(body.br-on) { background:#030d08 !important; }
+body.br-on .card.br-card, body.in-screen.br-on .card.br-card, .card.br-card { background:transparent !important; -webkit-backdrop-filter:none !important; backdrop-filter:none !important; border:0 !important; box-shadow:none !important; color:#eef5f0 !important; }
 .br-card { background:transparent !important; border:0 !important; box-shadow:none !important; padding-left:0 !important; padding-right:0 !important; }
 .br-hud { text-align:center; margin:4px 0 14px; font-family:ui-monospace, Menlo, monospace; }
 .br-hud-t { display:block; font-size:1.15rem; letter-spacing:.34em; color:#fbf7ee; text-shadow:0 0 10px rgba(120,215,160,.8), 0 0 24px rgba(120,215,160,.35); padding-left:.34em; }
@@ -970,7 +972,7 @@ Promise.all([API.init(), domReady]).then(()=>{ if (location.hash.length>1) docum
 <script src="quotes-sign.js?v=3"></script>
 <script src="quotes.js?v=7"></script>
 <script src="unfinished.js?v=6"></script>
-<script src="admin.js?v=12"></script>
+<script src="admin.js?v=13"></script>
 <script src="town.js?v=52"></script>
 <script src="simplify.js?v=2"></script>
 <script src="chat.js?v=8"></script>
