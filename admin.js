@@ -127,11 +127,11 @@
   const brRows = F => { if (!F.length) return '<p class="muted">' + ((O.d.knowledge || []).length ? 'No matches.' : 'Nothing in the brain yet.') + '</p>';
     const G = {}; F.forEach(r => (G[r.category || 'other'] = G[r.category || 'other'] || []).push(r));
     const ks = Object.keys(G).sort((a, b) => ((BR_ORDER.indexOf(a) + 1) || 99) - ((BR_ORDER.indexOf(b) + 1) || 99) || a.localeCompare(b));
-    return ks.map(k => `<h3 class="pb-sec">${e(k.replace(/_/g, ' '))} <span class="muted">${G[k].length}</span></h3>` + G[k].map(r => `<div class="br-item"><b>${e(r.title || r.key)}</b>
-      <div class="of-body br-val">${e(r.value)}</div><div class="muted uf-st">updated ${e(brDay(r.updated_at))}${r.updated_by ? ' by ' + e(r.updated_by) : ''}</div></div>`).join('')).join(''); };
+    return ks.map(k => `<h3 class="br-sec"><span>${e(k.replace(/_/g, ' '))}</span><i>${G[k].length}</i></h3>` + G[k].map(r => `<div class="br-item"><b>${e(r.title || r.key)}</b>
+      <div class="of-body br-val">${e(r.value)}</div><div class="br-meta">updated ${e(brDay(r.updated_at))}${r.updated_by ? ' by ' + e(r.updated_by) : ''}</div></div>`).join('')).join(''); };
   function brHTML() {
     setTimeout(brAmbient, 0);
-    return `<div class="card br-card"><h2>Brain</h2><p class="muted">Read-only. The shared facts every bot checks before asking.</p>
+    return `<div class="card br-card"><div class="br-hud"><span class="br-hud-t">GATEPOST BRAIN</span><span class="br-hud-s">${(O.d.knowledge || []).length || '\u2014'} FACTS \u00b7 READ-ONLY \u00b7 SHARED BY EVERY BOT</span></div>
       <input id="br-q" type="search" placeholder="Search the brain\u2026" value="${e(O.q)}" oninput="OF.q=this.value;ofBrList()">
       <div id="br-list">${loading('knowledge') || brRows(brF())}</div></div>`; }
   window.ofBrList = () => { const el = document.getElementById('br-list'); if (el) el.innerHTML = brRows(brF()); };
@@ -177,21 +177,50 @@
       const r = (c ? 1.5 : 1.05) * sc * (v.light ? 2.2 : 1); x.fillStyle = (c ? C : G) + al + ')'; x.fillRect(p[0] - r / 2, p[1] - r / 2, r, r); }
     x.globalCompositeOperation = 'source-over'; return S; }
   const brFit = (cv, x) => { const dpr = Math.min(2, window.devicePixelRatio || 1), W = innerWidth, H = innerHeight; cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px'; x.setTransform(dpr, 0, 0, dpr, 0, 0); return [W, H]; };
-  // Ambient background while reading: light, ~30fps, paused when hidden, freed when the Brain list leaves the page.
+  // Ambient "inside the brain" scene behind the Brain list: a 3D neuron field around the camera, strands, synapse pulses.
+  // ~30fps, paused when hidden, freed when the Brain list leaves the page; reduced motion = one static frame.
   function brAmbient() {
     if (window.__brAmb) return; const rm = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const cv = document.createElement('canvas'); cv.id = 'br-amb'; cv.setAttribute('aria-hidden', 'true'); document.body.prepend(cv); document.body.classList.add('br-on');
-    const x = cv.getContext('2d'), B = brBuild(580); let [W, H] = brFit(cv, x), raf = 0, last = 0, t0 = performance.now();
-    const draw = now => { x.clearRect(0, 0, W, H); const sy = window.scrollY || 0, t = rm ? 0 : now - t0;
-      brDraw(x, B, { ang: Math.sin(t * .00012) * .45 + sy * .0004, tl: -1.15 + Math.sin(t * .0003) * .05, cam: 2.6, f: Math.min(H * .95, W * 1.9), cx: W / 2, cy: H * .52 - sy * .08, t, a: 1, dark: false, pulse: rm ? 0 : .35, light: 1 }); };
-    const loop = now => { if (!document.getElementById('br-list')) return stop(); raf = requestAnimationFrame(loop); if (now - last < 32 || document.getElementById('br-intro')) return; last = now; draw(now); };
+    const x = cv.getContext('2d'); let [W, H] = brFit(cv, x), raf = 0, last = 0; const t0 = performance.now(), D = 7;
+    let s = 5; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+    const P = []; for (let i = 0; i < 640; i++) P.push({ x: (rnd() - .5) * 3.4, y: (rnd() - .5) * 5.6, z: rnd() * D, s: .55 + rnd() * .9, c: rnd() < .09, ph: rnd() * 400 });
+    const LK = []; for (let i = 0; i < P.length; i++) { let b = -1, bd = .09; for (let j = i + 1; j < P.length; j++) { const q = (P[i].x - P[j].x) ** 2 + (P[i].y - P[j].y) ** 2 + (P[i].z - P[j].z) ** 2; if (q < bd) { bd = q; b = j; } } if (b >= 0) LK.push([i, b]); }
+    const ST = []; for (let i = 0; i < 60; i++) { const x0 = (rnd() - .5) * 3, y0 = (rnd() - .5) * 5, z0 = rnd() * D, len = 1.2 + rnd() * 2.4, ph = rnd() * 6.3, a = .15 + rnd() * .45, dx = (rnd() - .5) * 1.2, hz = rnd() < .5;
+      const pts = []; for (let k = 0; k <= 14; k++) { const u = k / 14; pts.push(hz ? [x0 + (u - .5) * len, y0 + Math.sin(u * 3 + ph) * a + dx * u * .3, Math.cos(u * 2.4 + ph) * .5]
+        : [x0 + Math.sin(u * 3 + ph) * a + dx * u, y0 + (u - .5) * len, Math.cos(u * 2.4 + ph) * .5]); }
+      ST.push({ pts, z0, ph: rnd(), sp: .5 + rnd(), c: rnd() < .25 }); }
+    const glowG = brSprite('rgba(120,215,160,'), glowC = brSprite('rgba(251,247,238,');
+    const G = 'rgba(120,215,160,', C = 'rgba(251,247,238,';
+    function draw(now) {
+      const t = rm ? 0 : now - t0, sy = window.scrollY || 0, cam = t * .00022 + sy * .0035, swx = Math.sin(t * .00017) * .25, swy = Math.cos(t * .00013) * .2 + sy * .0006;
+      const f = Math.min(W, H) * .95, cx = W / 2, cy = H * .45, wz = z => ((z - cam) % D + D) % D + .15, fog = z => Math.max(0, 1 - z / D) ** 1.4;
+      x.globalCompositeOperation = 'source-over'; x.fillStyle = '#030d08'; x.fillRect(0, 0, W, H);
+      const bg = x.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W, H) * .7); bg.addColorStop(0, 'rgba(34,78,54,.55)'); bg.addColorStop(.5, 'rgba(18,44,30,.35)'); bg.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = bg; x.fillRect(0, 0, W, H);
+      x.globalCompositeOperation = 'lighter'; x.lineCap = 'round';
+      for (const st of ST) { const zb = wz(st.z0); let prev = null, zs = 0;
+        x.beginPath(); for (const [px, py, pz] of st.pts) { const z = zb + pz; if (z < .2) { prev = null; continue; } const X = cx + (px - swx) * f / z, Y = cy + (py - swy) * f / z; prev ? x.lineTo(X, Y) : x.moveTo(X, Y); prev = 1; zs += z; }
+        const zm = zs / st.pts.length || D, al = fog(zm); if (al < .02) continue;
+        x.strokeStyle = (st.c ? C : G) + (al * .45) + ')'; x.lineWidth = Math.min(3.5, 2.6 / zm); x.stroke();
+        for (let m = 0; m < 2; m++) { const q = ((t / 2600) * st.sp + st.ph + m * .5) % 1, kf = q * 14, k0 = Math.floor(kf), a = st.pts[k0], b = st.pts[Math.min(14, k0 + 1)], fr = kf - k0;
+          const z = zb + a[2] + (b[2] - a[2]) * fr; if (z < .25) continue; const X = cx + (a[0] + (b[0] - a[0]) * fr - swx) * f / z, Y = cy + (a[1] + (b[1] - a[1]) * fr - swy) * f / z, g = Math.min(44, 18 / z);
+          x.globalAlpha = fog(z) * .9; x.drawImage(st.c ? glowG : glowC, X - g / 2, Y - g / 2, g, g); x.globalAlpha = 1; } }
+      const SP = P.map(p => { const z = wz(p.z); return z < .2 ? null : [cx + (p.x - swx) * f / z, cy + (p.y - swy) * f / z, z]; });
+      x.lineWidth = .8; for (const [a, b] of LK) { const A = SP[a], B = SP[b]; if (!A || !B || Math.abs(A[2] - B[2]) > 1) continue; const al = fog((A[2] + B[2]) / 2) * .5; if (al < .03) continue;
+        x.strokeStyle = G + al + ')'; x.beginPath(); x.moveTo(A[0], A[1]); x.lineTo(B[0], B[1]); x.stroke(); }
+      for (const p of P) { const z = wz(p.z); if (z < .2) continue; const X = cx + (p.x - swx) * f / z, Y = cy + (p.y - swy) * f / z; if (X < -40 || X > W + 40 || Y < -40 || Y > H + 40) continue;
+        const fl = rm ? 0 : Math.max(0, Math.sin(t * .0021 + p.ph)) ** 60, al = Math.min(1, fog(z) * (1.1 + fl * 2)), r = Math.min(7, 2.6 * p.s / z + .5) * (1 + fl);
+        if (r > .9) { const g = r * 6; x.globalAlpha = al * .5; x.drawImage(p.c || fl > .3 ? glowC : glowG, X - g / 2, Y - g / 2, g, g); x.globalAlpha = 1; }
+        x.fillStyle = (p.c ? C : G) + al + ')'; x.beginPath(); x.arc(X, Y, Math.max(.45, r * .5), 0, 6.283); x.fill(); }
+      x.globalCompositeOperation = 'source-over'; }
+    const loop = now => { if (!document.getElementById('br-list')) return stop(); raf = requestAnimationFrame(loop); if (now - last < 32 || document.querySelector('#br-intro:not(.out)')) return; last = now; draw(now); };
     const vis = () => { cancelAnimationFrame(raf); if (!document.hidden && !rm) raf = requestAnimationFrame(loop); };
-    const rs = () => { [W, H] = brFit(cv, x); if (rm) draw(0); }, sc = () => { if (rm) draw(0); };
+    const rs = () => { [W, H] = brFit(cv, x); if (rm) draw(0); };
     const chk = setInterval(() => { if (!document.getElementById('br-list')) stop(); }, 1000);
-    function stop() { cancelAnimationFrame(raf); clearInterval(chk); document.removeEventListener('visibilitychange', vis); removeEventListener('resize', rs); removeEventListener('scroll', sc);
+    function stop() { cancelAnimationFrame(raf); clearInterval(chk); document.removeEventListener('visibilitychange', vis); removeEventListener('resize', rs);
       cv.remove(); document.body.classList.remove('br-on'); window.__brAmb = null; }
-    document.addEventListener('visibilitychange', vis); addEventListener('resize', rs); addEventListener('scroll', sc, { passive: true });
-    window.__brAmb = { stop }; if (rm) draw(0); else raf = requestAnimationFrame(loop); }
+    document.addEventListener('visibilitychange', vis); addEventListener('resize', rs);
+    window.__brAmb = { stop }; draw(performance.now()); if (!rm) raf = requestAnimationFrame(loop); }
   window.ofBrAmbient = brAmbient;
   // Intro: JARVIS-style holographic brain. Once per session, tap to skip, none with reduced motion. Settles inside the brain, then reveals the ambient brain behind the list.
   function brIntro(force) {
