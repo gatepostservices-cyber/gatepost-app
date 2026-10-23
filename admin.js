@@ -161,100 +161,78 @@
     return { P, L }; }
   const brSprite = (col) => { const c = document.createElement('canvas'); c.width = c.height = 32; const g = c.getContext('2d'), r = g.createRadialGradient(16, 16, 0, 16, 16, 16);
     r.addColorStop(0, col + '.9)'); r.addColorStop(.25, col + '.35)'); r.addColorStop(1, col + '0)'); g.fillStyle = r; g.fillRect(0, 0, 32, 32); return c; };
-  // v: {ang, tl, cam, f, cx, cy, t(ms), a(alpha), dark, pulse}
-  function brDraw(x, B, v) {
-    const ca = Math.cos(v.ang), sa = Math.sin(v.ang), ct = Math.cos(v.tl), st = Math.sin(v.tl), S = new Array(B.P.length);
-    for (let i = 0; i < B.P.length; i++) { const p = B.P[i], X = p.x * ca + p.z * sa, Z0 = -p.x * sa + p.z * ca, Y = p.y * ct - Z0 * st, Z = p.y * st + Z0 * ct, dz = v.cam + Z;
-      S[i] = dz > .08 ? [v.cx + X * v.f / dz, v.cy - Y * v.f / dz, dz] : null; }
-    const G = v.dark ? 'rgba(110,205,150,' : 'rgba(31,58,43,', C = v.dark ? 'rgba(251,247,238,' : 'rgba(61,107,79,', dep = d => Math.max(v.light ? .6 : .12, Math.min(1, 1.5 - d / (v.cam + 1.2)));
-    x.globalCompositeOperation = v.dark ? 'lighter' : 'source-over'; x.lineWidth = v.dark ? .55 : 1.1;
-    for (const [a, b, ph] of B.L) { const A = S[a], Bq = S[b]; if (!A || !Bq) continue; const al = dep((A[2] + Bq[2]) / 2) * v.a;
-      x.strokeStyle = G + al * (v.dark ? .38 : .85) + ')'; x.beginPath(); x.moveTo(A[0], A[1]); x.lineTo(Bq[0], Bq[1]); x.stroke();
-      if (ph < v.pulse) { const q = (v.t / 900 + ph * 7) % 1; const ps = v.light ? 3.2 : 2; x.fillStyle = (v.light ? 'rgba(46,140,90,' : C) + Math.min(1, al * 1.8) + ')'; x.fillRect(A[0] + (Bq[0] - A[0]) * q - ps / 2, A[1] + (Bq[1] - A[1]) * q - ps / 2, ps, ps); } }
-    const spr = v.dark && (brDraw.s || (brDraw.s = brSprite('rgba(110,205,150,')));
-    for (let i = 0; i < S.length; i++) { const p = S[i]; if (!p) continue; const al = dep(p[2]) * v.a, sc = Math.min(4, 1.6 / p[2]), c = B.P[i].c;
-      if (spr && al > .25) { x.globalAlpha = al * .55; const g = 7 * sc; x.drawImage(spr, p[0] - g / 2, p[1] - g / 2, g, g); x.globalAlpha = 1; }
-      const r = (c ? 1.5 : 1.05) * sc * (v.light ? 2.2 : 1); x.fillStyle = (c ? C : G) + al + ')'; x.fillRect(p[0] - r / 2, p[1] - r / 2, r, r); }
-    x.globalCompositeOperation = 'source-over'; return S; }
   const brFit = (cv, x) => { const dpr = Math.min(2, window.devicePixelRatio || 1), W = innerWidth, H = innerHeight; cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px'; x.setTransform(dpr, 0, 0, dpr, 0, 0); return [W, H]; };
-  // Ambient "inside the brain" scene behind the Brain list: a 3D neuron field around the camera, strands, synapse pulses.
-  // ~30fps, paused when hidden, freed when the Brain list leaves the page; reduced motion = one static frame.
-  function brAmbient() {
-    if (window.__brAmb) return; const rm = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const cv = document.createElement('canvas'); cv.id = 'br-amb'; cv.setAttribute('aria-hidden', 'true'); document.body.prepend(cv); document.body.classList.add('br-on');
-    const x = cv.getContext('2d'); let [W, H] = brFit(cv, x), raf = 0, last = 0; const t0 = performance.now(), D = 7;
+  // One continuous scene on one canvas: the intro brain IS the neuron field. The camera dives into the brain and settles into the ambient drift
+  // (no cut); extra neurons and strands fade in from depth during the dive; the list fades in over the running scene.
+  // Intro once per session, tap to skip; ~30fps after the dive; paused when hidden; freed when the Brain list leaves; reduced motion = one static frame.
+  function brAmbient(forceIntro) {
+    if (window.__brAmb) return; const rm = matchMedia('(prefers-reduced-motion: reduce)').matches; let intro = !rm;
+    try { if (!forceIntro && sessionStorage.getItem('gp-br-intro')) intro = false; if (intro) sessionStorage.setItem('gp-br-intro', '1'); } catch (_) {}
+    const body = document.body, cv = document.createElement('canvas'); cv.id = 'br-amb'; cv.setAttribute('aria-hidden', 'true'); body.prepend(cv); body.classList.add('br-on');
+    const x = cv.getContext('2d'); let [W, H] = brFit(cv, x), raf = 0, last = 0, tOff = 0, live = intro;
+    const D = 7, T1 = 1500, T = 3200, BZ = 3.3, BS = 1.25, A = 3.15, V = .00022, t0 = performance.now();
+    let sk = null; if (intro) { body.classList.add('br-intro-on'); sk = document.createElement('div'); sk.id = 'br-intro'; sk.setAttribute('aria-hidden', 'true'); body.appendChild(sk);
+      sk.onclick = () => { tOff = Math.max(tOff, T - (performance.now() - t0)); }; }
+    const B = brBuild(500), n = () => (O.d.knowledge || []).length;
     let s = 5; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
-    const P = []; for (let i = 0; i < 640; i++) P.push({ x: (rnd() - .5) * 3.4, y: (rnd() - .5) * 5.6, z: rnd() * D, s: .55 + rnd() * .9, c: rnd() < .09, ph: rnd() * 400 });
-    const LK = []; for (let i = 0; i < P.length; i++) { let b = -1, bd = .09; for (let j = i + 1; j < P.length; j++) { const q = (P[i].x - P[j].x) ** 2 + (P[i].y - P[j].y) ** 2 + (P[i].z - P[j].z) ** 2; if (q < bd) { bd = q; b = j; } } if (b >= 0) LK.push([i, b]); }
-    const ST = []; for (let i = 0; i < 60; i++) { const x0 = (rnd() - .5) * 3, y0 = (rnd() - .5) * 5, z0 = rnd() * D, len = 1.2 + rnd() * 2.4, ph = rnd() * 6.3, a = .15 + rnd() * .45, dx = (rnd() - .5) * 1.2, hz = rnd() < .5;
-      const pts = []; for (let k = 0; k <= 14; k++) { const u = k / 14; pts.push(hz ? [x0 + (u - .5) * len, y0 + Math.sin(u * 3 + ph) * a + dx * u * .3, Math.cos(u * 2.4 + ph) * .5]
-        : [x0 + Math.sin(u * 3 + ph) * a + dx * u, y0 + (u - .5) * len, Math.cos(u * 2.4 + ph) * .5]); }
+    const E = []; for (let i = 0; i < 180; i++) E.push({ x: (rnd() - .5) * 3.4, y: (rnd() - .5) * 5.6, z: .4 + rnd() * D, s: .55 + rnd() * .9, c: rnd() < .09, ph: rnd() * 400 });
+    const LK = []; for (let i = 0; i < E.length; i++) { let b = -1, bd = .25; for (let j = i + 1; j < E.length; j++) { const q = (E[i].x - E[j].x) ** 2 + (E[i].y - E[j].y) ** 2 + (E[i].z - E[j].z) ** 2; if (q < bd) { bd = q; b = j; } } if (b >= 0) LK.push([i, b]); }
+    const ST = []; for (let i = 0; i < 60; i++) { const x0 = (rnd() - .5) * 3, y0 = (rnd() - .5) * 5, z0 = .5 + rnd() * D, len = 1.2 + rnd() * 2.4, ph = rnd() * 6.3, a = .15 + rnd() * .45, dx = (rnd() - .5) * 1.2, hz = rnd() < .5;
+      const pts = []; for (let k = 0; k <= 14; k++) { const u = k / 14; pts.push(hz ? [x0 + (u - .5) * len, y0 + Math.sin(u * 3 + ph) * a + dx * u * .3, Math.cos(u * 2.4 + ph) * .5] : [x0 + Math.sin(u * 3 + ph) * a + dx * u, y0 + (u - .5) * len, Math.cos(u * 2.4 + ph) * .5]); }
       ST.push({ pts, z0, ph: rnd(), sp: .5 + rnd(), c: rnd() < .25 }); }
-    const glowG = brSprite('rgba(120,215,160,'), glowC = brSprite('rgba(251,247,238,');
-    const G = 'rgba(120,215,160,', C = 'rgba(251,247,238,';
+    const BP = B.P.map(p => ({ ...p, s: .7 + rnd() * .6, ph: rnd() * 400 })), BW = BP.map(() => [0, 0, 0]);
+    const glowG = brSprite('rgba(120,215,160,'), glowC = brSprite('rgba(251,247,238,'), G = 'rgba(120,215,160,', C = 'rgba(251,247,238,';
+    const sm = q => q * q * (3 - 2 * q), cl = q => Math.max(0, Math.min(1, q));
+    const wrap = r => r < .15 ? ((r - .15) % D + D) % D + .15 : r;
     function draw(now) {
-      const t = rm ? 0 : now - t0, sy = window.scrollY || 0, cam = t * .00022 + sy * .0035, swx = Math.sin(t * .00017) * .25, swy = Math.cos(t * .00013) * .2 + sy * .0006;
-      const f = Math.min(W, H) * .95, cx = W / 2, cy = H * .45, wz = z => ((z - cam) % D + D) % D + .15, fog = z => Math.max(0, 1 - z / D) ** 1.4;
+      const t = rm ? T : intro ? now - t0 + tOff : T + now - t0, sy = window.scrollY || 0, u = cl((t - T1) / (T - T1)), e = sm(u), F = intro ? e : 1;
+      const camZ = A * e + V * Math.max(0, t - T1) + sy * .0035, camY = -.22 * e;
+      const swx = Math.sin(t * .00017) * .25 * F, swy = (Math.cos(t * .00013) * .2 + sy * .0006) * F + camY;
+      const q = 1 - (1 - cl(t / T)) ** 2, ang = .8 + .95 * q, tl = -.45 + .15 * q, ca = Math.cos(ang), sa = Math.sin(ang), ct = Math.cos(tl), st = Math.sin(tl);
+      const fk = 1.4 - (intro ? .9 * (1 - e) : 0), fog = z => Math.max(0, 1 - z / D) ** fk, form = intro ? cl(t / 500) : 1;
+      const f = Math.min(W, H) * .95, cx = W / 2, cy = H * .45, pj = (wx, wy, rz) => [cx + (wx - swx) * f / rz, cy + (wy - swy) * f / rz, rz];
       x.globalCompositeOperation = 'source-over'; x.fillStyle = '#030d08'; x.fillRect(0, 0, W, H);
       const bg = x.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W, H) * .7); bg.addColorStop(0, 'rgba(34,78,54,.55)'); bg.addColorStop(.5, 'rgba(18,44,30,.35)'); bg.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = bg; x.fillRect(0, 0, W, H);
       x.globalCompositeOperation = 'lighter'; x.lineCap = 'round';
-      for (const st of ST) { const zb = wz(st.z0); let prev = null, zs = 0;
-        x.beginPath(); for (const [px, py, pz] of st.pts) { const z = zb + pz; if (z < .2) { prev = null; continue; } const X = cx + (px - swx) * f / z, Y = cy + (py - swy) * f / z; prev ? x.lineTo(X, Y) : x.moveTo(X, Y); prev = 1; zs += z; }
-        const zm = zs / st.pts.length || D, al = fog(zm); if (al < .02) continue;
-        x.strokeStyle = (st.c ? C : G) + (al * .45) + ')'; x.lineWidth = Math.min(3.5, 2.6 / zm); x.stroke();
-        for (let m = 0; m < 2; m++) { const q = ((t / 2600) * st.sp + st.ph + m * .5) % 1, kf = q * 14, k0 = Math.floor(kf), a = st.pts[k0], b = st.pts[Math.min(14, k0 + 1)], fr = kf - k0;
-          const z = zb + a[2] + (b[2] - a[2]) * fr; if (z < .25) continue; const X = cx + (a[0] + (b[0] - a[0]) * fr - swx) * f / z, Y = cy + (a[1] + (b[1] - a[1]) * fr - swy) * f / z, g = Math.min(44, 18 / z);
-          x.globalAlpha = fog(z) * .9; x.drawImage(st.c ? glowG : glowC, X - g / 2, Y - g / 2, g, g); x.globalAlpha = 1; } }
-      const SP = P.map(p => { const z = wz(p.z); return z < .2 ? null : [cx + (p.x - swx) * f / z, cy + (p.y - swy) * f / z, z]; });
-      x.lineWidth = .8; for (const [a, b] of LK) { const A = SP[a], B = SP[b]; if (!A || !B || Math.abs(A[2] - B[2]) > 1) continue; const al = fog((A[2] + B[2]) / 2) * .5; if (al < .03) continue;
-        x.strokeStyle = G + al + ')'; x.beginPath(); x.moveTo(A[0], A[1]); x.lineTo(B[0], B[1]); x.stroke(); }
-      for (const p of P) { const z = wz(p.z); if (z < .2) continue; const X = cx + (p.x - swx) * f / z, Y = cy + (p.y - swy) * f / z; if (X < -40 || X > W + 40 || Y < -40 || Y > H + 40) continue;
-        const fl = rm ? 0 : Math.max(0, Math.sin(t * .0021 + p.ph)) ** 60, al = Math.min(1, fog(z) * (1.1 + fl * 2)), r = Math.min(7, 2.6 * p.s / z + .5) * (1 + fl);
+      // brain points as world neurons
+      const SB = BP.map((p, i) => { const X = p.x * ca + p.z * sa, Z0 = -p.x * sa + p.z * ca, Y = p.y * ct - Z0 * st, Z = p.y * st + Z0 * ct, raw = BZ + Z * BS - camZ, rz = wrap(raw);
+        const a = form * (p.part && raw >= .15 ? 1 - cl(u * 2.5) : 1); return a > .01 ? [...pj(X * BS, -Y * BS, rz), a] : null; });
+      const SE = E.map(p => [...pj(p.x, p.y, wrap(p.z - camZ)), F]);
+      const link = (A_, B_, w, ph) => { if (!A_ || !B_ || Math.abs(A_[2] - B_[2]) > 1) return; const al = fog((A_[2] + B_[2]) / 2) * Math.min(A_[3], B_[3]); if (al < .03) return;
+        x.strokeStyle = G + al * w + ')'; x.beginPath(); x.moveTo(A_[0], A_[1]); x.lineTo(B_[0], B_[1]); x.stroke();
+        if (ph != null && ph < .3) { const qq = (t / 900 + ph * 7) % 1, ps = 2.4; x.fillStyle = C + Math.min(1, al * 1.8) + ')'; x.fillRect(A_[0] + (B_[0] - A_[0]) * qq - ps / 2, A_[1] + (B_[1] - A_[1]) * qq - ps / 2, ps, ps); } };
+      x.lineWidth = .8; for (const [a, b, ph] of B.L) link(SB[a], SB[b], .55, ph); for (const [a, b] of LK) link(SE[a], SE[b], .5);
+      if (F > .01) for (const sd of ST) { const zb = wrap(sd.z0 - camZ); let pv = 0, zs = 0; x.beginPath();
+        for (const [px, py, pz] of sd.pts) { const z = zb + pz; if (z < .2) { pv = 0; continue; } const P_ = pj(px, py, z); pv ? x.lineTo(P_[0], P_[1]) : x.moveTo(P_[0], P_[1]); pv = 1; zs += z; }
+        const zm = zs / sd.pts.length || D, al = fog(zm) * F; if (al < .02) continue; x.strokeStyle = (sd.c ? C : G) + (al * .45) + ')'; x.lineWidth = Math.min(3.5, 2.6 / zm); x.stroke();
+        for (let m = 0; m < 2; m++) { const qq = ((t / 2600) * sd.sp + sd.ph + m * .5) % 1, kf = qq * 14, k0 = Math.floor(kf), a = sd.pts[k0], b = sd.pts[Math.min(14, k0 + 1)], fr = kf - k0, z = zb + a[2] + (b[2] - a[2]) * fr; if (z < .25) continue;
+          const P_ = pj(a[0] + (b[0] - a[0]) * fr, a[1] + (b[1] - a[1]) * fr, z), g = Math.min(44, 18 / z); x.globalAlpha = fog(z) * .9 * F; x.drawImage(sd.c ? glowG : glowC, P_[0] - g / 2, P_[1] - g / 2, g, g); x.globalAlpha = 1; } }
+      const dot = (P_, p) => { if (!P_) return; const [X, Y, z, a] = P_; if (X < -40 || X > W + 40 || Y < -40 || Y > H + 40) return;
+        const fl = rm ? 0 : Math.max(0, Math.sin(t * .0021 + p.ph)) ** 60, al = Math.min(1, fog(z) * (1.1 + fl * 2) * a), r = Math.min(7, 2.6 * p.s / z + .5) * (1 + fl); if (al < .02) return;
         if (r > .9) { const g = r * 6; x.globalAlpha = al * .5; x.drawImage(p.c || fl > .3 ? glowC : glowG, X - g / 2, Y - g / 2, g, g); x.globalAlpha = 1; }
-        x.fillStyle = (p.c ? C : G) + al + ')'; x.beginPath(); x.arc(X, Y, Math.max(.45, r * .5), 0, 6.283); x.fill(); }
-      x.globalCompositeOperation = 'source-over'; }
-    const loop = now => { if (!document.getElementById('br-list')) return stop(); raf = requestAnimationFrame(loop); if (now - last < 32 || document.querySelector('#br-intro:not(.out)')) return; last = now; draw(now); };
+        x.fillStyle = (p.c ? C : G) + al + ')'; x.beginPath(); x.arc(X, Y, Math.max(.45, r * .5), 0, 6.283); x.fill(); };
+      for (let i = 0; i < BP.length; i++) dot(SB[i], BP[i]); for (let i = 0; i < E.length; i++) dot(SE[i], E[i]);
+      x.globalCompositeOperation = 'source-over';
+      const hud = intro ? (1 - cl(u * 2.2)) * cl(t / 300) : 0;
+      if (hud > 0) { const R = Math.min(W, H) * .44, k = t / T; x.globalAlpha = hud; x.lineWidth = 1.1;
+        [[R, k * 4, 1.3, G + '.7)'], [R * 1.1, -k * 3, .5, C + '.5)'], [R * 1.18, k * 2, 2.2, G + '.3)']].forEach(([rr, o, len, col], j) => { x.strokeStyle = col; for (let m = 0; m < 3; m++) { x.beginPath(); x.arc(cx, cy, rr, o + m * 2.09, o + m * 2.09 + len * (j ? .5 : .8)); x.stroke(); } });
+        x.strokeStyle = G + '.45)'; for (let m = 0; m < 60; m++) { const a = m / 60 * 6.283 + k, r1 = R * .94, r2 = m % 5 ? R * .965 : R * .99; x.beginPath(); x.moveTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1); x.lineTo(cx + Math.cos(a) * r2, cy + Math.sin(a) * r2); x.stroke(); }
+        const ly = cy - R + (k * 2.2 % 1) * R * 2; x.strokeStyle = C + '.2)'; x.beginPath(); x.moveTo(cx - R, ly); x.lineTo(cx + R, ly); x.stroke();
+        x.font = '600 12px ui-monospace, Menlo, monospace'; x.textAlign = 'center'; x.fillStyle = C + '.9)'; x.fillText('GATEPOST BRAIN', cx, cy - R * 1.3);
+        x.font = '10px ui-monospace, Menlo, monospace'; x.fillStyle = G + '.9)'; const N = n(), sc = Math.min(N, Math.round(N * k * 2.2));
+        x.fillText(`NEURAL INDEX \u00b7 ${N ? sc + ' / ' + N + ' FACTS' : 'SYNCING'}`, cx, cy + R * 1.32); x.fillText(`SCAN ${String(Math.min(100, Math.round(k * 180))).padStart(3, '0')}%`, cx, cy + R * 1.32 + 15);
+        x.textAlign = 'left'; x.fillText('LINKS ' + (B.L.length + LK.length), 14, H * .12); x.textAlign = 'right'; x.fillText('NODES ' + (BP.length + E.length), W - 14, H * .12);
+        x.textAlign = 'center'; x.font = '12px system-ui, sans-serif'; x.fillStyle = C + '.5)'; x.fillText('Tap to skip', cx, H - 28); x.globalAlpha = 1; }
+      if (live && t > T - 250) { live = false; body.classList.remove('br-intro-on'); if (sk) { sk.remove(); sk = null; } } }
+    const loop = now => { if (!document.getElementById('br-list')) return stop(); raf = requestAnimationFrame(loop); if (!live && now - last < 32) return; last = now; draw(now); };
     const vis = () => { cancelAnimationFrame(raf); if (!document.hidden && !rm) raf = requestAnimationFrame(loop); };
     const rs = () => { [W, H] = brFit(cv, x); if (rm) draw(0); };
     const chk = setInterval(() => { if (!document.getElementById('br-list')) stop(); }, 1000);
     function stop() { cancelAnimationFrame(raf); clearInterval(chk); document.removeEventListener('visibilitychange', vis); removeEventListener('resize', rs);
-      cv.remove(); document.body.classList.remove('br-on'); window.__brAmb = null; }
+      cv.remove(); if (sk) sk.remove(); body.classList.remove('br-on', 'br-intro-on'); window.__brAmb = null; }
     document.addEventListener('visibilitychange', vis); addEventListener('resize', rs);
     window.__brAmb = { stop }; draw(performance.now()); if (!rm) raf = requestAnimationFrame(loop); }
   window.ofBrAmbient = brAmbient;
-  // Intro: JARVIS-style holographic brain. Once per session, tap to skip, none with reduced motion. Settles inside the brain, then reveals the ambient brain behind the list.
-  function brIntro(force) {
-    try { if (!force && (sessionStorage.getItem('gp-br-intro') || matchMedia('(prefers-reduced-motion: reduce)').matches)) return; sessionStorage.setItem('gp-br-intro', '1'); } catch (_) {}
-    if (document.getElementById('br-intro')) return;
-    const d = document.createElement('div'); d.id = 'br-intro'; d.setAttribute('aria-hidden', 'true');
-    const cv = document.createElement('canvas'); d.appendChild(cv); document.body.appendChild(d); document.body.classList.add('br-intro-on');
-    const x = cv.getContext('2d'), B = brBuild(880); let [W, H] = brFit(cv, x);
-    let s = 3; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647, F = []; for (let i = 0; i < 140; i++) F.push({ x: (rnd() - .5) * 6, y: (rnd() - .5) * 6, z: rnd() * 8 });
-    const n = (O.d.knowledge || []).length, T = 3200, t0 = performance.now(); let raf, done = 0;
-    const rs = () => { [W, H] = brFit(cv, x); };
-    const end = () => { if (done) return; done = 1; cancelAnimationFrame(raf); removeEventListener('resize', rs); d.classList.add('out'); setTimeout(() => { d.remove(); document.body.classList.remove('br-intro-on'); }, 600); };
-    d.onclick = end; addEventListener('resize', rs);
-    const G = 'rgba(110,205,150,', C = 'rgba(251,247,238,';
-    function frame(now) {
-      const t = now - t0, k = Math.min(1, t / T), push = k < .55 ? 0 : Math.min(1, (k - .55) / .38), e = push * push * (3 - 2 * push);
-      const cx = W / 2, cy = H * .47, f = Math.min(W, H) * 1.2, cam = 3.1 - e * 2.35, form = Math.min(1, k / .18);
-      x.fillStyle = '#05100b'; x.fillRect(0, 0, W, H);
-      const bg = x.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W, H) * .6); bg.addColorStop(0, 'rgba(31,58,43,.6)'); bg.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = bg; x.fillRect(0, 0, W, H);
-      brDraw(x, B, { ang: .85 + k * .9, tl: -.5, cam: cam + (1 - form) * 2, f, cx, cy, t, a: form, dark: true, pulse: .3 });
-      if (push > 0) { x.globalCompositeOperation = 'lighter'; for (const q of F) { const z = ((q.z - e * 9) % 8 + 8) % 8 + .1, z2 = z + .3;
-        x.strokeStyle = G + Math.min(.7, push * 1.4) + ')'; x.lineWidth = 1.2 / z; x.beginPath(); x.moveTo(cx + q.x * f / z / 3, cy + q.y * f / z / 3); x.lineTo(cx + q.x * f / z2 / 3, cy + q.y * f / z2 / 3); x.stroke(); } x.globalCompositeOperation = 'source-over'; }
-      const hud = Math.max(0, 1 - push * 2.2), R = Math.min(W, H) * .44;
-      if (hud > 0) { x.globalAlpha = hud * Math.min(1, k * 4); x.lineWidth = 1.1;
-        [[R, k * 4, 1.3, G + '.7)'], [R * 1.1, -k * 3, .5, C + '.5)'], [R * 1.18, k * 2, 2.2, G + '.3)']].forEach(([rr, o, len, col], j) => { x.strokeStyle = col;
-          for (let m = 0; m < 3; m++) { x.beginPath(); x.arc(cx, cy, rr, o + m * 2.09, o + m * 2.09 + len * (j ? .5 : .8)); x.stroke(); } });
-        x.strokeStyle = G + '.45)'; for (let m = 0; m < 60; m++) { const a = m / 60 * 6.283 + k, r1 = R * .94, r2 = m % 5 ? R * .965 : R * .99; x.beginPath(); x.moveTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1); x.lineTo(cx + Math.cos(a) * r2, cy + Math.sin(a) * r2); x.stroke(); }
-        const sy = cy - R + (k * 2.2 % 1) * R * 2; x.strokeStyle = C + '.2)'; x.beginPath(); x.moveTo(cx - R, sy); x.lineTo(cx + R, sy); x.stroke();
-        x.font = '600 12px ui-monospace, Menlo, monospace'; x.textAlign = 'center'; x.fillStyle = C + '.9)'; x.fillText('GATEPOST BRAIN', cx, cy - R * 1.3);
-        x.font = '10px ui-monospace, Menlo, monospace'; x.fillStyle = G + '.9)'; const sc = Math.min(n, Math.round(n * k * 2.2));
-        x.fillText(`NEURAL INDEX \u00b7 ${n ? sc + ' / ' + n + ' FACTS' : 'SYNCING'}`, cx, cy + R * 1.32); x.fillText(`SCAN ${String(Math.min(100, Math.round(k * 180))).padStart(3, '0')}%`, cx, cy + R * 1.32 + 15);
-        x.textAlign = 'left'; x.fillText('LINKS ' + B.L.length, 14, 24); x.textAlign = 'right'; x.fillText('NODES ' + B.P.length, W - 14, 24); x.globalAlpha = 1; }
-      x.textAlign = 'center'; x.font = '12px system-ui, sans-serif'; x.fillStyle = C + '.45)'; x.fillText('Tap to skip', cx, H - 28);
-      if (k < 1) raf = requestAnimationFrame(frame); else end(); }
-    raf = requestAnimationFrame(frame); }
+  function brIntro(force) { if (force) { if (window.__brAmb) window.__brAmb.stop(); try { sessionStorage.removeItem('gp-br-intro'); } catch (_) {} } brAmbient(!!force); }
   window.ofBrIntro = brIntro;
 })();
