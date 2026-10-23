@@ -127,59 +127,104 @@
   const brRows = F => { if (!F.length) return '<p class="muted">' + ((O.d.knowledge || []).length ? 'No matches.' : 'Nothing in the brain yet.') + '</p>';
     const G = {}; F.forEach(r => (G[r.category || 'other'] = G[r.category || 'other'] || []).push(r));
     const ks = Object.keys(G).sort((a, b) => ((BR_ORDER.indexOf(a) + 1) || 99) - ((BR_ORDER.indexOf(b) + 1) || 99) || a.localeCompare(b));
-    return ks.map(k => `<h3 class="pb-sec">${e(k.replace(/_/g, ' '))} <span class="muted">${G[k].length}</span></h3>` + G[k].map(r => `<div class="of-item br-item"><b>${e(r.title || r.key)}</b>
+    return ks.map(k => `<h3 class="pb-sec">${e(k.replace(/_/g, ' '))} <span class="muted">${G[k].length}</span></h3>` + G[k].map(r => `<div class="br-item"><b>${e(r.title || r.key)}</b>
       <div class="of-body br-val">${e(r.value)}</div><div class="muted uf-st">updated ${e(brDay(r.updated_at))}${r.updated_by ? ' by ' + e(r.updated_by) : ''}</div></div>`).join('')).join(''); };
   function brHTML() {
-    return `<div class="card"><h2>Brain</h2><p class="muted">Read-only. The shared facts every bot checks before asking.</p>
+    setTimeout(brAmbient, 0);
+    return `<div class="card br-card"><h2>Brain</h2><p class="muted">Read-only. The shared facts every bot checks before asking.</p>
       <input id="br-q" type="search" placeholder="Search the brain\u2026" value="${e(O.q)}" oninput="OF.q=this.value;ofBrList()">
       <div id="br-list">${loading('knowledge') || brRows(brF())}</div></div>`; }
   window.ofBrList = () => { const el = document.getElementById('br-list'); if (el) el.innerHTML = brRows(brF()); };
-  // Intro: JARVIS-style holographic brain on one canvas (hand-rolled 3D). Once per session, tap to skip, none with reduced motion.
+  // ----- Brain visuals: one hand-rolled 3D point-cloud brain (cerebrum x2, cerebellum, stem), used by the intro and the ambient background.
+  // Axes: x left/right, y up, z front(+)/back(-).
+  function brBuild(N) {
+    let s = 11; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647, P = [];
+    const dir = () => { const u = rnd() * 2 - 1, t = rnd() * 6.2832, r = Math.sqrt(1 - u * u); return [r * Math.cos(t), u, r * Math.sin(t)]; };
+    const ridge = (x, y, z) => Math.abs(Math.sin(x * 10 + Math.sin(z * 5) * 2.2 + y * 3) * Math.cos(z * 8.5 + y * 6.5 + Math.sin(x * 6) * 1.5));
+    let guard = 0;
+    while (P.length < N && guard++ < N * 200) { const r = rnd(), [ex, ey, ez] = dir();
+      if (r < .8) { const side = rnd() < .5 ? -1 : 1, rx = .4, ry = .56, rz = .98;
+        let xl = ex > 0 ? ex * rx : ex * rx * .18, y = ey * ry, z = ez * rz;
+        if (z > .2) y *= 1 + .1 * ez; if (z < -.5) xl *= .85;                      // frontal height, narrower occipital
+        if (y < 0) y *= .62;                                                       // flatter underside
+        const tb = Math.exp(-((ez - .2) ** 2) / .1 - ((ey + .55) ** 2) / .12) * (ex > -.1 ? 1 : 0);  // temporal lobe bulge
+        y -= tb * .2; xl += tb * .06; z += tb * .04;
+        const X = side * (.1 + xl), med = ex < 0;
+        if (rnd() > (med ? .15 : .15 + .85 * ridge(X, y, z) ** 2)) continue;
+        P.push({ x: X, y: y + .08, z, c: rnd() < .1, part: 0 }); }
+      else if (r < .95) { const x = ex * .44 * (1 - .25 * Math.exp(-(ex * ex) / .02)), y = ey * .19, z = ez * .27;  // cerebellum with folia stripes
+        if (Math.abs(Math.sin(ey * 15 + ex * 1.5)) < .5 || y > .05) continue; P.push({ x, y: y - .42, z: z - .7, c: rnd() < .08, part: 1 }); }
+      else { const t = rnd(), a = rnd() * 6.2832, rad = .085 - .025 * t; P.push({ x: Math.cos(a) * rad, y: -.3 - t * .42, z: -.33 + Math.sin(a) * rad * .9 - t * .08, c: rnd() < .06, part: 2 }); } }
+    const L = []; for (let i = 0; i < P.length; i++) { let b = -1, bd = .011, b2 = -1; for (let j = 0; j < P.length; j++) { if (j === i || P[j].part !== P[i].part) continue;
+        const q = (P[i].x - P[j].x) ** 2 + (P[i].y - P[j].y) ** 2 + (P[i].z - P[j].z) ** 2; if (q < bd && q > .0004) { b2 = b; bd = q; b = j; } }
+      if (b > i) L.push([i, b, rnd()]); if (b2 > i && rnd() < .3) L.push([i, b2, rnd()]); }
+    return { P, L }; }
+  const brSprite = (col) => { const c = document.createElement('canvas'); c.width = c.height = 32; const g = c.getContext('2d'), r = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+    r.addColorStop(0, col + '.9)'); r.addColorStop(.25, col + '.35)'); r.addColorStop(1, col + '0)'); g.fillStyle = r; g.fillRect(0, 0, 32, 32); return c; };
+  // v: {ang, tl, cam, f, cx, cy, t(ms), a(alpha), dark, pulse}
+  function brDraw(x, B, v) {
+    const ca = Math.cos(v.ang), sa = Math.sin(v.ang), ct = Math.cos(v.tl), st = Math.sin(v.tl), S = new Array(B.P.length);
+    for (let i = 0; i < B.P.length; i++) { const p = B.P[i], X = p.x * ca + p.z * sa, Z0 = -p.x * sa + p.z * ca, Y = p.y * ct - Z0 * st, Z = p.y * st + Z0 * ct, dz = v.cam + Z;
+      S[i] = dz > .08 ? [v.cx + X * v.f / dz, v.cy - Y * v.f / dz, dz] : null; }
+    const G = v.dark ? 'rgba(110,205,150,' : 'rgba(31,58,43,', C = v.dark ? 'rgba(251,247,238,' : 'rgba(61,107,79,', dep = d => Math.max(.12, Math.min(1, 1.5 - d / (v.cam + 1.2)));
+    x.globalCompositeOperation = v.dark ? 'lighter' : 'source-over'; x.lineWidth = v.dark ? .55 : .7;
+    for (const [a, b, ph] of B.L) { const A = S[a], Bq = S[b]; if (!A || !Bq) continue; const al = dep((A[2] + Bq[2]) / 2) * v.a;
+      x.strokeStyle = G + al * (v.dark ? .38 : .3) + ')'; x.beginPath(); x.moveTo(A[0], A[1]); x.lineTo(Bq[0], Bq[1]); x.stroke();
+      if (ph < v.pulse) { const q = (v.t / 900 + ph * 7) % 1; x.fillStyle = C + Math.min(1, al * 1.6) + ')'; x.fillRect(A[0] + (Bq[0] - A[0]) * q - 1, A[1] + (Bq[1] - A[1]) * q - 1, 2, 2); } }
+    const spr = v.dark && (brDraw.s || (brDraw.s = brSprite('rgba(110,205,150,')));
+    for (let i = 0; i < S.length; i++) { const p = S[i]; if (!p) continue; const al = dep(p[2]) * v.a, sc = Math.min(4, 1.6 / p[2]), c = B.P[i].c;
+      if (spr && al > .25) { x.globalAlpha = al * .55; const g = 7 * sc; x.drawImage(spr, p[0] - g / 2, p[1] - g / 2, g, g); x.globalAlpha = 1; }
+      const r = (c ? 1.5 : 1.05) * sc; x.fillStyle = (c ? C : G) + al + ')'; x.fillRect(p[0] - r / 2, p[1] - r / 2, r, r); }
+    x.globalCompositeOperation = 'source-over'; return S; }
+  const brFit = (cv, x) => { const dpr = Math.min(2, window.devicePixelRatio || 1), W = innerWidth, H = innerHeight; cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px'; x.setTransform(dpr, 0, 0, dpr, 0, 0); return [W, H]; };
+  // Ambient background while reading: light, ~30fps, paused when hidden, freed when the Brain list leaves the page.
+  function brAmbient() {
+    if (window.__brAmb) return; const rm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const cv = document.createElement('canvas'); cv.id = 'br-amb'; cv.setAttribute('aria-hidden', 'true'); document.body.prepend(cv); document.body.classList.add('br-on');
+    const x = cv.getContext('2d'), B = brBuild(rm ? 520 : 420); let [W, H] = brFit(cv, x), raf = 0, last = 0, t0 = performance.now();
+    const draw = now => { x.clearRect(0, 0, W, H); const sy = window.scrollY || 0, t = rm ? 0 : now - t0;
+      brDraw(x, B, { ang: 1.0 + t * .00007 + sy * .0005, tl: -.35 + Math.sin(t * .0003) * .04, cam: 2.3, f: Math.min(W, H) * 1.55, cx: W / 2, cy: H * .5 - sy * .12, t, a: 1, dark: false, pulse: rm ? 0 : .22 }); };
+    const loop = now => { if (!document.getElementById('br-list')) return stop(); raf = requestAnimationFrame(loop); if (now - last < 32) return; last = now; draw(now); };
+    const vis = () => { cancelAnimationFrame(raf); if (!document.hidden && !rm) raf = requestAnimationFrame(loop); };
+    const rs = () => { [W, H] = brFit(cv, x); if (rm) draw(0); }, sc = () => { if (rm) draw(0); };
+    const chk = setInterval(() => { if (!document.getElementById('br-list')) stop(); }, 1000);
+    function stop() { cancelAnimationFrame(raf); clearInterval(chk); document.removeEventListener('visibilitychange', vis); removeEventListener('resize', rs); removeEventListener('scroll', sc);
+      cv.remove(); document.body.classList.remove('br-on'); window.__brAmb = null; }
+    document.addEventListener('visibilitychange', vis); addEventListener('resize', rs); addEventListener('scroll', sc, { passive: true });
+    window.__brAmb = { stop }; if (rm) draw(0); else raf = requestAnimationFrame(loop); }
+  window.ofBrAmbient = brAmbient;
+  // Intro: JARVIS-style holographic brain. Once per session, tap to skip, none with reduced motion. Settles inside the brain, then reveals the ambient brain behind the list.
   function brIntro(force) {
     try { if (!force && (sessionStorage.getItem('gp-br-intro') || matchMedia('(prefers-reduced-motion: reduce)').matches)) return; sessionStorage.setItem('gp-br-intro', '1'); } catch (_) {}
     if (document.getElementById('br-intro')) return;
     const d = document.createElement('div'); d.id = 'br-intro'; d.setAttribute('aria-hidden', 'true');
     const cv = document.createElement('canvas'); d.appendChild(cv); document.body.appendChild(d);
-    const x = cv.getContext('2d'), dpr = Math.min(2, window.devicePixelRatio || 1); let W, H;
-    const size = () => { W = innerWidth; H = innerHeight; cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px'; x.setTransform(dpr, 0, 0, dpr, 0, 0); }; size();
-    let s = 7; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
-    const P = [];  // two hemispheres: squashed ellipsoids with a fissure gap and gyri wobble
-    for (let i = 0; i < 720; i++) { const u = rnd() * 2 - 1, t = rnd() * Math.PI * 2, r = Math.sqrt(1 - u * u), side = i % 2 ? 1 : -1;
-      let px = r * Math.cos(t), py = u, pz = r * Math.sin(t); const w = 1 + .07 * Math.sin(px * 9 + py * 7) * Math.cos(pz * 8);
-      px = (Math.abs(px) * .55 + .08) * side * w; py = py * .62 * w * (pz < -.3 ? .85 : 1); pz = pz * .95 * w; if (py < -.35 && Math.abs(pz) < .4) py *= .8;
-      P.push({ x: px, y: py, z: pz, c: rnd() < .12 }); }
-    const L = []; for (let i = 0; i < P.length; i += 2) { let b = -1, bd = .09; for (let j = 0; j < P.length; j += 3) { if (j === i) continue; const a = P[i], c = P[j], q = (a.x - c.x) ** 2 + (a.y - c.y) ** 2 + (a.z - c.z) ** 2; if (q < bd && q > .002) { bd = q; b = j; } } if (b >= 0) L.push([i, b, rnd()]); }
-    const F = []; for (let i = 0; i < 160; i++) F.push({ x: (rnd() - .5) * 6, y: (rnd() - .5) * 6, z: rnd() * 8 });
-    const n = (O.d.knowledge || []).length, T = 3000, t0 = performance.now(); let raf, done = 0;
-    const end = () => { if (done) return; done = 1; cancelAnimationFrame(raf); d.classList.add('out'); setTimeout(() => d.remove(), 350); removeEventListener('resize', size); };
-    d.onclick = end; addEventListener('resize', size);
-    const G = 'rgba(95,190,140,', C = 'rgba(251,247,238,';
+    const x = cv.getContext('2d'), B = brBuild(880); let [W, H] = brFit(cv, x);
+    let s = 3; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647, F = []; for (let i = 0; i < 140; i++) F.push({ x: (rnd() - .5) * 6, y: (rnd() - .5) * 6, z: rnd() * 8 });
+    const n = (O.d.knowledge || []).length, T = 3200, t0 = performance.now(); let raf, done = 0;
+    const rs = () => { [W, H] = brFit(cv, x); };
+    const end = () => { if (done) return; done = 1; cancelAnimationFrame(raf); removeEventListener('resize', rs); d.classList.add('out'); setTimeout(() => d.remove(), 600); };
+    d.onclick = end; addEventListener('resize', rs);
+    const G = 'rgba(110,205,150,', C = 'rgba(251,247,238,';
     function frame(now) {
-      const k = Math.min(1, (now - t0) / T), ang = k * 2.6 + .4, ca = Math.cos(ang), sa = Math.sin(ang), tl = -.25, ct = Math.cos(tl), st = Math.sin(tl);
-      const push = k < .55 ? 0 : ((k - .55) / .45) ** 2, cam = 3.2 - push * 3.4, f = Math.min(W, H) * 1.45, cx = W / 2, cy = H * .46;
-      x.fillStyle = '#06110c'; x.fillRect(0, 0, W, H);
-      const bg = x.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W, H) * .6); bg.addColorStop(0, 'rgba(31,58,43,.55)'); bg.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = bg; x.fillRect(0, 0, W, H);
-      const S = P.map(p => { const X = p.x * ca + p.z * sa, Z0 = -p.x * sa + p.z * ca, Y = p.y * ct - Z0 * st, Z = p.y * st + Z0 * ct, dz = cam + Z; return dz > .05 ? { X: cx + X * f / dz, Y: cy + Y * f / dz, d: dz } : null; });
-      x.globalCompositeOperation = 'lighter'; x.lineWidth = .6;
-      for (const [a, b, ph] of L) { const A = S[a], B = S[b]; if (!A || !B) continue; const al = Math.max(0, Math.min(1, 1.6 - (A.d + B.d) / 4.5)) * .55;
-        x.strokeStyle = G + al + ')'; x.beginPath(); x.moveTo(A.X, A.Y); x.lineTo(B.X, B.Y); x.stroke();
-        const q = (k * 3 + ph) % 1; if (ph < .35) { x.fillStyle = C + (al * 2.5) + ')'; x.beginPath(); x.arc(A.X + (B.X - A.X) * q, A.Y + (B.Y - A.Y) * q, 1.4, 0, 7); x.fill(); } }
-      for (let i = 0; i < S.length; i++) { const p = S[i]; if (!p) continue; const r = Math.min(6, 3.4 / p.d * (P[i].c ? 1.6 : 1)), al = Math.min(1, 2.2 - p.d / 2.6);
-        x.fillStyle = (P[i].c ? C : G) + al + ')'; x.fillRect(p.X - r / 2, p.Y - r / 2, r, r); }
-      if (push > 0) for (const q of F) { const z = ((q.z - push * 9) % 8 + 8) % 8 + .1, z2 = z + .35, X1 = cx + q.x * f / z / 3, Y1 = cy + q.y * f / z / 3, X2 = cx + q.x * f / z2 / 3, Y2 = cy + q.y * f / z2 / 3;
-        x.strokeStyle = G + Math.min(.8, push * 1.5) + ')'; x.lineWidth = 1.4 / z; x.beginPath(); x.moveTo(X1, Y1); x.lineTo(X2, Y2); x.stroke(); }
-      x.globalCompositeOperation = 'source-over';
-      const hud = Math.max(0, 1 - push * 2.2), R = Math.min(W, H) * .42; if (hud > 0) { x.globalAlpha = hud * Math.min(1, k * 4); x.lineWidth = 1.2;
-        [[R, k * 4, 1.3, G + '.7)'], [R * 1.1, -k * 3, .5, C + '.55)'], [R * 1.18, k * 2, 2.2, G + '.35)']].forEach(([rr, o, len, col], j) => { x.strokeStyle = col;
+      const t = now - t0, k = Math.min(1, t / T), push = k < .55 ? 0 : Math.min(1, (k - .55) / .38), e = push * push * (3 - 2 * push);
+      const cx = W / 2, cy = H * .47, f = Math.min(W, H) * 1.2, cam = 3.1 - e * 2.35, form = Math.min(1, k / .18);
+      x.fillStyle = '#05100b'; x.fillRect(0, 0, W, H);
+      const bg = x.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W, H) * .6); bg.addColorStop(0, 'rgba(31,58,43,.6)'); bg.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = bg; x.fillRect(0, 0, W, H);
+      brDraw(x, B, { ang: .85 + k * .9, tl: -.5, cam: cam + (1 - form) * 2, f, cx, cy, t, a: form, dark: true, pulse: .3 });
+      if (push > 0) { x.globalCompositeOperation = 'lighter'; for (const q of F) { const z = ((q.z - e * 9) % 8 + 8) % 8 + .1, z2 = z + .3;
+        x.strokeStyle = G + Math.min(.7, push * 1.4) + ')'; x.lineWidth = 1.2 / z; x.beginPath(); x.moveTo(cx + q.x * f / z / 3, cy + q.y * f / z / 3); x.lineTo(cx + q.x * f / z2 / 3, cy + q.y * f / z2 / 3); x.stroke(); } x.globalCompositeOperation = 'source-over'; }
+      const hud = Math.max(0, 1 - push * 2.2), R = Math.min(W, H) * .44;
+      if (hud > 0) { x.globalAlpha = hud * Math.min(1, k * 4); x.lineWidth = 1.1;
+        [[R, k * 4, 1.3, G + '.7)'], [R * 1.1, -k * 3, .5, C + '.5)'], [R * 1.18, k * 2, 2.2, G + '.3)']].forEach(([rr, o, len, col], j) => { x.strokeStyle = col;
           for (let m = 0; m < 3; m++) { x.beginPath(); x.arc(cx, cy, rr, o + m * 2.09, o + m * 2.09 + len * (j ? .5 : .8)); x.stroke(); } });
-        x.strokeStyle = G + '.5)'; for (let m = 0; m < 60; m++) { const a = m / 60 * 6.283 + k; const r1 = R * .94, r2 = m % 5 ? R * .965 : R * .99; x.beginPath(); x.moveTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1); x.lineTo(cx + Math.cos(a) * r2, cy + Math.sin(a) * r2); x.stroke(); }
-        const sy = cy - R + (k * 2.2 % 1) * R * 2; x.strokeStyle = C + '.25)'; x.beginPath(); x.moveTo(cx - R, sy); x.lineTo(cx + R, sy); x.stroke();
-        x.font = '600 12px ui-monospace, Menlo, monospace'; x.textAlign = 'center'; x.fillStyle = C + '.9)'; x.fillText('GATEPOST BRAIN', cx, cy - R * 1.28);
+        x.strokeStyle = G + '.45)'; for (let m = 0; m < 60; m++) { const a = m / 60 * 6.283 + k, r1 = R * .94, r2 = m % 5 ? R * .965 : R * .99; x.beginPath(); x.moveTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1); x.lineTo(cx + Math.cos(a) * r2, cy + Math.sin(a) * r2); x.stroke(); }
+        const sy = cy - R + (k * 2.2 % 1) * R * 2; x.strokeStyle = C + '.2)'; x.beginPath(); x.moveTo(cx - R, sy); x.lineTo(cx + R, sy); x.stroke();
+        x.font = '600 12px ui-monospace, Menlo, monospace'; x.textAlign = 'center'; x.fillStyle = C + '.9)'; x.fillText('GATEPOST BRAIN', cx, cy - R * 1.3);
         x.font = '10px ui-monospace, Menlo, monospace'; x.fillStyle = G + '.9)'; const sc = Math.min(n, Math.round(n * k * 2.2));
-        x.fillText(`NEURAL INDEX \u00b7 ${n ? sc + ' / ' + n + ' FACTS' : 'SYNCING'}`, cx, cy + R * 1.3); x.fillText(`SCAN ${String(Math.min(100, Math.round(k * 180))).padStart(3, '0')}%`, cx, cy + R * 1.3 + 15);
-        x.textAlign = 'left'; x.fillText('LINK ' + L.length, 14, 24); x.textAlign = 'right'; x.fillText('NODES ' + P.length, W - 14, 24); x.globalAlpha = 1; }
-      x.textAlign = 'center'; x.font = '12px system-ui, sans-serif'; x.fillStyle = C + '.5)'; x.fillText('Tap to skip', cx, H - 28);
-      if (k > .9) { x.fillStyle = `rgba(251,247,238,${(k - .9) * 10})`; x.fillRect(0, 0, W, H); }
+        x.fillText(`NEURAL INDEX \u00b7 ${n ? sc + ' / ' + n + ' FACTS' : 'SYNCING'}`, cx, cy + R * 1.32); x.fillText(`SCAN ${String(Math.min(100, Math.round(k * 180))).padStart(3, '0')}%`, cx, cy + R * 1.32 + 15);
+        x.textAlign = 'left'; x.fillText('LINKS ' + B.L.length, 14, 24); x.textAlign = 'right'; x.fillText('NODES ' + B.P.length, W - 14, 24); x.globalAlpha = 1; }
+      x.textAlign = 'center'; x.font = '12px system-ui, sans-serif'; x.fillStyle = C + '.45)'; x.fillText('Tap to skip', cx, H - 28);
       if (k < 1) raf = requestAnimationFrame(frame); else end(); }
     raf = requestAnimationFrame(frame); }
   window.ofBrIntro = brIntro;
