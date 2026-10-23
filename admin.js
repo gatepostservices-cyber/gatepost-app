@@ -166,25 +166,25 @@
     const ca = Math.cos(v.ang), sa = Math.sin(v.ang), ct = Math.cos(v.tl), st = Math.sin(v.tl), S = new Array(B.P.length);
     for (let i = 0; i < B.P.length; i++) { const p = B.P[i], X = p.x * ca + p.z * sa, Z0 = -p.x * sa + p.z * ca, Y = p.y * ct - Z0 * st, Z = p.y * st + Z0 * ct, dz = v.cam + Z;
       S[i] = dz > .08 ? [v.cx + X * v.f / dz, v.cy - Y * v.f / dz, dz] : null; }
-    const G = v.dark ? 'rgba(110,205,150,' : 'rgba(31,58,43,', C = v.dark ? 'rgba(251,247,238,' : 'rgba(61,107,79,', dep = d => Math.max(.12, Math.min(1, 1.5 - d / (v.cam + 1.2)));
-    x.globalCompositeOperation = v.dark ? 'lighter' : 'source-over'; x.lineWidth = v.dark ? .55 : .7;
+    const G = v.dark ? 'rgba(110,205,150,' : 'rgba(31,58,43,', C = v.dark ? 'rgba(251,247,238,' : 'rgba(61,107,79,', dep = d => Math.max(v.light ? .6 : .12, Math.min(1, 1.5 - d / (v.cam + 1.2)));
+    x.globalCompositeOperation = v.dark ? 'lighter' : 'source-over'; x.lineWidth = v.dark ? .55 : 1.1;
     for (const [a, b, ph] of B.L) { const A = S[a], Bq = S[b]; if (!A || !Bq) continue; const al = dep((A[2] + Bq[2]) / 2) * v.a;
-      x.strokeStyle = G + al * (v.dark ? .38 : .3) + ')'; x.beginPath(); x.moveTo(A[0], A[1]); x.lineTo(Bq[0], Bq[1]); x.stroke();
-      if (ph < v.pulse) { const q = (v.t / 900 + ph * 7) % 1; x.fillStyle = C + Math.min(1, al * 1.6) + ')'; x.fillRect(A[0] + (Bq[0] - A[0]) * q - 1, A[1] + (Bq[1] - A[1]) * q - 1, 2, 2); } }
+      x.strokeStyle = G + al * (v.dark ? .38 : .85) + ')'; x.beginPath(); x.moveTo(A[0], A[1]); x.lineTo(Bq[0], Bq[1]); x.stroke();
+      if (ph < v.pulse) { const q = (v.t / 900 + ph * 7) % 1; const ps = v.light ? 3.2 : 2; x.fillStyle = (v.light ? 'rgba(46,140,90,' : C) + Math.min(1, al * 1.8) + ')'; x.fillRect(A[0] + (Bq[0] - A[0]) * q - ps / 2, A[1] + (Bq[1] - A[1]) * q - ps / 2, ps, ps); } }
     const spr = v.dark && (brDraw.s || (brDraw.s = brSprite('rgba(110,205,150,')));
     for (let i = 0; i < S.length; i++) { const p = S[i]; if (!p) continue; const al = dep(p[2]) * v.a, sc = Math.min(4, 1.6 / p[2]), c = B.P[i].c;
       if (spr && al > .25) { x.globalAlpha = al * .55; const g = 7 * sc; x.drawImage(spr, p[0] - g / 2, p[1] - g / 2, g, g); x.globalAlpha = 1; }
-      const r = (c ? 1.5 : 1.05) * sc; x.fillStyle = (c ? C : G) + al + ')'; x.fillRect(p[0] - r / 2, p[1] - r / 2, r, r); }
+      const r = (c ? 1.5 : 1.05) * sc * (v.light ? 2.2 : 1); x.fillStyle = (c ? C : G) + al + ')'; x.fillRect(p[0] - r / 2, p[1] - r / 2, r, r); }
     x.globalCompositeOperation = 'source-over'; return S; }
   const brFit = (cv, x) => { const dpr = Math.min(2, window.devicePixelRatio || 1), W = innerWidth, H = innerHeight; cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px'; x.setTransform(dpr, 0, 0, dpr, 0, 0); return [W, H]; };
   // Ambient background while reading: light, ~30fps, paused when hidden, freed when the Brain list leaves the page.
   function brAmbient() {
     if (window.__brAmb) return; const rm = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const cv = document.createElement('canvas'); cv.id = 'br-amb'; cv.setAttribute('aria-hidden', 'true'); document.body.prepend(cv); document.body.classList.add('br-on');
-    const x = cv.getContext('2d'), B = brBuild(rm ? 520 : 420); let [W, H] = brFit(cv, x), raf = 0, last = 0, t0 = performance.now();
+    const x = cv.getContext('2d'), B = brBuild(580); let [W, H] = brFit(cv, x), raf = 0, last = 0, t0 = performance.now();
     const draw = now => { x.clearRect(0, 0, W, H); const sy = window.scrollY || 0, t = rm ? 0 : now - t0;
-      brDraw(x, B, { ang: 1.0 + t * .00007 + sy * .0005, tl: -.35 + Math.sin(t * .0003) * .04, cam: 2.3, f: Math.min(W, H) * 1.55, cx: W / 2, cy: H * .5 - sy * .12, t, a: 1, dark: false, pulse: rm ? 0 : .22 }); };
-    const loop = now => { if (!document.getElementById('br-list')) return stop(); raf = requestAnimationFrame(loop); if (now - last < 32) return; last = now; draw(now); };
+      brDraw(x, B, { ang: Math.sin(t * .00012) * .45 + sy * .0004, tl: -1.15 + Math.sin(t * .0003) * .05, cam: 2.6, f: Math.min(H * .95, W * 1.9), cx: W / 2, cy: H * .52 - sy * .08, t, a: 1, dark: false, pulse: rm ? 0 : .35, light: 1 }); };
+    const loop = now => { if (!document.getElementById('br-list')) return stop(); raf = requestAnimationFrame(loop); if (now - last < 32 || document.getElementById('br-intro')) return; last = now; draw(now); };
     const vis = () => { cancelAnimationFrame(raf); if (!document.hidden && !rm) raf = requestAnimationFrame(loop); };
     const rs = () => { [W, H] = brFit(cv, x); if (rm) draw(0); }, sc = () => { if (rm) draw(0); };
     const chk = setInterval(() => { if (!document.getElementById('br-list')) stop(); }, 1000);
@@ -198,12 +198,12 @@
     try { if (!force && (sessionStorage.getItem('gp-br-intro') || matchMedia('(prefers-reduced-motion: reduce)').matches)) return; sessionStorage.setItem('gp-br-intro', '1'); } catch (_) {}
     if (document.getElementById('br-intro')) return;
     const d = document.createElement('div'); d.id = 'br-intro'; d.setAttribute('aria-hidden', 'true');
-    const cv = document.createElement('canvas'); d.appendChild(cv); document.body.appendChild(d);
+    const cv = document.createElement('canvas'); d.appendChild(cv); document.body.appendChild(d); document.body.classList.add('br-intro-on');
     const x = cv.getContext('2d'), B = brBuild(880); let [W, H] = brFit(cv, x);
     let s = 3; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647, F = []; for (let i = 0; i < 140; i++) F.push({ x: (rnd() - .5) * 6, y: (rnd() - .5) * 6, z: rnd() * 8 });
     const n = (O.d.knowledge || []).length, T = 3200, t0 = performance.now(); let raf, done = 0;
     const rs = () => { [W, H] = brFit(cv, x); };
-    const end = () => { if (done) return; done = 1; cancelAnimationFrame(raf); removeEventListener('resize', rs); d.classList.add('out'); setTimeout(() => d.remove(), 600); };
+    const end = () => { if (done) return; done = 1; cancelAnimationFrame(raf); removeEventListener('resize', rs); d.classList.add('out'); setTimeout(() => { d.remove(); document.body.classList.remove('br-intro-on'); }, 600); };
     d.onclick = end; addEventListener('resize', rs);
     const G = 'rgba(110,205,150,', C = 'rgba(251,247,238,';
     function frame(now) {
