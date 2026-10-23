@@ -385,17 +385,7 @@ footer { color:var(--mute) !important; }
 .town-tabs button { background:#fff !important; color:var(--pine) !important; border:1px solid #cfdac6 !important; } .town-tabs button.on { background:var(--pine2) !important; color:#fff !important; }
 .sheet-back { width:auto !important; margin-right:auto; background:#fff !important; border:1px solid #b9c4b0 !important; border-radius:999px; padding:6px 14px !important; }
 .login-hero { background:#ffffff !important; color:var(--pine) !important; border:1px solid var(--line); box-shadow:0 2px 10px rgba(31,58,43,.06); } .login-word { color:var(--pine) !important; } .login-hero p { color:var(--mute); }
-#br-intro { position:fixed; inset:0; z-index:9999; background:#fbf7ee; display:flex; align-items:center; justify-content:center; overflow:hidden; transition:opacity .3s; cursor:pointer; }
-#br-intro.out { opacity:0; }
-#br-intro .br-head { width:180px; height:180px; animation:brZoom 1.9s cubic-bezier(.6,0,.9,.4) forwards; transform-origin:50% 42%; }
-#br-intro .br-eye { fill:#1f3a2b; animation:brBlink .5s .2s 2 alternate; } #br-intro .br-ant { fill:#7fd3a3; animation:brGlow .4s infinite alternate; }
-#br-intro .br-net { position:absolute; width:120vmax; height:120vmax; opacity:0; animation:brNet 1.9s forwards; }
-#br-intro .br-net path { fill:none; stroke:#3d6b4f; stroke-width:.7; stroke-dasharray:220; stroke-dashoffset:220; filter:drop-shadow(0 0 3px #7fd3a3); animation:brDraw .9s forwards; }
-#br-intro .br-net circle { fill:#7fd3a3; filter:drop-shadow(0 0 4px #7fd3a3); }
-#br-intro .br-skip { position:absolute; bottom:calc(24px + env(safe-area-inset-bottom)); font-size:13px; color:#1f3a2b; opacity:.7; }
-@keyframes brZoom { 0%{transform:scale(1)} 30%{transform:scale(1.08)} 100%{transform:scale(14);opacity:0} }
-@keyframes brNet { 0%,45%{opacity:0;transform:scale(.4)} 60%{opacity:1} 100%{opacity:1;transform:scale(1.6)} }
-@keyframes brDraw { to { stroke-dashoffset:0 } } @keyframes brBlink { to { transform:scaleY(.15); transform-origin:center; transform-box:fill-box } } @keyframes brGlow { to { fill:#1f3a2b } }
+#br-intro { position:fixed; inset:0; z-index:9999; background:#06110c; transition:opacity .35s; cursor:pointer; } #br-intro.out { opacity:0; } #br-intro canvas { display:block; }
 .br-val { white-space:pre-wrap; word-break:break-word; }
 </style>
 <script src="config.js?v=req1"></script>
@@ -952,7 +942,7 @@ Promise.all([API.init(), domReady]).then(()=>{ if (location.hash.length>1) docum
 <script src="quotes-sign.js?v=3"></script>
 <script src="quotes.js?v=7"></script>
 <script src="unfinished.js?v=6"></script>
-<script src="admin.js?v=6"></script>
+<script src="admin.js?v=7"></script>
 <script src="town.js?v=52"></script>
 <script src="simplify.js?v=2"></script>
 <script src="chat.js?v=8"></script>

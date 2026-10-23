@@ -134,18 +134,53 @@
       <input id="br-q" type="search" placeholder="Search the brain\u2026" value="${e(O.q)}" oninput="OF.q=this.value;ofBrList()">
       <div id="br-list">${loading('knowledge') || brRows(brF())}</div></div>`; }
   window.ofBrList = () => { const el = document.getElementById('br-list'); if (el) el.innerHTML = brRows(brF()); };
-  // Intro: zoom into a robot head; once per session, tap to skip, none with reduced motion.
+  // Intro: JARVIS-style holographic brain on one canvas (hand-rolled 3D). Once per session, tap to skip, none with reduced motion.
   function brIntro(force) {
     try { if (!force && (sessionStorage.getItem('gp-br-intro') || matchMedia('(prefers-reduced-motion: reduce)').matches)) return; sessionStorage.setItem('gp-br-intro', '1'); } catch (_) {}
     if (document.getElementById('br-intro')) return;
     const d = document.createElement('div'); d.id = 'br-intro'; d.setAttribute('aria-hidden', 'true');
-    d.innerHTML = `<svg class="br-head" viewBox="0 0 200 200"><line x1="100" y1="18" x2="100" y2="40" stroke="#1f3a2b" stroke-width="5"/><circle class="br-ant" cx="100" cy="14" r="8"/>
-      <rect x="40" y="40" width="120" height="110" rx="26" fill="#1f3a2b"/><rect x="54" y="56" width="92" height="44" rx="14" fill="#fbf7ee"/>
-      <circle class="br-eye" cx="80" cy="78" r="9"/><circle class="br-eye" cx="120" cy="78" r="9"/><rect x="74" y="116" width="52" height="10" rx="5" fill="#fbf7ee"/>
-      <rect x="26" y="78" width="14" height="34" rx="6" fill="#1f3a2b"/><rect x="160" y="78" width="14" height="34" rx="6" fill="#1f3a2b"/></svg>
-      <svg class="br-net" viewBox="0 0 200 200">${[[100,100,30,40],[100,100,170,50],[100,100,40,160],[100,100,165,165],[100,100,100,10],[30,40,40,160],[170,50,165,165],[100,10,170,50]].map(([a,b,c,f],i) => `<path d="M${a} ${b} L${(a+c)/2} ${b} L${(a+c)/2} ${f} L${c} ${f}" style="animation-delay:${.6+i*.05}s"/>`).join('')}
-      ${[[100,100],[30,40],[170,50],[40,160],[165,165],[100,10]].map(([x,y]) => `<circle cx="${x}" cy="${y}" r="5"/>`).join('')}</svg><span class="br-skip">Tap to skip</span>`;
-    const end = () => { d.classList.add('out'); setTimeout(() => d.remove(), 300); };
-    d.onclick = end; document.body.appendChild(d); setTimeout(end, 2100); }
+    const cv = document.createElement('canvas'); d.appendChild(cv); document.body.appendChild(d);
+    const x = cv.getContext('2d'), dpr = Math.min(2, window.devicePixelRatio || 1); let W, H;
+    const size = () => { W = innerWidth; H = innerHeight; cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px'; x.setTransform(dpr, 0, 0, dpr, 0, 0); }; size();
+    let s = 7; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+    const P = [];  // two hemispheres: squashed ellipsoids with a fissure gap and gyri wobble
+    for (let i = 0; i < 720; i++) { const u = rnd() * 2 - 1, t = rnd() * Math.PI * 2, r = Math.sqrt(1 - u * u), side = i % 2 ? 1 : -1;
+      let px = r * Math.cos(t), py = u, pz = r * Math.sin(t); const w = 1 + .07 * Math.sin(px * 9 + py * 7) * Math.cos(pz * 8);
+      px = (Math.abs(px) * .55 + .08) * side * w; py = py * .62 * w * (pz < -.3 ? .85 : 1); pz = pz * .95 * w; if (py < -.35 && Math.abs(pz) < .4) py *= .8;
+      P.push({ x: px, y: py, z: pz, c: rnd() < .12 }); }
+    const L = []; for (let i = 0; i < P.length; i += 2) { let b = -1, bd = .09; for (let j = 0; j < P.length; j += 3) { if (j === i) continue; const a = P[i], c = P[j], q = (a.x - c.x) ** 2 + (a.y - c.y) ** 2 + (a.z - c.z) ** 2; if (q < bd && q > .002) { bd = q; b = j; } } if (b >= 0) L.push([i, b, rnd()]); }
+    const F = []; for (let i = 0; i < 160; i++) F.push({ x: (rnd() - .5) * 6, y: (rnd() - .5) * 6, z: rnd() * 8 });
+    const n = (O.d.knowledge || []).length, T = 3000, t0 = performance.now(); let raf, done = 0;
+    const end = () => { if (done) return; done = 1; cancelAnimationFrame(raf); d.classList.add('out'); setTimeout(() => d.remove(), 350); removeEventListener('resize', size); };
+    d.onclick = end; addEventListener('resize', size);
+    const G = 'rgba(95,190,140,', C = 'rgba(251,247,238,';
+    function frame(now) {
+      const k = Math.min(1, (now - t0) / T), ang = k * 2.6 + .4, ca = Math.cos(ang), sa = Math.sin(ang), tl = -.25, ct = Math.cos(tl), st = Math.sin(tl);
+      const push = k < .55 ? 0 : ((k - .55) / .45) ** 2, cam = 3.2 - push * 3.4, f = Math.min(W, H) * 1.45, cx = W / 2, cy = H * .46;
+      x.fillStyle = '#06110c'; x.fillRect(0, 0, W, H);
+      const bg = x.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W, H) * .6); bg.addColorStop(0, 'rgba(31,58,43,.55)'); bg.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = bg; x.fillRect(0, 0, W, H);
+      const S = P.map(p => { const X = p.x * ca + p.z * sa, Z0 = -p.x * sa + p.z * ca, Y = p.y * ct - Z0 * st, Z = p.y * st + Z0 * ct, dz = cam + Z; return dz > .05 ? { X: cx + X * f / dz, Y: cy + Y * f / dz, d: dz } : null; });
+      x.globalCompositeOperation = 'lighter'; x.lineWidth = .6;
+      for (const [a, b, ph] of L) { const A = S[a], B = S[b]; if (!A || !B) continue; const al = Math.max(0, Math.min(1, 1.6 - (A.d + B.d) / 4.5)) * .55;
+        x.strokeStyle = G + al + ')'; x.beginPath(); x.moveTo(A.X, A.Y); x.lineTo(B.X, B.Y); x.stroke();
+        const q = (k * 3 + ph) % 1; if (ph < .35) { x.fillStyle = C + (al * 2.5) + ')'; x.beginPath(); x.arc(A.X + (B.X - A.X) * q, A.Y + (B.Y - A.Y) * q, 1.4, 0, 7); x.fill(); } }
+      for (let i = 0; i < S.length; i++) { const p = S[i]; if (!p) continue; const r = Math.min(6, 3.4 / p.d * (P[i].c ? 1.6 : 1)), al = Math.min(1, 2.2 - p.d / 2.6);
+        x.fillStyle = (P[i].c ? C : G) + al + ')'; x.fillRect(p.X - r / 2, p.Y - r / 2, r, r); }
+      if (push > 0) for (const q of F) { const z = ((q.z - push * 9) % 8 + 8) % 8 + .1, z2 = z + .35, X1 = cx + q.x * f / z / 3, Y1 = cy + q.y * f / z / 3, X2 = cx + q.x * f / z2 / 3, Y2 = cy + q.y * f / z2 / 3;
+        x.strokeStyle = G + Math.min(.8, push * 1.5) + ')'; x.lineWidth = 1.4 / z; x.beginPath(); x.moveTo(X1, Y1); x.lineTo(X2, Y2); x.stroke(); }
+      x.globalCompositeOperation = 'source-over';
+      const hud = Math.max(0, 1 - push * 2.2), R = Math.min(W, H) * .42; if (hud > 0) { x.globalAlpha = hud * Math.min(1, k * 4); x.lineWidth = 1.2;
+        [[R, k * 4, 1.3, G + '.7)'], [R * 1.1, -k * 3, .5, C + '.55)'], [R * 1.18, k * 2, 2.2, G + '.35)']].forEach(([rr, o, len, col], j) => { x.strokeStyle = col;
+          for (let m = 0; m < 3; m++) { x.beginPath(); x.arc(cx, cy, rr, o + m * 2.09, o + m * 2.09 + len * (j ? .5 : .8)); x.stroke(); } });
+        x.strokeStyle = G + '.5)'; for (let m = 0; m < 60; m++) { const a = m / 60 * 6.283 + k; const r1 = R * .94, r2 = m % 5 ? R * .965 : R * .99; x.beginPath(); x.moveTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1); x.lineTo(cx + Math.cos(a) * r2, cy + Math.sin(a) * r2); x.stroke(); }
+        const sy = cy - R + (k * 2.2 % 1) * R * 2; x.strokeStyle = C + '.25)'; x.beginPath(); x.moveTo(cx - R, sy); x.lineTo(cx + R, sy); x.stroke();
+        x.font = '600 12px ui-monospace, Menlo, monospace'; x.textAlign = 'center'; x.fillStyle = C + '.9)'; x.fillText('GATEPOST BRAIN', cx, cy - R * 1.28);
+        x.font = '10px ui-monospace, Menlo, monospace'; x.fillStyle = G + '.9)'; const sc = Math.min(n, Math.round(n * k * 2.2));
+        x.fillText(`NEURAL INDEX \u00b7 ${n ? sc + ' / ' + n + ' FACTS' : 'SYNCING'}`, cx, cy + R * 1.3); x.fillText(`SCAN ${String(Math.min(100, Math.round(k * 180))).padStart(3, '0')}%`, cx, cy + R * 1.3 + 15);
+        x.textAlign = 'left'; x.fillText('LINK ' + L.length, 14, 24); x.textAlign = 'right'; x.fillText('NODES ' + P.length, W - 14, 24); x.globalAlpha = 1; }
+      x.textAlign = 'center'; x.font = '12px system-ui, sans-serif'; x.fillStyle = C + '.5)'; x.fillText('Tap to skip', cx, H - 28);
+      if (k > .9) { x.fillStyle = `rgba(251,247,238,${(k - .9) * 10})`; x.fillRect(0, 0, W, H); }
+      if (k < 1) raf = requestAnimationFrame(frame); else end(); }
+    raf = requestAnimationFrame(frame); }
   window.ofBrIntro = brIntro;
 })();
