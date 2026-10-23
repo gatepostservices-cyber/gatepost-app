@@ -387,7 +387,7 @@ footer { color:var(--mute) !important; }
 .login-hero { background:#ffffff !important; color:var(--pine) !important; border:1px solid var(--line); box-shadow:0 2px 10px rgba(31,58,43,.06); } .login-word { color:var(--pine) !important; } .login-hero p { color:var(--mute); }
 #br-intro { position:fixed; inset:0; z-index:9999; background:transparent; cursor:pointer; }
 body.br-on header, body.br-on #app, body.br-on footer, body.br-on .nav { transition:opacity .9s ease, transform .9s cubic-bezier(.2,.7,.2,1); }
-body.br-intro-on header, body.br-intro-on #app, body.br-intro-on footer, body.br-intro-on .nav { opacity:0; transform:translateY(16px); pointer-events:none; }
+body.br-intro-on header, body.br-intro-on #app, body.br-intro-on footer, body.br-intro-on .nav { opacity:0; transform:translateY(16px); pointer-events:none; transition:none; }
 #br-amb { position:fixed; inset:0; z-index:0; pointer-events:none; }
 body.br-on { background:#030d08 !important; }
 body.br-on::before { display:none; }
@@ -970,7 +970,7 @@ Promise.all([API.init(), domReady]).then(()=>{ if (location.hash.length>1) docum
 <script src="quotes-sign.js?v=3"></script>
 <script src="quotes.js?v=7"></script>
 <script src="unfinished.js?v=6"></script>
-<script src="admin.js?v=11"></script>
+<script src="admin.js?v=12"></script>
 <script src="town.js?v=52"></script>
 <script src="simplify.js?v=2"></script>
 <script src="chat.js?v=8"></script>

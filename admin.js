@@ -30,6 +30,7 @@
   const TABS = [['leads', 'Leads'], ['customers', 'Customers'], ['pricebook', 'Price Book'], ['joblog', 'Job Log'], ['control', 'Control'], ['brain', 'Brain']];
   window.officePage = function (noLoad) {
     if (!own()) return '<div class="card" id="of-root"><h2>Office</h2><p class="muted">Owners only.</p></div>';
+    if (!brGeo.c) (window.requestIdleCallback || (f => setTimeout(f, 400)))(() => brGeo());
     // Simplified nav: Leads lives in Sales, Job Log in Schedule; Office keeps Customers, Price Book, Control.
     const pg = typeof page === 'function' ? page() : 'office', solo = pg === 'leads' || pg === 'joblog';
     if (solo) O.tab = pg; else if (O.tab === 'leads' || O.tab === 'joblog') { O.tab = 'customers'; O.q = ''; O.ol = null; O.oadd = 0; }
@@ -39,7 +40,7 @@
     return `<div id="of-root">${tabs.length ? `<div class="of-tabs" role="tablist">${tabs.map(([k, n]) => `<button type="button" role="tab" class="${O.tab === k ? 'on' : ''}" onclick="ofTab('${k}')">${n}</button>`).join('')}</div>` : ''}
       <div id="of-msg" class="muted q-rt" aria-live="polite"></div>${body}</div>`; };
   window.ofLoad = (k, f) => load(k, f);
-  window.ofTab = k => { if (k === 'brain') setTimeout(brIntro, 0); O.tab = k; O.q = ''; O.cust = null; O.ol = null; O.oadd = 0; paint(); NEED[k].forEach(x => load(x)); };
+  window.ofTab = k => { O.tab = k; O.q = ''; O.cust = null; O.ol = null; O.oadd = 0; paint(); NEED[k].forEach(x => load(x)); };
   const loading = k => O.d[k] == null ? '<p class="muted">Loading\u2026</p>' : '';
   // ----- Leads
   const OCH = { nextdoor: 'Nextdoor', text: 'Text', email: 'Email', call: 'Call', other: 'Other' }, OST = { sent: 'Sent', replied: 'Replied', no_reply: 'No reply', won: 'Won', lost: 'Lost' };
@@ -130,7 +131,7 @@
     return ks.map(k => `<h3 class="br-sec"><span>${e(k.replace(/_/g, ' '))}</span><i>${G[k].length}</i></h3>` + G[k].map(r => `<div class="br-item"><b>${e(r.title || r.key)}</b>
       <div class="of-body br-val">${e(r.value)}</div><div class="br-meta">updated ${e(brDay(r.updated_at))}${r.updated_by ? ' by ' + e(r.updated_by) : ''}</div></div>`).join('')).join(''); };
   function brHTML() {
-    setTimeout(brAmbient, 0);
+    brAmbient();  // synchronous: dark scene + hidden content classes are on the body before this HTML is first painted
     return `<div class="card br-card"><div class="br-hud"><span class="br-hud-t">GATEPOST BRAIN</span><span class="br-hud-s">${(O.d.knowledge || []).length || '\u2014'} FACTS \u00b7 READ-ONLY \u00b7 SHARED BY EVERY BOT</span></div>
       <input id="br-q" type="search" placeholder="Search the brain\u2026" value="${e(O.q)}" oninput="OF.q=this.value;ofBrList()">
       <div id="br-list">${loading('knowledge') || brRows(brF())}</div></div>`; }
@@ -162,6 +163,16 @@
   const brSprite = (col) => { const c = document.createElement('canvas'); c.width = c.height = 32; const g = c.getContext('2d'), r = g.createRadialGradient(16, 16, 0, 16, 16, 16);
     r.addColorStop(0, col + '.9)'); r.addColorStop(.25, col + '.35)'); r.addColorStop(1, col + '0)'); g.fillStyle = r; g.fillRect(0, 0, 32, 32); return c; };
   const brFit = (cv, x) => { const dpr = Math.min(2, window.devicePixelRatio || 1), W = innerWidth, H = innerHeight; cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px'; x.setTransform(dpr, 0, 0, dpr, 0, 0); return [W, H]; };
+  // Scene geometry is built once per page load (and pre-warmed when Office opens) so entering Brain never waits on it.
+  function brGeo() { if (brGeo.c) return brGeo.c; const D = 7, B = brBuild(500);
+    let s = 5; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+    const E = []; for (let i = 0; i < 180; i++) E.push({ x: (rnd() - .5) * 3.4, y: (rnd() - .5) * 5.6, z: .4 + rnd() * D, s: .55 + rnd() * .9, c: rnd() < .09, ph: rnd() * 400 });
+    const LK = []; for (let i = 0; i < E.length; i++) { let b = -1, bd = .25; for (let j = i + 1; j < E.length; j++) { const q = (E[i].x - E[j].x) ** 2 + (E[i].y - E[j].y) ** 2 + (E[i].z - E[j].z) ** 2; if (q < bd) { bd = q; b = j; } } if (b >= 0) LK.push([i, b]); }
+    const ST = []; for (let i = 0; i < 60; i++) { const x0 = (rnd() - .5) * 3, y0 = (rnd() - .5) * 5, z0 = .5 + rnd() * D, len = 1.2 + rnd() * 2.4, ph = rnd() * 6.3, a = .15 + rnd() * .45, dx = (rnd() - .5) * 1.2, hz = rnd() < .5;
+      const pts = []; for (let k = 0; k <= 14; k++) { const u = k / 14; pts.push(hz ? [x0 + (u - .5) * len, y0 + Math.sin(u * 3 + ph) * a + dx * u * .3, Math.cos(u * 2.4 + ph) * .5] : [x0 + Math.sin(u * 3 + ph) * a + dx * u, y0 + (u - .5) * len, Math.cos(u * 2.4 + ph) * .5]); }
+      ST.push({ pts, z0, ph: rnd(), sp: .5 + rnd(), c: rnd() < .25 }); }
+    const BP = B.P.map(p => ({ ...p, s: .7 + rnd() * .6, ph: rnd() * 400 }));
+    return (brGeo.c = { B, E, LK, ST, BP }); }
   // One continuous scene on one canvas: the intro brain IS the neuron field. The camera dives into the brain and settles into the ambient drift
   // (no cut); extra neurons and strands fade in from depth during the dive; the list fades in over the running scene.
   // Intro once per session, tap to skip; ~30fps after the dive; paused when hidden; freed when the Brain list leaves; reduced motion = one static frame.
@@ -170,21 +181,15 @@
     try { if (!forceIntro && sessionStorage.getItem('gp-br-intro')) intro = false; if (intro) sessionStorage.setItem('gp-br-intro', '1'); } catch (_) {}
     const body = document.body, cv = document.createElement('canvas'); cv.id = 'br-amb'; cv.setAttribute('aria-hidden', 'true'); body.prepend(cv); body.classList.add('br-on');
     const x = cv.getContext('2d'); let [W, H] = brFit(cv, x), raf = 0, last = 0, tOff = 0, live = intro;
-    const D = 7, T1 = 1500, T = 3200, BZ = 3.3, BS = 1.25, A = 3.15, V = .00022, t0 = performance.now();
+    const D = 7, T1 = 1500, T = 3200, BZ = 3.3, BS = 1.25, A = 3.15, V = .00022; let t0 = performance.now();
     let sk = null; if (intro) { body.classList.add('br-intro-on'); sk = document.createElement('div'); sk.id = 'br-intro'; sk.setAttribute('aria-hidden', 'true'); body.appendChild(sk);
       sk.onclick = () => { tOff = Math.max(tOff, T - (performance.now() - t0)); }; }
-    const B = brBuild(500), n = () => (O.d.knowledge || []).length;
-    let s = 5; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
-    const E = []; for (let i = 0; i < 180; i++) E.push({ x: (rnd() - .5) * 3.4, y: (rnd() - .5) * 5.6, z: .4 + rnd() * D, s: .55 + rnd() * .9, c: rnd() < .09, ph: rnd() * 400 });
-    const LK = []; for (let i = 0; i < E.length; i++) { let b = -1, bd = .25; for (let j = i + 1; j < E.length; j++) { const q = (E[i].x - E[j].x) ** 2 + (E[i].y - E[j].y) ** 2 + (E[i].z - E[j].z) ** 2; if (q < bd) { bd = q; b = j; } } if (b >= 0) LK.push([i, b]); }
-    const ST = []; for (let i = 0; i < 60; i++) { const x0 = (rnd() - .5) * 3, y0 = (rnd() - .5) * 5, z0 = .5 + rnd() * D, len = 1.2 + rnd() * 2.4, ph = rnd() * 6.3, a = .15 + rnd() * .45, dx = (rnd() - .5) * 1.2, hz = rnd() < .5;
-      const pts = []; for (let k = 0; k <= 14; k++) { const u = k / 14; pts.push(hz ? [x0 + (u - .5) * len, y0 + Math.sin(u * 3 + ph) * a + dx * u * .3, Math.cos(u * 2.4 + ph) * .5] : [x0 + Math.sin(u * 3 + ph) * a + dx * u, y0 + (u - .5) * len, Math.cos(u * 2.4 + ph) * .5]); }
-      ST.push({ pts, z0, ph: rnd(), sp: .5 + rnd(), c: rnd() < .25 }); }
-    const BP = B.P.map(p => ({ ...p, s: .7 + rnd() * .6, ph: rnd() * 400 })), BW = BP.map(() => [0, 0, 0]);
+    const n = () => (O.d.knowledge || []).length; let B, E, LK, ST, BP;
     const glowG = brSprite('rgba(120,215,160,'), glowC = brSprite('rgba(251,247,238,'), G = 'rgba(120,215,160,', C = 'rgba(251,247,238,';
     const sm = q => q * q * (3 - 2 * q), cl = q => Math.max(0, Math.min(1, q));
     const wrap = r => r < .15 ? ((r - .15) % D + D) % D + .15 : r;
     function draw(now) {
+      if (!B) return;
       const t = rm ? T : intro ? now - t0 + tOff : T + now - t0, sy = window.scrollY || 0, u = cl((t - T1) / (T - T1)), e = sm(u), F = intro ? e : 1;
       const camZ = A * e + V * Math.max(0, t - T1) + sy * .0035, camY = -.22 * e;
       const swx = Math.sin(t * .00017) * .25 * F, swy = (Math.cos(t * .00013) * .2 + sy * .0006) * F + camY;
@@ -231,7 +236,9 @@
     function stop() { cancelAnimationFrame(raf); clearInterval(chk); document.removeEventListener('visibilitychange', vis); removeEventListener('resize', rs);
       cv.remove(); if (sk) sk.remove(); body.classList.remove('br-on', 'br-intro-on'); window.__brAmb = null; }
     document.addEventListener('visibilitychange', vis); addEventListener('resize', rs);
-    window.__brAmb = { stop }; draw(performance.now()); if (!rm) raf = requestAnimationFrame(loop); }
+    const me = window.__brAmb = { stop };
+    const go = () => { if (window.__brAmb !== me) return; ({ B, E, LK, ST, BP } = brGeo()); t0 = performance.now(); draw(t0); if (!rm) raf = requestAnimationFrame(loop); };
+    brGeo.c ? go() : setTimeout(go, 0); }
   window.ofBrAmbient = brAmbient;
   function brIntro(force) { if (force) { if (window.__brAmb) window.__brAmb.stop(); try { sessionStorage.removeItem('gp-br-intro'); } catch (_) {} } brAmbient(!!force); }
   window.ofBrIntro = brIntro;
