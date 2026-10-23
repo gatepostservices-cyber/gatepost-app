@@ -18,15 +18,16 @@
     timeline: () => gpSb.from('customer_timeline').select('*').order('at_', { ascending: false }).limit(1000),
     price_book: () => gpSb.from('price_book').select('*').order('sort',{ nullsFirst: false }).order('service').limit(1000),
     job_log: () => gpSb.from('job_log').select('*').order('job_date', { ascending: false, nullsFirst: false }).limit(300),
-    bot_notes: () => gpSb.from('bot_notes').select('*').order('created_at', { ascending: false }).limit(50) };
-  const NEED = { leads: ['leads', 'matches', 'outreach'], customers: ['timeline'], pricebook: ['price_book'], joblog: ['job_log'], control: ['bot_notes'] };
+    bot_notes: () => gpSb.from('bot_notes').select('*').order('created_at', { ascending: false }).limit(50),
+    knowledge: () => gpSb.from('knowledge').select('id,key,category,title,value,source,owner,updated_at,updated_by').order('category').order('title').limit(1000) };
+  const NEED = { leads: ['leads', 'matches', 'outreach'], customers: ['timeline'], pricebook: ['price_book'], joblog: ['job_log'], control: ['bot_notes'], brain: ['knowledge'] };
   async function load(k, force) {
     if (!window.gpSb || O.busy[k] || (!force && O.d[k] && Date.now() - (O.at[k] || 0) < 20000)) return;
     O.busy[k] = 1; try { const { data, error } = await Q[k](); if (error) { O.d[k] = O.d[k] || []; window.gpReportError && gpReportError(error, { op: 'office ' + k }); } else O.d[k] = data || []; O.at[k] = Date.now(); }
     finally { O.busy[k] = 0; } paint(); }
   function paint() { const r = document.getElementById('of-root'); if (r && typeof page === 'function' && ['office', 'leads', 'joblog'].includes(page())) r.outerHTML = officePage(true); }
   const toast = m => { const el = document.getElementById('of-msg'); if (el) el.textContent = m; };
-  const TABS = [['leads', 'Leads'], ['customers', 'Customers'], ['pricebook', 'Price Book'], ['joblog', 'Job Log'], ['control', 'Control']];
+  const TABS = [['leads', 'Leads'], ['customers', 'Customers'], ['pricebook', 'Price Book'], ['joblog', 'Job Log'], ['control', 'Control'], ['brain', 'Brain']];
   window.officePage = function (noLoad) {
     if (!own()) return '<div class="card" id="of-root"><h2>Office</h2><p class="muted">Owners only.</p></div>';
     // Simplified nav: Leads lives in Sales, Job Log in Schedule; Office keeps Customers, Price Book, Control.
@@ -34,11 +35,11 @@
     if (solo) O.tab = pg; else if (O.tab === 'leads' || O.tab === 'joblog') { O.tab = 'customers'; O.q = ''; O.ol = null; O.oadd = 0; }
     const tabs = solo ? [] : TABS.filter(([k]) => k !== 'leads' && k !== 'joblog');
     if (!noLoad) setTimeout(() => NEED[O.tab].forEach(k => load(k)), 0);
-    const body = { leads: leadsHTML, customers: custHTML, pricebook: pbHTML, joblog: jlHTML, control: ctlHTML }[O.tab]();
+    const body = { leads: leadsHTML, customers: custHTML, pricebook: pbHTML, joblog: jlHTML, control: ctlHTML, brain: brHTML }[O.tab]();
     return `<div id="of-root">${tabs.length ? `<div class="of-tabs" role="tablist">${tabs.map(([k, n]) => `<button type="button" role="tab" class="${O.tab === k ? 'on' : ''}" onclick="ofTab('${k}')">${n}</button>`).join('')}</div>` : ''}
       <div id="of-msg" class="muted q-rt" aria-live="polite"></div>${body}</div>`; };
   window.ofLoad = (k, f) => load(k, f);
-  window.ofTab = k => { O.tab = k; O.q = ''; O.cust = null; O.ol = null; O.oadd = 0; paint(); NEED[k].forEach(x => load(x)); };
+  window.ofTab = k => { if (k === 'brain') setTimeout(brIntro, 0); O.tab = k; O.q = ''; O.cust = null; O.ol = null; O.oadd = 0; paint(); NEED[k].forEach(x => load(x)); };
   const loading = k => O.d[k] == null ? '<p class="muted">Loading\u2026</p>' : '';
   // ----- Leads
   const OCH = { nextdoor: 'Nextdoor', text: 'Text', email: 'Email', call: 'Call', other: 'Other' }, OST = { sent: 'Sent', replied: 'Replied', no_reply: 'No reply', won: 'Won', lost: 'Lost' };
@@ -119,4 +120,32 @@
       ${loading('bot_notes') || ((N || []).length ? `<ul class="ib-list">${N.map(n => `<li><span class="ib-t">${e(n.text)}</span><span class="muted uf-st">${e(day(n.created_at))} \u00b7 ${n.read_at ? 'read' : 'unread'}</span></li>`).join('')}</ul>` : '<p class="muted">No notes.</p>')}</div>`; }
   window.ofNote = async () => { const ta = document.getElementById('bn-new'), t = (ta && ta.value || '').trim(); if (!t) return;
     const { error } = await gpSb.from('bot_notes').insert({ text: t }); if (error) return toast('Not saved: ' + error.message); toast('Saved'); load('bot_notes', 1); };
+  // ----- Brain (read-only view of public.knowledge, admin RLS)
+  const BR_ORDER = ['rules', 'pricing', 'phone', 'owners', 'filing', 'bots', 'links', 'accounts', 'app_tools'];
+  const brF = () => { const q = O.q.toLowerCase(); return (O.d.knowledge || []).filter(r => !q || [r.title, r.value, r.key].join(' ').toLowerCase().includes(q)); };
+  const brDay = d => d ? new Date(d).toLocaleDateString('en-US', { timeZone: 'America/Denver', month: 'short', day: 'numeric', year: 'numeric' }) : '';
+  const brRows = F => { if (!F.length) return '<p class="muted">' + ((O.d.knowledge || []).length ? 'No matches.' : 'Nothing in the brain yet.') + '</p>';
+    const G = {}; F.forEach(r => (G[r.category || 'other'] = G[r.category || 'other'] || []).push(r));
+    const ks = Object.keys(G).sort((a, b) => ((BR_ORDER.indexOf(a) + 1) || 99) - ((BR_ORDER.indexOf(b) + 1) || 99) || a.localeCompare(b));
+    return ks.map(k => `<h3 class="pb-sec">${e(k.replace(/_/g, ' '))} <span class="muted">${G[k].length}</span></h3>` + G[k].map(r => `<div class="of-item br-item"><b>${e(r.title || r.key)}</b>
+      <div class="of-body br-val">${e(r.value)}</div><div class="muted uf-st">updated ${e(brDay(r.updated_at))}${r.updated_by ? ' by ' + e(r.updated_by) : ''}</div></div>`).join('')).join(''); };
+  function brHTML() {
+    return `<div class="card"><h2>Brain</h2><p class="muted">Read-only. The shared facts every bot checks before asking.</p>
+      <input id="br-q" type="search" placeholder="Search the brain\u2026" value="${e(O.q)}" oninput="OF.q=this.value;ofBrList()">
+      <div id="br-list">${loading('knowledge') || brRows(brF())}</div></div>`; }
+  window.ofBrList = () => { const el = document.getElementById('br-list'); if (el) el.innerHTML = brRows(brF()); };
+  // Intro: zoom into a robot head; once per session, tap to skip, none with reduced motion.
+  function brIntro(force) {
+    try { if (!force && (sessionStorage.getItem('gp-br-intro') || matchMedia('(prefers-reduced-motion: reduce)').matches)) return; sessionStorage.setItem('gp-br-intro', '1'); } catch (_) {}
+    if (document.getElementById('br-intro')) return;
+    const d = document.createElement('div'); d.id = 'br-intro'; d.setAttribute('aria-hidden', 'true');
+    d.innerHTML = `<svg class="br-head" viewBox="0 0 200 200"><line x1="100" y1="18" x2="100" y2="40" stroke="#1f3a2b" stroke-width="5"/><circle class="br-ant" cx="100" cy="14" r="8"/>
+      <rect x="40" y="40" width="120" height="110" rx="26" fill="#1f3a2b"/><rect x="54" y="56" width="92" height="44" rx="14" fill="#fbf7ee"/>
+      <circle class="br-eye" cx="80" cy="78" r="9"/><circle class="br-eye" cx="120" cy="78" r="9"/><rect x="74" y="116" width="52" height="10" rx="5" fill="#fbf7ee"/>
+      <rect x="26" y="78" width="14" height="34" rx="6" fill="#1f3a2b"/><rect x="160" y="78" width="14" height="34" rx="6" fill="#1f3a2b"/></svg>
+      <svg class="br-net" viewBox="0 0 200 200">${[[100,100,30,40],[100,100,170,50],[100,100,40,160],[100,100,165,165],[100,100,100,10],[30,40,40,160],[170,50,165,165],[100,10,170,50]].map(([a,b,c,f],i) => `<path d="M${a} ${b} L${(a+c)/2} ${b} L${(a+c)/2} ${f} L${c} ${f}" style="animation-delay:${.6+i*.05}s"/>`).join('')}
+      ${[[100,100],[30,40],[170,50],[40,160],[165,165],[100,10]].map(([x,y]) => `<circle cx="${x}" cy="${y}" r="5"/>`).join('')}</svg><span class="br-skip">Tap to skip</span>`;
+    const end = () => { d.classList.add('out'); setTimeout(() => d.remove(), 300); };
+    d.onclick = end; document.body.appendChild(d); setTimeout(end, 2100); }
+  window.ofBrIntro = brIntro;
 })();
