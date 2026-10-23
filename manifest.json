@@ -1,7 +1,7 @@
 {
   "id": "./",
   "name": "Gatepost Admin",
-  "short_name": "GP Admin",
+  "short_name": "Gatepost Admin",
   "description": "Gatepost Property Services admin app",
   "start_url": "./",
   "scope": "./",
