@@ -19,15 +19,16 @@
     price_book: () => gpSb.from('price_book').select('*').order('sort',{ nullsFirst: false }).order('service').limit(1000),
     job_log: () => gpSb.from('job_log').select('*').order('job_date', { ascending: false, nullsFirst: false }).limit(300),
     bot_notes: () => gpSb.from('bot_notes').select('*').order('created_at', { ascending: false }).limit(50),
+    team_shifts: () => gpSb.from('team_shifts').select('id,worker_id,worker_name,clock_in,clock_out,hours,houses,houses_per_hour,est_minutes,actual_minutes,pace_ratio,miles,neighborhood,sessions').order('clock_in', { ascending: false }).limit(500),
     knowledge: () => gpSb.from('knowledge').select('id,key,category,title,value,source,owner,updated_at,updated_by').order('category').order('title').limit(1000) };
-  const NEED = { leads: ['leads', 'matches', 'outreach'], customers: ['timeline'], pricebook: ['price_book'], joblog: ['job_log'], control: ['bot_notes'], brain: ['knowledge'] };
+  const NEED = { leads: ['leads', 'matches', 'outreach'], customers: ['timeline'], pricebook: ['price_book'], joblog: ['job_log'], control: ['bot_notes'], brain: ['knowledge'], hours: ['team_shifts'] };
   async function load(k, force) {
     if (!window.gpSb || O.busy[k] || (!force && O.d[k] && Date.now() - (O.at[k] || 0) < 20000)) return;
     O.busy[k] = 1; try { const { data, error } = await Q[k](); if (error) { O.d[k] = O.d[k] || []; window.gpReportError && gpReportError(error, { op: 'office ' + k }); } else O.d[k] = data || []; O.at[k] = Date.now(); }
     finally { O.busy[k] = 0; } paint(); }
   function paint() { const r = document.getElementById('of-root'); if (r && typeof page === 'function' && ['office', 'leads', 'joblog'].includes(page())) r.outerHTML = officePage(true); }
   const toast = m => { const el = document.getElementById('of-msg'); if (el) el.textContent = m; };
-  const TABS = [['leads', 'Leads'], ['customers', 'Customers'], ['pricebook', 'Price Book'], ['joblog', 'Job Log'], ['control', 'Control'], ['brain', 'Brain']];
+  const TABS = [['leads', 'Leads'], ['customers', 'Customers'], ['pricebook', 'Price Book'], ['joblog', 'Job Log'], ['control', 'Control'], ['hours', 'Team Hours'], ['brain', 'Brain']];
   window.officePage = function (noLoad) {
     if (!own()) return '<div class="card" id="of-root"><h2>Office</h2><p class="muted">Owners only.</p></div>';
     if (!brGeo.c) (window.requestIdleCallback || (f => setTimeout(f, 400)))(() => brGeo());
@@ -36,7 +37,7 @@
     if (solo) O.tab = pg; else if (O.tab === 'leads' || O.tab === 'joblog') { O.tab = 'customers'; O.q = ''; O.ol = null; O.oadd = 0; }
     const tabs = solo ? [] : TABS.filter(([k]) => k !== 'leads' && k !== 'joblog');
     if (!noLoad) setTimeout(() => NEED[O.tab].forEach(k => load(k)), 0);
-    const body = { leads: leadsHTML, customers: custHTML, pricebook: pbHTML, joblog: jlHTML, control: ctlHTML, brain: brHTML }[O.tab]();
+    const body = { leads: leadsHTML, customers: custHTML, pricebook: pbHTML, joblog: jlHTML, control: ctlHTML, brain: brHTML, hours: hoursHTML }[O.tab]();
     return `<div id="of-root">${tabs.length ? `<div class="of-tabs" role="tablist">${tabs.map(([k, n]) => `<button type="button" role="tab" class="${O.tab === k ? 'on' : ''}" onclick="ofTab('${k}')">${n}</button>`).join('')}</div>` : ''}
       <div id="of-msg" class="muted q-rt" aria-live="polite"></div>${body}</div>`; };
   window.ofLoad = (k, f) => load(k, f);
@@ -112,6 +113,20 @@
     const row = { ref: v('jl-ref').trim() || null, service: v('jl-svc').trim(), listed_price: v('jl-lp') === '' ? null : Number(v('jl-lp')), actual_price: v('jl-ap') === '' ? null : Number(v('jl-ap')), job_date: v('jl-dt') || null, notes: v('jl-nt').trim() || null };
     if (!row.service) return toast('Service is required');
     const { error } = await gpSb.from('job_log').insert(row); if (error) return toast('Not added: ' + error.message); toast('Added'); load('job_log', 1); };
+  // ----- Team Hours: shifts sent by the Gatepost Team app on clock-out (table team_shifts; admin-read RLS, anon insert-only)
+  const n1 = (v, d = 1) => v == null || v === '' ? '\u2014' : Number(v).toFixed(d);
+  const tOnly = d => d ? new Date(d).toLocaleTimeString('en-US', { timeZone: 'America/Denver', hour: 'numeric', minute: '2-digit' }) : '';
+  const dOnly = d => d ? new Date(d).toLocaleDateString('en-US', { timeZone: 'America/Denver', weekday: 'short', month: 'short', day: 'numeric' }) : '';
+  const pace = r => r == null ? '\u2014' : `<span class="th-pace ${r <= 1 ? 'ok' : 'slow'}" title="Actual route time / app estimate. Under 1.0x = faster than estimate.">${Number(r).toFixed(2)}x</span>`;
+  function hoursHTML() {
+    const T = O.d.team_shifts; if (T == null) return '<div class="card"><h2>Team Hours</h2>' + loading('team_shifts') + '</div>';
+    const W = {}; T.forEach(r => { const w = W[r.worker_id] || (W[r.worker_id] = { name: r.worker_name, n: 0, h: 0, houses: 0, est: 0, act: 0, mi: 0, last: r.clock_in });
+      w.n++; w.h += +r.hours || 0; w.houses += +r.houses || 0; w.est += +r.est_minutes || 0; w.act += +r.actual_minutes || 0; w.mi += +r.miles || 0; });
+    const ws = Object.values(W).sort((a, b) => b.h - a.h);
+    return `<div class="card"><div class="uf-top"><h2>Team Hours</h2><button type="button" class="secondary q-sm" onclick="ofLoad('team_shifts',1)">Refresh</button></div>
+      <p class="muted">Sent by the Gatepost Team app when a worker clocks out. Houses are estimated from the route steps covered. Pace = actual route time \u00f7 app estimate (0.9x = faster than estimate). Workers never see these numbers.</p>
+      <h3>Per worker</h3>${ws.length ? `<div class="th-wrap"><table class="of-t th-t"><thead><tr><th>Worker</th><th>Shifts</th><th>Hours</th><th>Houses</th><th>Houses/hr</th><th>Pace</th><th>Miles</th><th>Last shift</th></tr></thead><tbody>${ws.map(w => `<tr><td><b>${e(w.name)}</b></td><td>${w.n}</td><td>${n1(w.h, 2)}</td><td>${w.houses}</td><td>${w.h > 0 ? n1(w.houses / w.h) : '\u2014'}</td><td>${w.est > 0 ? pace(w.act / w.est) : '\u2014'}</td><td>${n1(w.mi)}</td><td class="muted">${e(dOnly(w.last))}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted">No shifts yet.</p>'}
+      <h3>Shifts</h3>${T.length ? `<div class="th-wrap"><table class="of-t th-t"><thead><tr><th>Worker</th><th>Date</th><th>In</th><th>Out</th><th>Hours</th><th>Houses</th><th>Houses/hr</th><th>Pace</th><th>Miles</th><th>Neighborhood</th></tr></thead><tbody>${T.map(r => `<tr><td><b>${e(r.worker_name)}</b></td><td>${e(dOnly(r.clock_in))}</td><td>${e(tOnly(r.clock_in))}</td><td>${e(tOnly(r.clock_out))}</td><td>${n1(r.hours, 2)}</td><td>${r.houses ?? '\u2014'}</td><td>${n1(r.houses_per_hour)}</td><td>${pace(r.pace_ratio)}</td><td>${n1(r.miles)}</td><td class="muted">${e(r.neighborhood || '')}${(r.sessions || []).length ? '<br>' + (r.sessions || []).map(x => e(x.session + ' (' + x.steps_checked + ' steps)')).join(', ') : ''}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted">No shifts yet.</p>'}</div>`; }
   // ----- Control: bot launcher (permissions.launcher) + notes for bots
   function ctlHTML() {
     const ids = (typeof can === 'function' ? can('launcher', []) : []) || [], N = O.d.bot_notes;
