@@ -19,16 +19,18 @@
     price_book: () => gpSb.from('price_book').select('*').order('sort',{ nullsFirst: false }).order('service').limit(1000),
     job_log: () => gpSb.from('job_log').select('*').order('job_date', { ascending: false, nullsFirst: false }).limit(300),
     bot_notes: () => gpSb.from('bot_notes').select('*').order('created_at', { ascending: false }).limit(50),
-    team_shifts: () => gpSb.from('team_shifts').select('id,worker_id,worker_name,clock_in,clock_out,hours,houses,houses_per_hour,est_minutes,actual_minutes,pace_ratio,miles,neighborhood,sessions').order('clock_in', { ascending: false }).limit(500),
+    team_shifts: () => gpSb.from('team_shifts').select('id,worker_id,worker_name,clock_in,clock_out,hours,houses,houses_per_hour,est_minutes,actual_minutes,pace_ratio,miles,neighborhood,sessions,user_id').order('clock_in', { ascending: false }).limit(500),
+    team_members: () => gpSb.from('team_members').select('user_id,name,email,approved,created_at').order('created_at', { ascending: false }).limit(500),
+    route_assignments: () => gpSb.from('route_assignments').select('id,user_id,route_id,assigned_by,created_at').limit(2000),
     knowledge: () => gpSb.from('knowledge').select('id,key,category,title,value,source,owner,updated_at,updated_by').order('category').order('title').limit(1000) };
-  const NEED = { leads: ['leads', 'matches', 'outreach'], customers: ['timeline'], pricebook: ['price_book'], joblog: ['job_log'], control: ['bot_notes'], brain: ['knowledge'], hours: ['team_shifts'] };
+  const NEED = { leads: ['leads', 'matches', 'outreach'], customers: ['timeline'], pricebook: ['price_book'], joblog: ['job_log'], control: ['bot_notes'], brain: ['knowledge'], hours: ['team_shifts'], accounts: ['team_members', 'route_assignments', 'team_shifts'] };
   async function load(k, force) {
     if (!window.gpSb || O.busy[k] || (!force && O.d[k] && Date.now() - (O.at[k] || 0) < 20000)) return;
     O.busy[k] = 1; try { const { data, error } = await Q[k](); if (error) { O.d[k] = O.d[k] || []; window.gpReportError && gpReportError(error, { op: 'office ' + k }); } else O.d[k] = data || []; O.at[k] = Date.now(); }
     finally { O.busy[k] = 0; } paint(); }
-  function paint() { const r = document.getElementById('of-root'); if (r && typeof page === 'function' && ['office', 'leads', 'joblog'].includes(page())) r.outerHTML = officePage(true); }
+  function paint() { const r = document.getElementById('of-root'); if (r && typeof page === 'function' && ['office', 'leads', 'joblog'].includes(page())) { r.outerHTML = officePage(true); if (O.tab === 'accounts') drawMap(); } }
   const toast = m => { const el = document.getElementById('of-msg'); if (el) el.textContent = m; };
-  const TABS = [['leads', 'Leads'], ['customers', 'Customers'], ['pricebook', 'Price Book'], ['joblog', 'Job Log'], ['control', 'Control'], ['hours', 'Team Hours'], ['brain', 'Brain']];
+  const TABS = [['leads', 'Leads'], ['customers', 'Customers'], ['pricebook', 'Price Book'], ['joblog', 'Job Log'], ['control', 'Control'], ['hours', 'Team Hours'], ['accounts', 'Team Accounts'], ['brain', 'Brain']];
   window.officePage = function (noLoad) {
     if (!own()) return '<div class="card" id="of-root"><h2>Office</h2><p class="muted">Owners only.</p></div>';
     if (!brGeo.c) (window.requestIdleCallback || (f => setTimeout(f, 400)))(() => brGeo());
@@ -37,11 +39,11 @@
     if (solo) O.tab = pg; else if (O.tab === 'leads' || O.tab === 'joblog') { O.tab = 'customers'; O.q = ''; O.ol = null; O.oadd = 0; }
     const tabs = solo ? [] : TABS.filter(([k]) => k !== 'leads' && k !== 'joblog');
     if (!noLoad) setTimeout(() => NEED[O.tab].forEach(k => load(k)), 0);
-    const body = { leads: leadsHTML, customers: custHTML, pricebook: pbHTML, joblog: jlHTML, control: ctlHTML, brain: brHTML, hours: hoursHTML }[O.tab]();
+    const body = { leads: leadsHTML, customers: custHTML, pricebook: pbHTML, joblog: jlHTML, control: ctlHTML, brain: brHTML, hours: hoursHTML, accounts: accountsHTML }[O.tab]();
     return `<div id="of-root">${tabs.length ? `<div class="of-tabs" role="tablist">${tabs.map(([k, n]) => `<button type="button" role="tab" class="${O.tab === k ? 'on' : ''}" onclick="ofTab('${k}')">${n}</button>`).join('')}</div>` : ''}
       <div id="of-msg" class="muted q-rt" aria-live="polite"></div>${body}</div>`; };
   window.ofLoad = (k, f) => load(k, f);
-  window.ofTab = k => { O.tab = k; O.q = ''; O.cust = null; O.ol = null; O.oadd = 0; paint(); NEED[k].forEach(x => load(x)); };
+  window.ofTab = k => { O.map = null; O.tab = k; O.q = ''; O.cust = null; O.ol = null; O.oadd = 0; paint(); NEED[k].forEach(x => load(x)); };
   const loading = k => O.d[k] == null ? '<p class="muted">Loading\u2026</p>' : '';
   // ----- Leads
   const OCH = { nextdoor: 'Nextdoor', text: 'Text', email: 'Email', call: 'Call', other: 'Other' }, OST = { sent: 'Sent', replied: 'Replied', no_reply: 'No reply', won: 'Won', lost: 'Lost' };
@@ -127,6 +129,59 @@
       <p class="muted">Sent by the Gatepost Team app when a worker clocks out. Houses are estimated from the route steps covered. Pace = actual route time \u00f7 app estimate (0.9x = faster than estimate). Workers never see these numbers.</p>
       <h3>Per worker</h3>${ws.length ? `<div class="th-wrap"><table class="of-t th-t"><thead><tr><th>Worker</th><th>Shifts</th><th>Hours</th><th>Houses</th><th>Houses/hr</th><th>Pace</th><th>Miles</th><th>Last shift</th></tr></thead><tbody>${ws.map(w => `<tr><td><b>${e(w.name)}</b></td><td>${w.n}</td><td>${n1(w.h, 2)}</td><td>${w.houses}</td><td>${w.h > 0 ? n1(w.houses / w.h) : '\u2014'}</td><td>${w.est > 0 ? pace(w.act / w.est) : '\u2014'}</td><td>${n1(w.mi)}</td><td class="muted">${e(dOnly(w.last))}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted">No shifts yet.</p>'}
       <h3>Shifts</h3>${T.length ? `<div class="th-wrap"><table class="of-t th-t"><thead><tr><th>Worker</th><th>Date</th><th>In</th><th>Out</th><th>Hours</th><th>Houses</th><th>Houses/hr</th><th>Pace</th><th>Miles</th><th>Neighborhood</th></tr></thead><tbody>${T.map(r => `<tr><td><b>${e(r.worker_name)}</b></td><td>${e(dOnly(r.clock_in))}</td><td>${e(tOnly(r.clock_in))}</td><td>${e(tOnly(r.clock_out))}</td><td>${n1(r.hours, 2)}</td><td>${r.houses ?? '\u2014'}</td><td>${n1(r.houses_per_hour)}</td><td>${pace(r.pace_ratio)}</td><td>${n1(r.miles)}</td><td class="muted">${e(r.neighborhood || '')}${(r.sessions || []).length ? '<br>' + (r.sessions || []).map(x => e(x.session + ' (' + x.steps_checked + ' steps)')).join(', ') : ''}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted">No shifts yet.</p>'}</div>`; }
+  // ----- Team Accounts: approve/remove Gatepost Team workers, assign routes, per-shift walked-path map
+  // Tables: team_members, route_assignments, team_shift_paths (admin RLS via is_admin()). Route ids = slugs in the team app's data/index.json.
+  const TEAM_URL = 'https://gatepostservices-cyber.github.io/gatepost-team/';
+  O.routes = null; O.map = null;
+  async function teamRoutes() { if (O.routes) return O.routes; try { const r = await fetch(TEAM_URL + 'data/index.json', { cache: 'no-cache' }); O.routes = (await r.json()).neighborhoods || []; } catch (x) { O.routes = []; } paint(); return O.routes; }
+  function accountsHTML() {
+    const M = O.d.team_members, A = O.d.route_assignments || [], T = (O.d.team_shifts || []).filter(r => r.user_id);
+    if (M == null) return '<div class="card"><h2>Team Accounts</h2>' + loading('team_members') + '</div>';
+    if (!O.routes) teamRoutes();
+    const R = O.routes || [], rn = id => (R.find(x => x.slug === id) || {}).name || id;
+    const pend = M.filter(m => !m.approved), act = M.filter(m => m.approved);
+    const row = m => { const mine = A.filter(a => a.user_id === m.user_id).map(a => a.route_id);
+      return `<div class="of-item"><div class="uf-top"><span><b>${e(m.name || '(no name)')}</b> <span class="muted">${e(m.email)}</span></span><span class="muted">${m.approved ? 'Approved' : 'Waiting'} \u00b7 ${e(dOnly(m.created_at))}</span></div>
+        <div class="q-actions">${m.approved ? '' : `<button type="button" class="primary q-sm" onclick="ofTmApprove('${e(m.user_id)}',true)">Approve</button>`}
+        ${m.approved ? `<button type="button" class="secondary q-sm" onclick="ofTmApprove('${e(m.user_id)}',false)">Pause access</button>` : ''}
+        <button type="button" class="secondary q-sm" onclick="ofTmRemove('${e(m.user_id)}')">Remove</button></div>
+        ${m.approved ? `<div class="ta-routes">${R.length ? R.map(x => `<label class="ta-chk"><input type="checkbox" ${mine.includes(x.slug) ? 'checked' : ''} onchange="ofTmAssign('${e(m.user_id)}','${e(x.slug)}',this.checked)"> ${e(x.name)}${(x.round || 1) > 1 ? ' \u00b7 R' + x.round : ''}</label>`).join('') : '<span class="muted">Loading routes\u2026</span>'}
+          ${mine.filter(s => !R.some(x => x.slug === s)).map(s => `<label class="ta-chk"><input type="checkbox" checked onchange="ofTmAssign('${e(m.user_id)}','${e(s)}',this.checked)"> ${e(s)} (not in route list)</label>`).join('')}</div>` : ''}</div>`; };
+    return `<div class="card"><div class="uf-top"><h2>Team Accounts</h2><button type="button" class="secondary q-sm" onclick="['team_members','route_assignments','team_shifts'].forEach(k=>ofLoad(k,1))">Refresh</button></div>
+      <p class="muted">Workers create their own account in the Gatepost Team app. New accounts see nothing until you approve them. Checked routes show on the worker's Home and in their route tracker.</p>
+      <h3>Waiting for approval (${pend.length})</h3>${pend.length ? pend.map(row).join('') : '<p class="muted">Nobody waiting.</p>'}
+      <h3>Team (${act.length})</h3>${act.length ? act.map(row).join('') : '<p class="muted">No approved workers yet.</p>'}</div>
+      <div class="card"><h2>Shift maps</h2><p class="muted">Walked path (recorded only while clocked in) over the assigned route.</p>
+      ${T.length ? `<div class="th-wrap"><table class="of-t th-t"><thead><tr><th>Worker</th><th>Date</th><th>In</th><th>Out</th><th>Hours</th><th></th></tr></thead><tbody>${T.slice(0, 100).map(r => `<tr><td><b>${e(r.worker_name)}</b></td><td>${e(dOnly(r.clock_in))}</td><td>${e(tOnly(r.clock_in))}</td><td>${e(tOnly(r.clock_out))}</td><td>${n1(r.hours, 2)}</td><td><button type="button" class="secondary q-sm" onclick="ofTmMap('${e(r.id)}')">Map</button></td></tr>`).join('')}</tbody></table></div>` : '<p class="muted">No signed-in shifts yet.</p>'}
+      <div id="ta-mapwrap" ${O.map ? '' : 'hidden'}><p id="ta-mapcap" class="muted">${e(O.map && O.map.cap || '')}</p><div id="ta-map" class="ta-map"></div></div></div>`; }
+  window.ofTmApprove = async (id, on) => { const { error } = await gpSb.from('team_members').update({ approved: on }).eq('user_id', id); if (error) return toast('Not saved: ' + error.message); toast(on ? 'Approved' : 'Access paused'); load('team_members', 1); };
+  window.ofTmRemove = async id => { if (!confirm('Remove this worker? They lose access to the team app and their route assignments. Their past shifts stay.')) return;
+    await gpSb.from('route_assignments').delete().eq('user_id', id); const { error } = await gpSb.from('team_members').delete().eq('user_id', id);
+    if (error) return toast('Not removed: ' + error.message); toast('Removed'); load('team_members', 1); load('route_assignments', 1); };
+  window.ofTmAssign = async (uid, rid, on) => { const q = on ? gpSb.from('route_assignments').insert({ user_id: uid, route_id: rid }) : gpSb.from('route_assignments').delete().eq('user_id', uid).eq('route_id', rid);
+    const { error } = await q; if (error && !(on && error.code === '23505')) { toast('Not saved: ' + error.message); } else toast(on ? 'Route assigned' : 'Route unassigned'); load('route_assignments', 1); };
+  function leaflet() { if (window.L) return Promise.resolve(); return new Promise((ok, no) => { const c = document.createElement('link'); c.rel = 'stylesheet'; c.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'; document.head.appendChild(c);
+    const s = document.createElement('script'); s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'; s.onload = ok; s.onerror = no; document.head.appendChild(s); }); }
+  window.ofTmMap = async id => { const r = (O.d.team_shifts || []).find(x => x.id === id); if (!r) return; toast('Loading map\u2026');
+    try { await leaflet(); } catch (x) { return toast('Map library did not load'); }
+    const { data: P, error } = await gpSb.from('team_shift_paths').select('points').eq('shift_id', id).maybeSingle(); if (error) return toast('Path not loaded: ' + error.message);
+    const R = await teamRoutes(), sess = Array.isArray(r.sessions) ? r.sessions : [];
+    let ids = [...new Set(sess.map(s => s.route_id).filter(Boolean))];
+    if (!ids.length) ids = R.filter(x => sess.some(s => s.neighborhood === x.name)).map(x => x.slug);
+    if (!ids.length) ids = (O.d.route_assignments || []).filter(a => a.user_id === r.user_id).map(a => a.route_id);
+    const geos = await Promise.all(R.filter(x => ids.includes(x.slug)).map(x => fetch(TEAM_URL + 'data/' + x.file).then(y => y.json()).then(g => ({ x, g })).catch(() => null)));
+    const pts = ((P && P.points) || []).map(p => [p[0], p[1]]);
+    O.map = { cap: `${r.worker_name} \u00b7 ${dOnly(r.clock_in)} ${tOnly(r.clock_in)}\u2013${tOnly(r.clock_out)} \u00b7 ${pts.length} GPS points${geos.filter(Boolean).length ? ' \u00b7 route: ' + geos.filter(Boolean).map(z => z.x.name).join(', ') : ''}` };
+    O.map.data = { geos, pts, sess }; paint(); toast(pts.length ? '' : 'No GPS path was recorded for this shift.'); };
+  function drawMap() { const el = document.getElementById('ta-map'); if (!el || !O.map || !O.map.data || !window.L) return; const { geos, pts, sess } = O.map.data;
+    const m = L.map(el, { zoomControl: true }); L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '\u00a9 OpenStreetMap' }).addTo(m);
+    const b = L.latLngBounds([]);
+    geos.filter(Boolean).forEach(({ g }) => g.features.filter(f => f.properties.kind === 'session_path' && (!sess.length || !sess.some(s => s.session_n) || sess.some(s => s.session_n === f.properties.session))).forEach(f => {
+      const ll = f.geometry.coordinates.map(c => [c[1], c[0]]); L.polyline(ll, { color: f.properties.color_hex || '#888', weight: 5, opacity: .55 }).addTo(m); ll.forEach(p => b.extend(p)); }));
+    if (pts.length) { L.polyline(pts, { color: '#fff', weight: 6, opacity: .35 }).addTo(m); L.polyline(pts, { color: '#3d8bff', weight: 3, opacity: 1 }).addTo(m);
+      L.circleMarker(pts[0], { radius: 6, color: '#fff', fillColor: '#2fbf71', fillOpacity: 1 }).addTo(m).bindTooltip('Start'); L.circleMarker(pts[pts.length - 1], { radius: 6, color: '#fff', fillColor: '#e5484d', fillOpacity: 1 }).addTo(m).bindTooltip('End'); pts.forEach(p => b.extend(p)); }
+    if (b.isValid()) m.fitBounds(b, { padding: [16, 16] }); else m.setView([35.24, -106.66], 13);
+  }
   // ----- Control: bot launcher (permissions.launcher) + notes for bots
   function ctlHTML() {
     const ids = (typeof can === 'function' ? can('launcher', []) : []) || [], N = O.d.bot_notes;
