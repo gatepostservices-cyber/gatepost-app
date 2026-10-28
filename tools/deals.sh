@@ -5,6 +5,7 @@
 #   tools/deals.sh list                  prints every deal as JSON
 # Deal fields (all optional except ext_id; a key you leave out is NOT touched on an existing deal):
 #   ext_id             text 1-80, REQUIRED, unique key
+#   type               homes | land   (new deals default to homes; left out on an existing deal = unchanged)
 #   address            text <=200 (the PROPERTY address only)
 #   list_price arv rehab   numbers >= 0 (< 1e10)
 #   max_offer          number (< 1e10 in size)
@@ -24,7 +25,7 @@ case "$CMD" in
     FN=deals_upsert
     DEALS=$(python3 - "$1" <<'PY'
 import json, math, sys
-KEYS = ["ext_id", "address", "list_price", "arv", "rehab", "max_offer", "creative_structure", "status", "notes", "call_script"]
+KEYS = ["ext_id", "type", "address", "list_price", "arv", "rehab", "max_offer", "creative_structure", "status", "notes", "call_script"]
 NUM = {"list_price", "arv", "rehab", "max_offer"}
 TXT = {"ext_id": 80, "address": 200, "creative_structure": 2000, "notes": 4000, "call_script": 8000}
 STATUS = ["Considering", "Offered", "Under contract", "Assigned", "Dead"]
@@ -41,6 +42,8 @@ for i, o in enumerate(d, 1):
         if k in NUM:
             if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v): bad("deal %d: %s must be a number" % (i, k))
             if abs(v) >= 1e10 or (k != "max_offer" and v < 0): bad("deal %d: %s out of range" % (i, k))
+        elif k == "type":
+            if v not in ("homes", "land"): bad("deal %d: type must be homes or land" % i)
         elif k == "status":
             if v not in STATUS: bad("deal %d: status must be one of %s" % (i, ", ".join(STATUS)))
         else:

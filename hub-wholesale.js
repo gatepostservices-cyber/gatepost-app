@@ -1,10 +1,11 @@
 // Wholesale Hub (Christian only): summary numbers + native tools (Deal Calculator, Deal Tracker, Buyers). No external links, no iframes.
 // Data (all RLS = has_hub('wholesale'): hub_access row AND profiles.is_owner, so other owners/admins read and write nothing):
-//   wholesale_stats  summary numbers per state, PK (state,key) (tools/wholesale.sh)      wholesale_deals  deals (tools/deals.sh creates/edits; the app edits status + notes only)
+//   wholesale_stats  summary numbers per state and type (homes|land), PK (state,type,key) (tools/wholesale.sh)      wholesale_deals  deals (tools/deals.sh creates/edits; the app edits status + notes only)
 //   wholesale_buyers buyers + buy-box (added and edited here)
+//   wholesale_title_cos title companies per state (tools/title.sh creates/edits; the app edits status + call_notes only)
 // Never owner names or mailing addresses: no such columns exist.
 (function () {
-  const W = window.WS = { d: null, at: 0, busy: false, tab: 'summary', deals: null, buyers: null, dBusy: false, bBusy: false, filter: 'All', msg: '', dd: {}, bf: {}, bedit: null,
+  const W = window.WS = { d: null, at: 0, busy: false, tab: 'summary', deals: null, buyers: null, dBusy: false, bBusy: false, filter: 'All', tfilter: 'All', st: {}, tc: null, tcBusy: false, td: {}, tcOpen: {}, msg: '', dd: {}, bf: {}, bedit: null,
     calc: { arv: '', rehab: '', list: '', fee: '', dc: '' } };
   const e = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const num = v => v == null ? '\u2014' : Number(v).toLocaleString('en-US');
@@ -19,13 +20,13 @@
   async function load(force) {
     if (!window.gpSb || W.busy || (!force && W.d && Date.now() - W.at < 20000)) return;
     W.busy = true;
-    try { const { data, error } = await gpSb.from('wholesale_stats').select('state,key,value,updated_at'); W.d = error ? (W.d || {}) : (data || []).reduce((o, r) => { (o[r.state || 'NM'] = o[r.state || 'NM'] || {})[r.key] = r; return o; }, {}); W.at = Date.now(); if (error && window.gpReportError) gpReportError(error, { op: 'wholesale' }); }
+    try { const { data, error } = await gpSb.from('wholesale_stats').select('state,type,key,value,updated_at'); W.d = error ? (W.d || {}) : (data || []).reduce((o, r) => { const s = r.state || 'NM', t = r.type || 'homes'; ((o[s] = o[s] || {})[t] = o[s][t] || {})[r.key] = r; return o; }, {}); W.at = Date.now(); if (error && window.gpReportError) gpReportError(error, { op: 'wholesale' }); }
     finally { W.busy = false; }
     repaint();
   }
   async function loadDeals(force) {
     if (!window.gpSb || W.dBusy || (!force && W.deals)) return; W.dBusy = true;
-    try { const { data, error } = await gpSb.from('wholesale_deals').select('id,ext_id,address,list_price,arv,rehab,max_offer,creative_structure,status,notes,call_script,updated_at').order('updated_at', { ascending: false });
+    try { const { data, error } = await gpSb.from('wholesale_deals').select('id,ext_id,type,address,list_price,arv,rehab,max_offer,creative_structure,status,notes,call_script,updated_at').order('updated_at', { ascending: false });
       if (error) { W.deals = W.deals || []; say('Could not load deals.'); window.gpReportError && gpReportError(error, { op: 'wholesale_deals' }); } else W.deals = data || []; }
     finally { W.dBusy = false; } repaint();
   }
@@ -35,7 +36,7 @@
       if (error) { W.buyers = W.buyers || []; say('Could not load buyers.'); window.gpReportError && gpReportError(error, { op: 'wholesale_buyers' }); } else W.buyers = data || []; }
     finally { W.bBusy = false; } repaint();
   }
-  window.wsRefresh = () => { load(true); if (W.tab === 'deals') loadDeals(true); if (W.tab === 'buyers') loadBuyers(true); };
+  window.wsRefresh = () => { load(true); loadTitle(true); if (W.tab === 'deals') loadDeals(true); if (W.tab === 'buyers') loadBuyers(true); };
   window.wsTab = k => { W.tab = k; say(''); repaint(); };
 
   // ---- Deal Calculator (front end only; nothing is saved or sent) ----
@@ -76,6 +77,7 @@
   const dval = (d, k) => (W.dd[d.id] && W.dd[d.id][k] !== undefined) ? W.dd[d.id][k] : (d[k] ?? '');
   window.wsDraft = (id, k, v) => { (W.dd[id] = W.dd[id] || {})[k] = v; };
   window.wsFilter = f => { W.filter = f; repaint(); };
+  window.wsTFilter = f => { W.tfilter = f; repaint(); };
   window.wsDealSave = async id => {
     const d = dget(id); if (!d || !window.gpSb) return; const dr = W.dd[id] || {};
     const upd = { status: dr.status !== undefined ? dr.status : d.status, notes: dr.notes !== undefined ? dr.notes : d.notes };
@@ -93,6 +95,7 @@
   function dealHTML(d) {
     const spread = d.max_offer != null && d.list_price != null ? Number(d.max_offer) - Number(d.list_price) : null;
     return `<div class="of-item ws-deal" data-deal="${e(d.id)}"><div class="uf-top"><span><b>${e(d.address || d.ext_id)}</b></span>${badge(d.status)}</div>
+      <div class="ws-type"><span class="badge ws-ty">${e(d.type === 'land' ? 'Land' : 'Homes')}</span></div>
       <div class="ws-facts"><div><span>List</span><b>${money(d.list_price)}</b></div><div><span>ARV</span><b>${money(d.arv)}</b></div><div><span>Rehab</span><b>${money(d.rehab)}</b></div><div><span>Max offer</span><b>${money(d.max_offer)}</b></div><div><span>Spread</span><b class="${cls(spread).trim()}">${money(spread)}</b></div></div>
       ${d.creative_structure ? `<p class="ws-struct"><span class="muted">Structure:</span> ${e(d.creative_structure)}</p>` : ''}
       <label for="wd-st-${e(d.id)}">Status</label><select id="wd-st-${e(d.id)}" onchange="wsDraft('${e(d.id)}','status',this.value)">${STATUSES.map(s => `<option${dval(d, 'status') === s ? ' selected' : ''}>${s}</option>`).join('')}</select>
@@ -104,11 +107,14 @@
   function dealsHTML() {
     loadDeals();
     if (W.deals == null) return '<div class="card ws-card"><h2>Deal Tracker</h2><p class="muted">Loading\u2026</p></div>';
-    const counts = Object.fromEntries(STATUSES.map(s => [s, W.deals.filter(d => d.status === s).length]));
-    const shown = W.filter === 'All' ? W.deals : W.deals.filter(d => d.status === W.filter);
+    const tcount = { Homes: W.deals.filter(d => d.type !== 'land').length, Land: W.deals.filter(d => d.type === 'land').length };
+    const byType = W.tfilter === 'All' ? W.deals : W.deals.filter(d => (d.type === 'land' ? 'Land' : 'Homes') === W.tfilter);
+    const counts = Object.fromEntries(STATUSES.map(s => [s, byType.filter(d => d.status === s).length]));
+    const shown = W.filter === 'All' ? byType : byType.filter(d => d.status === W.filter);
     return `<div class="card ws-card"><div class="uf-top"><h2>Deal Tracker</h2><button type="button" class="secondary q-sm" onclick="wsRefresh()">Refresh</button></div>
-      <div class="of-tabs ws-chips" role="group" aria-label="Filter by status">${['All'].concat(STATUSES).map(s => `<button type="button" class="${W.filter === s ? 'on' : ''}" onclick="wsFilter('${s}')">${s}${s === 'All' ? ' ' + W.deals.length : ' ' + counts[s]}</button>`).join('')}</div>
-      ${shown.length ? shown.map(dealHTML).join('') : `<p class="muted">${W.deals.length ? 'No deals with this status.' : 'No deals yet. New deals are added with tools/deals.sh; you change status and notes here.'}</p>`}</div>`;
+      <div class="of-tabs ws-chips ws-types" role="group" aria-label="Filter by type">${['All', 'Homes', 'Land'].map(t => `<button type="button" class="${W.tfilter === t ? 'on' : ''}" onclick="wsTFilter('${t}')">${t === 'All' ? 'All types' : t} ${t === 'All' ? W.deals.length : tcount[t]}</button>`).join('')}</div>
+      <div class="of-tabs ws-chips" role="group" aria-label="Filter by status">${['All'].concat(STATUSES).map(s => `<button type="button" class="${W.filter === s ? 'on' : ''}" onclick="wsFilter('${s}')">${s}${s === 'All' ? ' ' + byType.length : ' ' + counts[s]}</button>`).join('')}</div>
+      ${shown.length ? shown.map(dealHTML).join('') : `<p class="muted">${W.deals.length ? 'No deals match these filters.' : 'No deals yet. New deals are added with tools/deals.sh; you change status and notes here.'}</p>`}</div>`;
   }
 
   // ---- Buyers + buy-box ----
@@ -157,18 +163,67 @@
   const STATE_NAME = { NM: 'New Mexico (ABQ / Rio Rancho)', OH: 'Ohio (Cleveland)' };
   const stOrder = c => c === 'NM' ? '0' : c === 'OH' ? '1' : '2' + c;
   const stamp = t => new Date(t).toLocaleString('en-US', { timeZone: 'America/Denver', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  window.wsType = (st, t) => { W.st[st] = t; repaint(); };
+
+  // ---- Title companies (per state; status + call notes editable) ----
+  const TSTAT = ['To call', 'Called', 'Approved', 'Rejected'];
+  async function loadTitle(force) {
+    if (!window.gpSb || W.tcBusy || (!force && W.tc)) return; W.tcBusy = true;
+    try { const { data, error } = await gpSb.from('wholesale_title_cos').select('id,ext_id,name,state,phone,website,office_address,contact_person,evidence_notes,status,call_notes,call_script,updated_at').order('name');
+      if (error) { W.tc = W.tc || []; say('Could not load title companies.'); window.gpReportError && gpReportError(error, { op: 'wholesale_title_cos' }); } else W.tc = data || []; }
+    finally { W.tcBusy = false; } repaint();
+  }
+  const tget = id => (W.tc || []).find(x => x.id === id);
+  const tval = (c, k) => (W.td[c.id] && W.td[c.id][k] !== undefined) ? W.td[c.id][k] : (c[k] ?? '');
+  window.wsTcDraft = (id, k, v) => { (W.td[id] = W.td[id] || {})[k] = v; };
+  window.wsTcOpen = (st, open) => { W.tcOpen[st] = open; };
+  window.wsTcSave = async id => {
+    const c = tget(id); if (!c || !window.gpSb) return; const dr = W.td[id] || {};
+    const upd = { status: dr.status !== undefined ? dr.status : c.status, call_notes: dr.call_notes !== undefined ? dr.call_notes : c.call_notes };
+    if (!TSTAT.includes(upd.status)) return say('Pick a valid status.');
+    if (upd.call_notes != null && String(upd.call_notes).length > 4000) return say('Call notes are too long (4000 max).');
+    const btn = document.getElementById('tc-save-' + id); if (btn) btn.disabled = true;
+    const { data, error } = await gpSb.from('wholesale_title_cos').update({ status: upd.status, call_notes: upd.call_notes || null }).eq('id', id).select('id,status,call_notes,updated_at');
+    if (btn) btn.disabled = false;
+    if (error || !data || !data.length) { say('Not saved. ' + (error ? error.message : 'No access.')); return; }
+    Object.assign(c, data[0]); delete W.td[id]; say('Saved.'); repaint();
+  };
+  window.wsTcCopy = async id => { const c = tget(id); if (!c || !c.call_script) return; try { await navigator.clipboard.writeText(c.call_script); say('Call script copied.'); } catch (_) { say('Copy failed. Select the text and copy it.'); } };
+  const tcBadge = s => `<span class="badge ws-tcs ws-tcs-${e(String(s).toLowerCase().replace(/\s+/g, '-'))}">${e(s)}</span>`;
+  function tcCard(c) {
+    const id = e(c.id), web = /^https?:\/\//i.test(c.website || '') ? c.website : '', line = (l, v) => v ? `<div><span class="muted">${l}:</span> ${v}</div>` : '';
+    return `<div class="of-item ws-tc" data-tc="${id}"><div class="uf-top"><span><b>${e(c.name)}</b></span>${tcBadge(c.status)}</div>
+      <div class="ws-contact">${c.phone ? `<a href="tel:${e(String(c.phone).replace(/[^0-9+]/g, ''))}">${e(c.phone)}</a>` : ''}${web ? `<a href="${e(web)}" target="_blank" rel="noopener noreferrer">Website</a>` : ''}</div>
+      ${line('Office', e(c.office_address))}${line('Contact', e(c.contact_person))}${line('Evidence', e(c.evidence_notes))}
+      <label for="tc-st-${id}">Status</label><select id="tc-st-${id}" onchange="wsTcDraft('${id}','status',this.value)">${TSTAT.map(s => `<option${tval(c, 'status') === s ? ' selected' : ''}>${s}</option>`).join('')}</select>
+      <label for="tc-nt-${id}">Call notes</label><textarea id="tc-nt-${id}" rows="3" maxlength="4000" oninput="wsTcDraft('${id}','call_notes',this.value)">${e(tval(c, 'call_notes'))}</textarea>
+      <div class="of-row ws-btns"><button type="button" id="tc-save-${id}" class="q-sm" onclick="wsTcSave('${id}')">Save</button></div>
+      ${c.call_script ? `<details class="ws-script"><summary>Call script</summary><div class="br-val">${e(c.call_script)}</div><button type="button" class="secondary q-sm" onclick="wsTcCopy('${id}')">Copy script</button></details>` : ''}</div>`;
+  }
+  function titleHTML(st) {
+    loadTitle();
+    if (W.tc == null) return '<h3>Title companies</h3><p class="muted">Loading\u2026</p>';
+    const rows = W.tc.filter(c => c.state === st), open = W.tcOpen[st] ? ' open' : '';
+    return `<details class="ws-tcwrap" data-tcstate="${e(st)}"${open} ontoggle="wsTcOpen('${e(st)}', this.open)"><summary>Title companies (${rows.length})</summary>
+      ${rows.length ? rows.map(tcCard).join('') : '<p class="muted">None yet. They are added with tools/title.sh.</p>'}</details>`;
+  }
+
   function summaryHTML() {
     load();
-    const D = W.d, states = D ? Object.keys(D).sort((x, y) => stOrder(x).localeCompare(stOrder(y))) : [];
-    const group = st => { const d = D[st], v = k => d[k] ? d[k].value : null, upd = Object.values(d).map(r => r.updated_at).filter(Boolean).sort().pop();
+    const D = W.d, TC = W.tc || [];
+    const states = D ? Array.from(new Set(Object.keys(D).concat(['NM', 'OH'], TC.map(c => c.state)))).filter(st => D[st] || st === 'NM' || st === 'OH' || TC.some(c => c.state === st)).sort((x, y) => stOrder(x).localeCompare(stOrder(y))) : [];
+    const group = st => { const byT = D[st] || {}, hasLand = !!byT.land, tabbed = st === 'NM' || hasLand, cur = tabbed && W.st[st] === 'land' ? 'land' : 'homes';
+      const d = byT[cur] || {}, v = k => d[k] ? d[k].value : null, upd = Object.values(d).map(r => r.updated_at).filter(Boolean).sort().pop();
       const stat = (k, label, hot) => `<div class="t-stat${hot ? ' hot' : ''}" data-ws="${k}"><b>${num(v(k))}</b><span>${label}</span></div>`;
-      return `<div class="card ws-card ws-state" data-state="${e(st)}"><h2>${e(STATE_NAME[st] || st)}</h2>
+      const tabs = tabbed ? `<div class="of-tabs ws-types" role="tablist" aria-label="Type">${[['homes', 'Homes'], ['land', 'Land']].map(([t, n]) => `<button type="button" role="tab" aria-selected="${cur === t}" class="${cur === t ? 'on' : ''}" data-type="${t}" onclick="wsType('${e(st)}','${t}')">${n}</button>`).join('')}</div>` : '';
+      return `<div class="card ws-card ws-state" data-state="${e(st)}" data-type="${cur}"><h2>${e(STATE_NAME[st] || st)}</h2>${tabs}
         <h3>Listings</h3><div class="t-stats ws-stats">${stat('listings', 'Listings considered')}</div>
         <h3>Leads</h3><div class="t-stats ws-stats">${stat('call_today', 'Call today', 1)}${stat('week', 'This week')}${stat('worth_a_look', 'Worth a look')}</div>
-        ${upd ? `<p class="muted ws-upd">Updated ${e(stamp(upd))} (Denver time)</p>` : ''}</div>`; };
+        ${upd ? `<p class="muted ws-upd">Updated ${e(stamp(upd))} (Denver time)</p>` : ''}
+        ${st === 'NM' || st === 'OH' || TC.some(c => c.state === st) ? titleHTML(st) : ''}</div>`; };
     return `<div class="card ws-card"><div class="uf-top"><h2>Wholesale Hub</h2><button type="button" class="secondary q-sm" onclick="wsRefresh()">Refresh</button></div>
       <p class="muted">Summary numbers by state. Owner access only.</p></div>
-      ${D == null ? '<div class="card ws-card"><p class="muted">Loading\u2026</p></div>' : states.length ? states.map(group).join('') : '<div class="card ws-card"><p class="muted">No numbers yet.</p></div>'}
+      ${D == null ? '<div class="card ws-card"><p class="muted">Loading\u2026</p></div>' : states.map(group).join('')}
       <div class="card ws-card"><h2>Tools</h2><div class="ws-links">${[['calc', 'Deal Calculator', 'Max offer, spread, double close'], ['deals', 'Deal Tracker', 'Status and notes on every deal'], ['buyers', 'Buyers', 'Buy-box list and intake']].map(([k, n, s2]) => `<button type="button" class="ws-link" onclick="wsTab('${k}')"><span class="ws-ln"><b>${n}</b><small>${s2}</small></span><span>Open \u203a</span></button>`).join('')}</div></div>`;
   }
   function html() {

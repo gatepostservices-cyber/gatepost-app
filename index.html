@@ -445,7 +445,9 @@ button.ws-link .ws-ln { display:flex; flex-direction:column; gap:2px; } button.w
 .ws-facts { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px 10px; margin:8px 0; } .ws-facts div { display:flex; flex-direction:column; } .ws-facts span { font-size:.68rem; letter-spacing:.1em; text-transform:uppercase; color:var(--mute); } .ws-facts b { font-size:.98rem; }
 .ws-struct { margin:6px 0; font-size:.88rem; } .ws-btns { flex-wrap:wrap; } .ws-btns button { width:auto; flex:1 1 130px; }
 .ws-script { margin-top:10px; } .ws-script summary { cursor:pointer; padding:8px 0; font-weight:600; color:var(--pine); } .ws-script .br-val { padding:8px 10px; margin:6px 0; border-left:3px solid #d8bf92; background:rgba(31,58,43,.05); font-size:.9rem; }
-.ws-chips { margin-bottom:6px; } .ws-two { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.ws-chips { margin-bottom:6px; } .ws-types { margin:8px 0 2px; } .ws-ty { margin:2px 0 4px; }
+.ws-tcwrap { margin-top:14px; border-top:1px solid var(--line); padding-top:6px; } .ws-tcwrap > summary { cursor:pointer; padding:10px 0; font-weight:600; color:var(--pine); }
+.ws-tcs-to-call { color:#4a5560 !important; } .ws-tcs-called { color:#9a6a1f !important; } .ws-tcs-approved { color:#2f7d4f !important; } .ws-tcs-rejected { color:#8a4a3c !important; } .ws-two { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 .ws-contact { display:flex; flex-wrap:wrap; gap:4px 14px; margin:2px 0 4px; font-size:.9rem; } .ws-contact a { color:var(--sky); } .ws-buyer > div { font-size:.88rem; margin-top:2px; }
 .ws-st-considering { color:#4a5560 !important; } .ws-st-offered { color:#9a6a1f !important; } .ws-st-under-contract { color:#2d6481 !important; } .ws-st-assigned { color:#2f7d4f !important; } .ws-st-dead { color:#8a4a3c !important; }
 .ws-stats { margin-bottom:6px; } .ws-upd { font-size:.78rem; }
@@ -1014,7 +1016,7 @@ Promise.all([API.init(), domReady]).then(()=>{ if (location.hash.length>1) docum
 <script src="simplify.js?v=3"></script>
 <script src="hubs.js?v=1"></script>
 <script src="hub-team.js?v=1"></script>
-<script src="hub-wholesale.js?v=3"></script>
+<script src="hub-wholesale.js?v=4"></script>
 <script src="chat.js?v=8"></script>
 <script src="pwa.js?v=8"></script>
 </body>
