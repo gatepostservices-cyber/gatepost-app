@@ -434,8 +434,20 @@ body.br-on #br-list > p.muted, body.br-on #of-msg { color:#cfe3d6 !important; }
 .th-bar { height:9px; border-radius:6px; background:#e4e9dc; overflow:hidden; margin:6px 0; } .th-bar i { display:block; height:100%; background:linear-gradient(90deg, #3d6b4f, #1f3a2b); border-radius:6px; }
 .th-ci, .th-log { padding:10px 0; } .th-log .badge { margin-right:6px; }
 .ws-links { display:flex; flex-direction:column; gap:10px; }
-a.ws-link, a.ws-link:visited { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:14px 16px; border-radius:12px; background:linear-gradient(160deg, #2a4a36, #1f3a2b); color:#f6f0df !important; text-decoration:none; box-shadow:inset 0 3px 0 #d8bf92; }
-a.ws-link b { font-weight:600; color:#f6f0df; } a.ws-link span { color:#d8bf92; font-size:.85rem; white-space:nowrap; }
+button.ws-link { display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; padding:14px 16px; border-radius:12px; border:0 !important; text-align:left; background:linear-gradient(160deg, #2a4a36, #1f3a2b) !important; color:#f6f0df !important; box-shadow:inset 0 3px 0 #d8bf92; cursor:pointer; }
+button.ws-link .ws-ln { display:flex; flex-direction:column; gap:2px; } button.ws-link b { font-weight:600; color:#f6f0df; } button.ws-link small { color:#c9d6bb; font-size:.78rem; } button.ws-link > span:last-child { color:#d8bf92; font-size:.85rem; white-space:nowrap; }
+.ws-tabs button { min-height:40px; }
+.wc-hint { display:block; margin-top:4px; font-size:.74rem; color:var(--mute); }
+.wc-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:11px 0; border-top:1px solid var(--line); } .wc-row > div { display:flex; flex-direction:column; min-width:0; } .wc-row span { font-size:.92rem; } .wc-row small { font-size:.74rem; color:var(--mute); } .wc-row b { font-size:1.1rem; white-space:nowrap; }
+.wc-row.hot b { font-family:var(--serif); font-size:1.5rem; } .wc-row .neg, .ws-facts .neg { color:#b4533a; } .wc-row .pos, .ws-facts .pos { color:#2f7d4f; }
+.wc-flag { margin:2px 0 8px; font-size:.82rem; font-weight:600; } .wc-flag.neg { color:#b4533a; } .wc-flag.pos { color:#2f7d4f; }
+.ws-card h3 { margin:14px 0 4px; font-size:.78rem; letter-spacing:.12em; text-transform:uppercase; color:var(--mute); font-family:var(--sans); font-weight:600; }
+.ws-facts { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px 10px; margin:8px 0; } .ws-facts div { display:flex; flex-direction:column; } .ws-facts span { font-size:.68rem; letter-spacing:.1em; text-transform:uppercase; color:var(--mute); } .ws-facts b { font-size:.98rem; }
+.ws-struct { margin:6px 0; font-size:.88rem; } .ws-btns { flex-wrap:wrap; } .ws-btns button { width:auto; flex:1 1 130px; }
+.ws-script { margin-top:10px; } .ws-script summary { cursor:pointer; padding:8px 0; font-weight:600; color:var(--pine); } .ws-script .br-val { padding:8px 10px; margin:6px 0; border-left:3px solid #d8bf92; background:rgba(31,58,43,.05); font-size:.9rem; }
+.ws-chips { margin-bottom:6px; } .ws-two { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.ws-contact { display:flex; flex-wrap:wrap; gap:4px 14px; margin:2px 0 4px; font-size:.9rem; } .ws-contact a { color:var(--sky); } .ws-buyer > div { font-size:.88rem; margin-top:2px; }
+.ws-st-considering { color:#4a5560 !important; } .ws-st-offered { color:#9a6a1f !important; } .ws-st-under-contract { color:#2d6481 !important; } .ws-st-assigned { color:#2f7d4f !important; } .ws-st-dead { color:#8a4a3c !important; }
 .ws-stats { margin-bottom:6px; } .ws-upd { font-size:.78rem; }
 </style>
 <script src="config.js?v=req1"></script>
@@ -1002,7 +1014,7 @@ Promise.all([API.init(), domReady]).then(()=>{ if (location.hash.length>1) docum
 <script src="simplify.js?v=3"></script>
 <script src="hubs.js?v=1"></script>
 <script src="hub-team.js?v=1"></script>
-<script src="hub-wholesale.js?v=1"></script>
+<script src="hub-wholesale.js?v=2"></script>
 <script src="chat.js?v=8"></script>
 <script src="pwa.js?v=8"></script>
 </body>
