@@ -42,9 +42,10 @@
     const nav = document.getElementById('sec-nav'), sub = document.getElementById('sub-nav'), main = document.getElementById('main-nav');
     if (!nav || !sub) return;
     if (!main || main.classList.contains('hidden')) { nav.classList.add('hidden'); sub.innerHTML = ''; return; }
+    if (window.hubNav && hubNav(nav, sub)) return; // Owners Hub pages use the hub bar (hubs.js)
     const pg = page(), cur = secOf(pg); G.last[cur] = pg;
     const n = inboxCount();
-    nav.innerHTML = SECTIONS.filter(s => visTabs(s).length).map(s => `<button type="button" data-sec="${s[0]}" class="${s[0] === cur ? 'on' : ''}" onclick="gpSection('${s[0]}')" aria-current="${s[0] === cur ? 'page' : 'false'}">${s[1]}${s[0] === 'inbox' && n ? ` <span class="sec-n">${n}</span>` : ''}</button>`).join('');
+    nav.innerHTML = (window.hubNavLead ? hubNavLead() : '') + SECTIONS.filter(s => visTabs(s).length).map(s => `<button type="button" data-sec="${s[0]}" class="${s[0] === cur ? 'on' : ''}" onclick="gpSection('${s[0]}')" aria-current="${s[0] === cur ? 'page' : 'false'}">${s[1]}${s[0] === 'inbox' && n ? ` <span class="sec-n">${n}</span>` : ''}</button>`).join('');
     nav.classList.remove('hidden');
     const s = SECTIONS.find(x => x[0] === cur), tabs = visTabs(s);
     const extra = cur === 'today' && adm() ? `${window.openHQ ? '<button type="button" data-sub="hq" onclick="openHQ()">HQ</button>' : ''}${window.openDock ? '<button type="button" data-sub="dock" onclick="openDock()">Dock</button>' : ''}` : '';

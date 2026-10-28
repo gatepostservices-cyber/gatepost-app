@@ -419,6 +419,24 @@ body.br-on .card.br-card, body.in-screen.br-on .card.br-card, .card.br-card { ba
 .br-meta { margin-top:6px; font:.66rem/1.3 ui-monospace, Menlo, monospace; letter-spacing:.04em; color:#8fd3ad; }
 body.br-on #br-list > p.muted, body.br-on #of-msg { color:#cfe3d6 !important; }
 .br-val { white-space:pre-wrap; word-break:break-word; }
+/* ===== Owners Hub (hubs.js, hub-team.js, hub-wholesale.js): dark pine tiles on the cream app ===== */
+.hub-tiles { display:grid; grid-template-columns:1fr; gap:12px; margin-top:6px; }
+@media (min-width:700px) { .hub-tiles { grid-template-columns:repeat(3, minmax(0,1fr)); } }
+.hub-tile { position:relative; display:flex; flex-direction:column; align-items:flex-start; gap:6px; width:100%; min-height:116px; text-align:left; padding:18px 44px 16px 18px; border-radius:16px; border:1px solid #14281d !important; box-shadow:inset 0 3px 0 #d8bf92, 0 4px 14px rgba(31,58,43,.22);
+  background:linear-gradient(160deg, #2a4a36 0%, #1f3a2b 70%) !important; color:#f3eddc !important; cursor:pointer; }
+.hub-tile b { font-family:var(--serif); font-weight:600; font-size:1.35rem; letter-spacing:.02em; color:#f6f0df !important; }
+.hub-tile span { font-size:.84rem; line-height:1.35; color:#c9d6bb !important; }
+.hub-tile .hub-n { font-style:normal; font-size:.72rem; letter-spacing:.06em; text-transform:uppercase; color:#1f3a2b; background:#d8bf92; border-radius:999px; padding:3px 10px; }
+.hub-tile .hub-go { position:absolute; right:16px; top:50%; transform:translateY(-50%); font-style:normal; font-size:1.8rem; color:#d8bf92; }
+.hub-tile[data-hub="teamhub"] { box-shadow:inset 0 3px 0 #9fb38a, 0 4px 14px rgba(31,58,43,.22); } .hub-tile[data-hub="wholesale"] { box-shadow:inset 0 3px 0 #c9764f, 0 4px 14px rgba(31,58,43,.22); }
+.hub-tile:active { background:#1b3226 !important; } .hub-tile:focus-visible { outline:2px solid #d8bf92; outline-offset:2px; }
+.sec-nav .hub-lead { flex:0 0 auto; padding-left:7px; padding-right:7px; margin-right:2px; letter-spacing:0; border-right:1px solid var(--line); border-radius:10px 4px 4px 10px; font-weight:700; color:var(--pine) !important; }
+.th-bar { height:9px; border-radius:6px; background:#e4e9dc; overflow:hidden; margin:6px 0; } .th-bar i { display:block; height:100%; background:linear-gradient(90deg, #3d6b4f, #1f3a2b); border-radius:6px; }
+.th-ci, .th-log { padding:10px 0; } .th-log .badge { margin-right:6px; }
+.ws-links { display:flex; flex-direction:column; gap:10px; }
+a.ws-link, a.ws-link:visited { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:14px 16px; border-radius:12px; background:linear-gradient(160deg, #2a4a36, #1f3a2b); color:#f6f0df !important; text-decoration:none; box-shadow:inset 0 3px 0 #d8bf92; }
+a.ws-link b { font-weight:600; color:#f6f0df; } a.ws-link span { color:#d8bf92; font-size:.85rem; white-space:nowrap; }
+.ws-stats { margin-bottom:6px; } .ws-upd { font-size:.78rem; }
 </style>
 <script src="config.js?v=req1"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.min.js"></script>
@@ -442,6 +460,9 @@ window.addEventListener('unhandledrejection', function(e){ gpReportError(e.reaso
 </header>
 <nav class="nav hidden" id="main-nav">
   <button data-page="town" class="active">Home</button>
+  <button data-page="hubs" data-admin data-owner>Hubs</button>
+  <button data-page="teamhub" data-admin data-owner>Team Hub</button>
+  <button data-page="wholesale" data-admin data-owner>Wholesale</button>
   <button data-page="dashboard">Hub</button>
   <button data-page="estimate" data-admin>Estimate</button>
   <button data-page="quotes" data-admin>Quotes</button>
@@ -614,9 +635,11 @@ function render() {
     main.innerHTML = `<div class="card"><h2>Access pending</h2><p class="muted">Your account is waiting for an admin to give you access. You will get in automatically once they do.</p><button class="secondary" onclick="logout()">Log out</button></div>`; return; }
   document.querySelectorAll('.nav button[data-admin]').forEach(b => b.classList.toggle('hidden', !isAdmin() || (b.hasAttribute('data-owner') && !isOwner())));
   if (!isAdmin() && document.querySelector('.nav button.active')?.hasAttribute('data-admin')) { document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('active', b.dataset.page === 'town')); }
+  window.hubLanding && hubLanding();
   const p = page(); document.body.classList.toggle('in-screen', p !== 'town'); if ((location.hash.slice(1) || 'town') !== p) history.replaceState(null, '', p === 'town' ? location.pathname + location.search : '#' + p);
   
   if (p === 'quotes' && document.getElementById('quotes-root')) {} // keep the quote form (and keyboard focus) through background refreshes
+  else if (window.hubPageFor && hubPageFor(p) != null) main.innerHTML = hubPageFor(p);
   else main.innerHTML = p === 'town' ? (window.todayPage ? todayPage() : homePage()) : p === 'inbox' ? inboxPage() : p === 'leads' || p === 'joblog' ? officePage() : p === 'quotes' ? quotesPage() : p === 'estimate' ? estimatePage() : p === 'calendar' ? calendarPage() : p === 'requests' ? requestsPage() : p === 'unfinished' ? unfinishedPage() : p === 'office' ? officePage() : p === 'admin' ? adminPage() : p === 'ask' ? askPage() : dashboard();
   window.gpNavAfter && gpNavAfter();
   renderSaved(); renderEvents(); renderRequests(); renderUsers();
@@ -974,9 +997,12 @@ Promise.all([API.init(), domReady]).then(()=>{ if (location.hash.length>1) docum
 <script src="quotes-sign.js?v=3"></script>
 <script src="quotes.js?v=7"></script>
 <script src="unfinished.js?v=6"></script>
-<script src="admin.js?v=17"></script>
+<script src="admin.js?v=18"></script>
 <script src="town.js?v=52"></script>
-<script src="simplify.js?v=2"></script>
+<script src="simplify.js?v=3"></script>
+<script src="hubs.js?v=1"></script>
+<script src="hub-team.js?v=1"></script>
+<script src="hub-wholesale.js?v=1"></script>
 <script src="chat.js?v=8"></script>
 <script src="pwa.js?v=8"></script>
 </body>
