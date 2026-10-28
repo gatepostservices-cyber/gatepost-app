@@ -3,9 +3,10 @@
 //   wholesale_stats  summary numbers per state and type (homes|land), PK (state,type,key) (tools/wholesale.sh)      wholesale_deals  deals (tools/deals.sh creates/edits; the app edits status + notes only)
 //   wholesale_buyers buyers + buy-box (added and edited here)
 //   wholesale_title_cos title companies per state (tools/title.sh creates/edits; the app edits status + call_notes only)
+//   wholesale_builders  builders/buyers per state + type (tools/builders.sh creates/edits; the app edits status, call_notes, buy_box only)
 // Never owner names or mailing addresses: no such columns exist.
 (function () {
-  const W = window.WS = { d: null, at: 0, busy: false, tab: 'summary', deals: null, buyers: null, dBusy: false, bBusy: false, filter: 'All', tfilter: 'All', st: {}, tc: null, tcBusy: false, td: {}, tcOpen: {}, msg: '', dd: {}, bf: {}, bedit: null,
+  const W = window.WS = { d: null, at: 0, busy: false, tab: 'summary', deals: null, buyers: null, dBusy: false, bBusy: false, filter: 'All', tfilter: 'All', st: {}, tc: null, tcBusy: false, td: {}, tcOpen: {}, bl: null, blBusy: false, bd: {}, blOpen: {}, msg: '', dd: {}, bf: {}, bedit: null,
     calc: { arv: '', rehab: '', list: '', fee: '', dc: '' } };
   const e = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const num = v => v == null ? '\u2014' : Number(v).toLocaleString('en-US');
@@ -36,7 +37,7 @@
       if (error) { W.buyers = W.buyers || []; say('Could not load buyers.'); window.gpReportError && gpReportError(error, { op: 'wholesale_buyers' }); } else W.buyers = data || []; }
     finally { W.bBusy = false; } repaint();
   }
-  window.wsRefresh = () => { load(true); loadTitle(true); if (W.tab === 'deals') loadDeals(true); if (W.tab === 'buyers') loadBuyers(true); };
+  window.wsRefresh = () => { load(true); loadTitle(true); loadBuilders(true); if (W.tab === 'deals') loadDeals(true); if (W.tab === 'buyers') loadBuyers(true); };
   window.wsTab = k => { W.tab = k; say(''); repaint(); };
 
   // ---- Deal Calculator (front end only; nothing is saved or sent) ----
@@ -208,11 +209,57 @@
       ${rows.length ? rows.map(tcCard).join('') : '<p class="muted">None yet. They are added with tools/title.sh.</p>'}</details>`;
   }
 
+  // ---- Builders / buyers (per state + type tab; status, call notes and buy box editable) ----
+  const BSTAT = ['To call', 'Called', 'Buy box received', 'Not buying'];
+  async function loadBuilders(force) {
+    if (!window.gpSb || W.blBusy || (!force && W.bl)) return; W.blBusy = true;
+    try { const { data, error } = await gpSb.from('wholesale_builders').select('id,ext_id,name,state,type,phone,website,evidence_notes,buy_box,status,call_notes,call_script,updated_at').order('name');
+      if (error) { W.bl = W.bl || []; say('Could not load builders.'); window.gpReportError && gpReportError(error, { op: 'wholesale_builders' }); } else W.bl = data || []; }
+    finally { W.blBusy = false; } repaint();
+  }
+  const bget = id => (W.bl || []).find(x => x.id === id);
+  const bgv = (c, k) => (W.bd[c.id] && W.bd[c.id][k] !== undefined) ? W.bd[c.id][k] : (c[k] ?? '');
+  window.wsBlDraft = (id, k, v) => { (W.bd[id] = W.bd[id] || {})[k] = v; };
+  window.wsBlOpen = (key, open) => { W.blOpen[key] = open; };
+  window.wsBlSave = async id => {
+    const c = bget(id); if (!c || !window.gpSb) return; const dr = W.bd[id] || {};
+    const upd = { status: dr.status !== undefined ? dr.status : c.status, call_notes: dr.call_notes !== undefined ? dr.call_notes : c.call_notes, buy_box: dr.buy_box !== undefined ? dr.buy_box : c.buy_box };
+    if (!BSTAT.includes(upd.status)) return say('Pick a valid status.');
+    if (upd.call_notes != null && String(upd.call_notes).length > 4000) return say('Call notes are too long (4000 max).');
+    if (upd.buy_box != null && String(upd.buy_box).length > 8000) return say('Buy box is too long (8000 max).');
+    const btn = document.getElementById('bl-save-' + id); if (btn) btn.disabled = true;
+    const { data, error } = await gpSb.from('wholesale_builders').update({ status: upd.status, call_notes: upd.call_notes || null, buy_box: upd.buy_box || null }).eq('id', id).select('id,status,call_notes,buy_box,updated_at');
+    if (btn) btn.disabled = false;
+    if (error || !data || !data.length) { say('Not saved. ' + (error ? error.message : 'No access.')); return; }
+    Object.assign(c, data[0]); delete W.bd[id]; say('Saved.'); repaint();
+  };
+  window.wsBlCopy = async id => { const c = bget(id); if (!c || !c.call_script) return; try { await navigator.clipboard.writeText(c.call_script); say('Call script copied.'); } catch (_) { say('Copy failed. Select the text and copy it.'); } };
+  const blBadge = s => `<span class="badge ws-tcs ws-bls-${e(String(s).toLowerCase().replace(/\s+/g, '-'))}">${e(s)}</span>`;
+  function blCard(c) {
+    const id = e(c.id), web = /^https?:\/\//i.test(c.website || '') ? c.website : '';
+    return `<div class="of-item ws-bl" data-bl="${id}"><div class="uf-top"><span><b>${e(c.name)}</b></span>${blBadge(c.status)}</div>
+      <div class="ws-contact">${c.phone ? `<a href="tel:${e(String(c.phone).replace(/[^0-9+]/g, ''))}">${e(c.phone)}</a>` : ''}${web ? `<a href="${e(web)}" target="_blank" rel="noopener noreferrer">Website</a>` : ''}</div>
+      ${c.evidence_notes ? `<div><span class="muted">Evidence:</span> ${e(c.evidence_notes)}</div>` : ''}
+      <label for="bl-st-${id}">Status</label><select id="bl-st-${id}" onchange="wsBlDraft('${id}','status',this.value)">${BSTAT.map(s => `<option${bgv(c, 'status') === s ? ' selected' : ''}>${s}</option>`).join('')}</select>
+      <label for="bl-nt-${id}">Call notes</label><textarea id="bl-nt-${id}" rows="3" maxlength="4000" oninput="wsBlDraft('${id}','call_notes',this.value)">${e(bgv(c, 'call_notes'))}</textarea>
+      <details class="ws-script ws-buybox"${W.blOpen['bb' + c.id] ? 'open' : ''} ontoggle="wsBlOpen('bb${id}', this.open)"><summary>Buy box</summary>
+        <textarea id="bl-bb-${id}" rows="5" maxlength="8000" aria-label="Buy box" oninput="wsBlDraft('${id}','buy_box',this.value)">${e(bgv(c, 'buy_box'))}</textarea></details>
+      <div class="of-row ws-btns"><button type="button" id="bl-save-${id}" class="q-sm" onclick="wsBlSave('${id}')">Save</button></div>
+      ${c.call_script ? `<details class="ws-script"><summary>Call script</summary><div class="br-val">${e(c.call_script)}</div><button type="button" class="secondary q-sm" onclick="wsBlCopy('${id}')">Copy script</button></details>` : ''}</div>`;
+  }
+  function buildersHTML(st, ty) {
+    loadBuilders();
+    if (W.bl == null) return '<h3>Builders / Buyers</h3><p class="muted">Loading\u2026</p>';
+    const rows = W.bl.filter(c => c.state === st && c.type === ty), key = st + ':' + ty, open = W.blOpen[key] ? ' open' : '';
+    return `<details class="ws-blwrap" data-blstate="${e(st)}" data-bltype="${ty}"${open} ontoggle="wsBlOpen('${e(key)}', this.open)"><summary>Builders / Buyers (${rows.length})</summary>
+      ${rows.length ? rows.map(blCard).join('') : '<p class="muted">None yet. They are added with tools/builders.sh.</p>'}</details>`;
+  }
+
   function summaryHTML() {
     load();
-    const D = W.d, TC = W.tc || [];
-    const states = D ? Array.from(new Set(Object.keys(D).concat(['NM', 'OH'], TC.map(c => c.state)))).filter(st => D[st] || st === 'NM' || st === 'OH' || TC.some(c => c.state === st)).sort((x, y) => stOrder(x).localeCompare(stOrder(y))) : [];
-    const group = st => { const byT = D[st] || {}, hasLand = !!byT.land, tabbed = st === 'NM' || hasLand, cur = tabbed && W.st[st] === 'land' ? 'land' : 'homes';
+    const D = W.d, TC = W.tc || [], BL = W.bl || [];
+    const states = D ? Array.from(new Set(Object.keys(D).concat(['NM', 'OH'], TC.map(c => c.state), BL.map(c => c.state)))).filter(st => D[st] || st === 'NM' || st === 'OH' || TC.some(c => c.state === st) || BL.some(c => c.state === st)).sort((x, y) => stOrder(x).localeCompare(stOrder(y))) : [];
+    const group = st => { const byT = D[st] || {}, hasLand = !!byT.land || BL.some(c => c.state === st && c.type === 'land'), tabbed = st === 'NM' || hasLand, cur = tabbed && W.st[st] === 'land' ? 'land' : 'homes';
       const d = byT[cur] || {}, v = k => d[k] ? d[k].value : null, upd = Object.values(d).map(r => r.updated_at).filter(Boolean).sort().pop();
       const stat = (k, label, hot) => `<div class="t-stat${hot ? ' hot' : ''}" data-ws="${k}"><b>${num(v(k))}</b><span>${label}</span></div>`;
       const tabs = tabbed ? `<div class="of-tabs ws-types" role="tablist" aria-label="Type">${[['homes', 'Homes'], ['land', 'Land']].map(([t, n]) => `<button type="button" role="tab" aria-selected="${cur === t}" class="${cur === t ? 'on' : ''}" data-type="${t}" onclick="wsType('${e(st)}','${t}')">${n}</button>`).join('')}</div>` : '';
@@ -220,6 +267,7 @@
         <h3>Listings</h3><div class="t-stats ws-stats">${stat('listings', 'Listings considered')}</div>
         <h3>Leads</h3><div class="t-stats ws-stats">${stat('call_today', 'Call today', 1)}${stat('week', 'This week')}${stat('worth_a_look', 'Worth a look')}</div>
         ${upd ? `<p class="muted ws-upd">Updated ${e(stamp(upd))} (Denver time)</p>` : ''}
+        ${st === 'NM' || st === 'OH' || BL.some(c => c.state === st) ? buildersHTML(st, cur) : ''}
         ${st === 'NM' || st === 'OH' || TC.some(c => c.state === st) ? titleHTML(st) : ''}</div>`; };
     return `<div class="card ws-card"><div class="uf-top"><h2>Wholesale Hub</h2><button type="button" class="secondary q-sm" onclick="wsRefresh()">Refresh</button></div>
       <p class="muted">Summary numbers by state. Owner access only.</p></div>

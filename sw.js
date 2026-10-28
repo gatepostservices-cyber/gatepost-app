@@ -1,7 +1,7 @@
 // Gatepost TEAM app service worker (scope: site root). Bump VERSION on every release that changes the shell.
-const VERSION = 'gp-team-v46';
+const VERSION = 'gp-team-v47';
 const SBJS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.min.js';
-const SHELL = ['./', './index.html', './config.js?v=req1', './quotes-engine.js?v=5', './quotes-sign.js?v=3', './quotes.js?v=7', './unfinished.js?v=6', './admin.js?v=19', './town.js?v=52', './simplify.js?v=3', './hubs.js?v=1', './hub-team.js?v=1', './hub-wholesale.js?v=4', './chat.js?v=8', './pwa.js?v=8', './manifest.json?v=14', './icon-192.png?v=5', './icon-512.png?v=5', './apple-touch-icon.png?v=5', './logo.png', './arch-mark.png', './assets/bots/alabaster.png', './assets/bots/marv.png', './assets/bots/wendy.png', './assets/bots/abe.png', './assets/bots/alfred.png', SBJS];
+const SHELL = ['./', './index.html', './config.js?v=req1', './quotes-engine.js?v=5', './quotes-sign.js?v=3', './quotes.js?v=7', './unfinished.js?v=6', './admin.js?v=19', './town.js?v=52', './simplify.js?v=3', './hubs.js?v=1', './hub-team.js?v=1', './hub-wholesale.js?v=5', './chat.js?v=8', './pwa.js?v=8', './manifest.json?v=14', './icon-192.png?v=5', './icon-512.png?v=5', './apple-touch-icon.png?v=5', './logo.png', './arch-mark.png', './assets/bots/alabaster.png', './assets/bots/marv.png', './assets/bots/wendy.png', './assets/bots/abe.png', './assets/bots/alfred.png', SBJS];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => Promise.all(SHELL.map(u => c.add(u).catch(() => {})))).then(() => self.skipWaiting()));
 });
