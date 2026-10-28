@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#1f3a2b">
+<title>Owner sign-in - Gatepost Property Services</title>
+<link rel="icon" type="image/png" href="../arch-mark.png">
+<style>
+:root { --ink:#1f3a2b; --ink2:#2a4a36; --ink3:#335640; --line:#45694f; --paper:#e8dcc4; --mute:#a3ad9f; --text:#ece6d8; --danger:#e0907a; --ok:#7f9f6a;
+  --serif:"Cormorant Garamond","EB Garamond",Garamond,"Times New Roman",Georgia,serif; --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+* { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html, body { margin:0; background:var(--ink); color:var(--text); font-family:var(--sans); }
+body { min-height:100vh; min-height:100dvh; display:flex; align-items:center; justify-content:center; padding:20px max(16px, env(safe-area-inset-right)) calc(20px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  background:linear-gradient(180deg,#1f3a2b 0%,#24412f 55%,#2a4a36 100%) fixed; }
+main { width:100%; max-width:380px; }
+.card { background:var(--ink2); border:1px solid var(--line); border-radius:16px; padding:26px 22px 24px; box-shadow:0 8px 28px rgba(0,0,0,.25); text-align:center; }
+.plaque { background:var(--paper); border-radius:12px; display:flex; align-items:center; justify-content:center; width:100%; height:78px; padding:8px; margin:0 0 20px; }
+.plaque img { max-height:100%; max-width:100%; width:auto; height:auto; object-fit:contain; }
+h1 { font-family:var(--serif); font-weight:500; font-size:1.55rem; letter-spacing:.08em; margin:0 0 4px; color:var(--text); }
+.sub { margin:0 0 20px; font-size:.85rem; color:var(--mute); }
+form { text-align:left; }
+label { display:block; font-size:.74rem; letter-spacing:.08em; text-transform:uppercase; color:var(--mute); margin:0 0 6px; }
+input { display:block; width:100%; font:inherit; font-size:16px; color:var(--text); background:var(--ink); border:1px solid var(--line); border-radius:10px; padding:12px 12px; margin:0 0 14px; }
+input:focus { outline:2px solid var(--paper); outline-offset:1px; }
+button, .big { font:inherit; cursor:pointer; }
+button.primary { width:100%; min-height:48px; border:0; border-radius:12px; background:var(--paper); color:var(--ink); font-weight:700; font-size:1rem; letter-spacing:.03em; }
+button.primary:disabled { opacity:.6; cursor:default; }
+.err { min-height:1.2em; margin:0 0 12px; font-size:.88rem; color:var(--danger); }
+.big { display:flex; align-items:center; justify-content:center; width:100%; min-height:84px; border-radius:14px; text-decoration:none; font-family:var(--serif); font-size:1.7rem; font-weight:600; letter-spacing:.06em; background:var(--paper); color:var(--ink); margin:0; border:1px solid #d6c6a6; }
+.big:active { background:#d6c6a6; }
+.who { margin:0 0 18px; font-size:.82rem; color:var(--mute); overflow-wrap:anywhere; }
+.opt { margin:0 0 16px; }
+.note { margin:8px 4px 0; font-size:.8rem; line-height:1.35; color:var(--mute); }
+.out { background:none; border:0; color:var(--mute); text-decoration:underline; font-size:.85rem; padding:8px; margin-top:4px; }
+.msg { margin:6px 0 4px; font-size:1.05rem; }
+.hide { display:none !important; }
+</style>
+</head>
+<body>
+<main>
+  <div class="card">
+    <div class="plaque"><img src="../logo.png" alt="Gatepost Property Services"></div>
+
+    <section id="v-load"><p class="sub" style="margin:0">Checking sign-in&hellip;</p></section>
+
+    <section id="v-form" class="hide">
+      <h1>Owner sign-in</h1>
+      <p class="sub">Use your Gatepost email and password.</p>
+      <form id="f" autocomplete="on" novalidate>
+        <label for="em">Email</label>
+        <input id="em" name="email" type="email" inputmode="email" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required>
+        <label for="pw">Password</label>
+        <input id="pw" name="password" type="password" autocomplete="current-password" required>
+        <p class="err" id="err" role="alert"></p>
+        <button class="primary" id="go" type="submit">Sign in</button>
+      </form>
+    </section>
+
+    <section id="v-land" class="hide">
+      <h1>Welcome</h1>
+      <p class="who" id="who"></p>
+      <div class="opt"><a class="big" id="b-hub" href="https://hub.gatepostservices.com/">Owners Hub</a></div>
+      <div class="opt"><a class="big" id="b-team" href="https://team.gatepostservices.com/">Team app</a>
+        <p class="note" id="team-note">The Team app is a separate sign-in. You may be asked to sign in there too, with the same email and password.</p></div>
+      <button class="out" id="so" type="button">Sign out</button>
+    </section>
+
+    <section id="v-no" class="hide">
+      <h1>Owners only</h1>
+      <p class="sub msg">This sign-in is for Gatepost owners. You have been signed out.</p>
+      <button class="primary" id="back" type="button">Back to sign-in</button>
+    </section>
+  </div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.min.js"></script>
+<script src="../config.js?v=req1"></script>
+<script>
+// Owner landing. Same Supabase project, config and auth client settings as the hub (shared storageKey on this origin,
+// so signing in here also signs the Owners Hub in). Owner = profiles.is_owner, exactly as the hub reads it.
+(function () {
+  const CFG = window.GATEPOST_CONFIG || {};
+  const $ = id => document.getElementById(id);
+  const show = v => ['v-load', 'v-form', 'v-land', 'v-no'].forEach(k => $(k).classList.toggle('hide', k !== v));
+  if (!window.supabase || !CFG.SUPABASE_URL || !CFG.SUPABASE_ANON_KEY) { show('v-form'); $('err').textContent = 'Sign-in is unavailable right now. Please try again in a minute.'; $('go').disabled = true; return; }
+  const sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY, {
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storage: window.localStorage, storageKey: 'gatepost-auth' } });
+
+  async function isOwner(user) {
+    const { data, error } = await sb.from('profiles').select('id,email,is_owner').eq('id', user.id).maybeSingle();
+    if (error) throw error;
+    return !!(data && data.is_owner);
+  }
+  async function route(user) {
+    let ok = false;
+    try { ok = await isOwner(user); } catch (_) { show('v-form'); $('err').textContent = 'Could not check your account. Please try again.'; return; }
+    if (ok) { $('who').textContent = 'Signed in as ' + (user.email || ''); show('v-land'); return; }
+    try { await sb.auth.signOut(); } catch (_) {}
+    try { localStorage.removeItem('gp_me_cache'); } catch (_) {}
+    show('v-no');
+  }
+
+  $('f').addEventListener('submit', async e => {
+    e.preventDefault();
+    const email = $('em').value.trim(), password = $('pw').value;
+    $('err').textContent = '';
+    if (!email || !password) { $('err').textContent = 'Enter your email and password.'; return; }
+    $('go').disabled = true; $('go').textContent = 'Signing in…';
+    try {
+      const { data, error } = await sb.auth.signInWithPassword({ email, password });
+      if (error || !data || !data.user) { $('err').textContent = 'That email or password did not work.'; return; }
+      $('pw').value = '';
+      await route(data.user);
+    } catch (_) { $('err').textContent = 'Could not sign in. Please try again.'; }
+    finally { $('go').disabled = false; $('go').textContent = 'Sign in'; }
+  });
+  $('so').addEventListener('click', async () => {
+    try { await sb.auth.signOut(); } catch (_) {}
+    try { localStorage.removeItem('gp_me_cache'); } catch (_) {}
+    show('v-form');
+  });
+  $('back').addEventListener('click', () => { $('em').value = ''; $('err').textContent = ''; show('v-form'); });
+
+  (async () => {
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      if (session && session.user) return route(session.user);
+    } catch (_) {}
+    show('v-form');
+  })();
+})();
+</script>
+</body>
+</html>
