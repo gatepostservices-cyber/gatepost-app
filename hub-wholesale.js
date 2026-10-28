@@ -1,6 +1,6 @@
 // Wholesale Hub (Christian only): summary numbers + native tools (Deal Calculator, Deal Tracker, Buyers). No external links, no iframes.
 // Data (all RLS = has_hub('wholesale'): hub_access row AND profiles.is_owner, so other owners/admins read and write nothing):
-//   wholesale_stats  summary numbers (tools/wholesale.sh)      wholesale_deals  deals (tools/deals.sh creates/edits; the app edits status + notes only)
+//   wholesale_stats  summary numbers per state, PK (state,key) (tools/wholesale.sh)      wholesale_deals  deals (tools/deals.sh creates/edits; the app edits status + notes only)
 //   wholesale_buyers buyers + buy-box (added and edited here)
 // Never owner names or mailing addresses: no such columns exist.
 (function () {
@@ -19,7 +19,7 @@
   async function load(force) {
     if (!window.gpSb || W.busy || (!force && W.d && Date.now() - W.at < 20000)) return;
     W.busy = true;
-    try { const { data, error } = await gpSb.from('wholesale_stats').select('key,value,updated_at'); W.d = error ? (W.d || {}) : Object.fromEntries((data || []).map(r => [r.key, r])); W.at = Date.now(); if (error && window.gpReportError) gpReportError(error, { op: 'wholesale' }); }
+    try { const { data, error } = await gpSb.from('wholesale_stats').select('state,key,value,updated_at'); W.d = error ? (W.d || {}) : (data || []).reduce((o, r) => { (o[r.state || 'NM'] = o[r.state || 'NM'] || {})[r.key] = r; return o; }, {}); W.at = Date.now(); if (error && window.gpReportError) gpReportError(error, { op: 'wholesale' }); }
     finally { W.busy = false; }
     repaint();
   }
@@ -154,17 +154,22 @@
     return buyerForm() + `<div class="card ws-card"><div class="uf-top"><h2>Buyers${W.buyers ? ' (' + W.buyers.length + ')' : ''}</h2><button type="button" class="secondary q-sm" onclick="wsRefresh()">Refresh</button></div>${list}</div>`;
   }
 
+  const STATE_NAME = { NM: 'New Mexico (ABQ / Rio Rancho)', OH: 'Ohio (Cleveland)' };
+  const stOrder = c => c === 'NM' ? '0' : c === 'OH' ? '1' : '2' + c;
+  const stamp = t => new Date(t).toLocaleString('en-US', { timeZone: 'America/Denver', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
   function summaryHTML() {
     load();
-    const d = W.d, v = k => d && d[k] ? d[k].value : null;
-    const upd = d ? Object.values(d).map(r => r.updated_at).filter(Boolean).sort().pop() : null;
-    const stat = (k, label, hot) => `<div class="t-stat${hot ? ' hot' : ''}" data-ws="${k}"><b>${d ? num(v(k)) : '\u2026'}</b><span>${label}</span></div>`;
+    const D = W.d, states = D ? Object.keys(D).sort((x, y) => stOrder(x).localeCompare(stOrder(y))) : [];
+    const group = st => { const d = D[st], v = k => d[k] ? d[k].value : null, upd = Object.values(d).map(r => r.updated_at).filter(Boolean).sort().pop();
+      const stat = (k, label, hot) => `<div class="t-stat${hot ? ' hot' : ''}" data-ws="${k}"><b>${num(v(k))}</b><span>${label}</span></div>`;
+      return `<div class="card ws-card ws-state" data-state="${e(st)}"><h2>${e(STATE_NAME[st] || st)}</h2>
+        <h3>Listings</h3><div class="t-stats ws-stats">${stat('listings', 'Listings considered')}</div>
+        <h3>Leads</h3><div class="t-stats ws-stats">${stat('call_today', 'Call today', 1)}${stat('week', 'This week')}${stat('worth_a_look', 'Worth a look')}</div>
+        ${upd ? `<p class="muted ws-upd">Updated ${e(stamp(upd))} (Denver time)</p>` : ''}</div>`; };
     return `<div class="card ws-card"><div class="uf-top"><h2>Wholesale Hub</h2><button type="button" class="secondary q-sm" onclick="wsRefresh()">Refresh</button></div>
-      <p class="muted">Summary numbers. Owner access only.</p>
-      <h3>Listings</h3><div class="t-stats ws-stats">${stat('listings', 'Listings considered')}</div>
-      <h3>Leads</h3><div class="t-stats ws-stats">${stat('call_today', 'Call today', 1)}${stat('week', 'This week')}${stat('worth_a_look', 'Worth a look')}</div>
-      ${upd ? `<p class="muted ws-upd">Updated ${e(new Date(upd).toLocaleString('en-US', { timeZone: 'America/Denver', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))} (Denver time)</p>` : ''}</div>
-      <div class="card ws-card"><h2>Tools</h2><div class="ws-links">${[['calc', 'Deal Calculator', 'Max offer, spread, double close'], ['deals', 'Deal Tracker', 'Status and notes on every deal'], ['buyers', 'Buyers', 'Buy-box list and intake']].map(([k, n, s]) => `<button type="button" class="ws-link" onclick="wsTab('${k}')"><span class="ws-ln"><b>${n}</b><small>${s}</small></span><span>Open \u203a</span></button>`).join('')}</div></div>`;
+      <p class="muted">Summary numbers by state. Owner access only.</p></div>
+      ${D == null ? '<div class="card ws-card"><p class="muted">Loading\u2026</p></div>' : states.length ? states.map(group).join('') : '<div class="card ws-card"><p class="muted">No numbers yet.</p></div>'}
+      <div class="card ws-card"><h2>Tools</h2><div class="ws-links">${[['calc', 'Deal Calculator', 'Max offer, spread, double close'], ['deals', 'Deal Tracker', 'Status and notes on every deal'], ['buyers', 'Buyers', 'Buy-box list and intake']].map(([k, n, s2]) => `<button type="button" class="ws-link" onclick="wsTab('${k}')"><span class="ws-ln"><b>${n}</b><small>${s2}</small></span><span>Open \u203a</span></button>`).join('')}</div></div>`;
   }
   function html() {
     const body = W.tab === 'calc' ? calcHTML() : W.tab === 'deals' ? dealsHTML() : W.tab === 'buyers' ? buyersHTML() : summaryHTML();
