@@ -28,7 +28,8 @@
     if (!window.gpSb || O.busy[k] || (!force && O.d[k] && Date.now() - (O.at[k] || 0) < 20000)) return;
     O.busy[k] = 1; try { const { data, error } = await Q[k](); if (error) { O.d[k] = O.d[k] || []; window.gpReportError && gpReportError(error, { op: 'office ' + k }); } else O.d[k] = data || []; O.at[k] = Date.now(); }
     finally { O.busy[k] = 0; } paint(); }
-  function paint() { const r = document.getElementById('of-root'); if (r && typeof page === 'function' && ['office', 'leads', 'joblog'].includes(page())) { r.outerHTML = officePage(true); if (O.tab === 'accounts') drawMap(); } }
+  function paint() { const r = document.getElementById('of-root'); if (r && typeof page === 'function' && ['office', 'leads', 'joblog'].includes(page())) { r.outerHTML = officePage(true); if (O.tab === 'accounts') drawMap(); }
+    else if (typeof page === 'function' && page() === 'teamhub' && window.thPaint) thPaint(); }
   const toast = m => { const el = document.getElementById('of-msg'); if (el) el.textContent = m; };
   const TABS = [['leads', 'Leads'], ['customers', 'Customers'], ['pricebook', 'Price Book'], ['joblog', 'Job Log'], ['control', 'Control'], ['hours', 'Team Hours'], ['accounts', 'Team Accounts'], ['brain', 'Brain']];
   window.officePage = function (noLoad) {
@@ -158,9 +159,9 @@
     const err = await delShifts(T.map(x => x.id)); if (err) return toast('Not cleared: ' + err.message); toast(`Cleared ${T.length} shifts for ${name}`); load('team_shifts', 1); };
   // ----- Team Accounts: approve/remove Gatepost Team workers, assign routes, per-shift walked-path map
   // Tables: team_members, route_assignments, team_shift_paths (admin RLS via is_admin()). Route ids = slugs in the team app's data/index.json.
-  const TEAM_URL = 'https://gatepostservices-cyber.github.io/gatepost-team/';
+  const ROUTE_DATA_URL = 'https://gatepostservices-cyber.github.io/gatepost-team/'; // static route data (JSON) only; the admin app never links to or opens the Team app
   O.routes = null; O.map = null;
-  async function teamRoutes() { if (O.routes) return O.routes; try { const r = await fetch(TEAM_URL + 'data/index.json', { cache: 'no-cache' }); O.routes = (await r.json()).neighborhoods || []; } catch (x) { O.routes = []; } paint(); return O.routes; }
+  async function teamRoutes() { if (O.routes) return O.routes; try { const r = await fetch(ROUTE_DATA_URL + 'data/index.json', { cache: 'no-cache' }); O.routes = (await r.json()).neighborhoods || []; } catch (x) { O.routes = []; } paint(); return O.routes; }
   function accountsHTML() {
     const M = O.d.team_members, A = O.d.route_assignments || [], T = (O.d.team_shifts || []).filter(r => r.user_id);
     if (M == null) return '<div class="card"><h2>Team Accounts</h2>' + loading('team_members') + '</div>';
@@ -196,19 +197,23 @@
     let ids = [...new Set(sess.map(s => s.route_id).filter(Boolean))];
     if (!ids.length) ids = R.filter(x => sess.some(s => s.neighborhood === x.name)).map(x => x.slug);
     if (!ids.length) ids = (O.d.route_assignments || []).filter(a => a.user_id === r.user_id).map(a => a.route_id);
-    const geos = await Promise.all(R.filter(x => ids.includes(x.slug)).map(x => fetch(TEAM_URL + 'data/' + x.file).then(y => y.json()).then(g => ({ x, g })).catch(() => null)));
+    const geos = await Promise.all(R.filter(x => ids.includes(x.slug)).map(x => fetch(ROUTE_DATA_URL + 'data/' + x.file).then(y => y.json()).then(g => ({ x, g })).catch(() => null)));
     const pts = ((P && P.points) || []).map(p => [p[0], p[1]]);
     O.map = { cap: `${r.worker_name} \u00b7 ${dOnly(r.clock_in)} ${tOnly(r.clock_in)}\u2013${tOnly(r.clock_out)} \u00b7 ${pts.length} GPS points${geos.filter(Boolean).length ? ' \u00b7 route: ' + geos.filter(Boolean).map(z => z.x.name).join(', ') : ''}` };
     O.map.data = { geos, pts, sess }; paint(); toast(pts.length ? '' : 'No GPS path was recorded for this shift.'); };
-  function drawMap() { const el = document.getElementById('ta-map'); if (!el || !O.map || !O.map.data || !window.L) return; const { geos, pts, sess } = O.map.data;
-    const m = L.map(el, { zoomControl: true }); L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '\u00a9 OpenStreetMap' }).addTo(m);
-    const b = L.latLngBounds([]);
+  function drawMap() { const el = document.getElementById('ta-map'); if (!el || !O.map || !O.map.data || !window.L) return;
+    // index.html declares its own top-level `let L` (local-mode state) that shadows Leaflet's global L, so use window.L explicitly
+    const LF = window.L, { geos, pts, sess } = O.map.data;
+    const m = LF.map(el, { zoomControl: true }); LF.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '\u00a9 OpenStreetMap' }).addTo(m);
+    const b = LF.latLngBounds([]);
     geos.filter(Boolean).forEach(({ g }) => g.features.filter(f => f.properties.kind === 'session_path' && (!sess.length || !sess.some(s => s.session_n) || sess.some(s => s.session_n === f.properties.session))).forEach(f => {
-      const ll = f.geometry.coordinates.map(c => [c[1], c[0]]); L.polyline(ll, { color: f.properties.color_hex || '#888', weight: 5, opacity: .55 }).addTo(m); ll.forEach(p => b.extend(p)); }));
-    if (pts.length) { L.polyline(pts, { color: '#fff', weight: 6, opacity: .35 }).addTo(m); L.polyline(pts, { color: '#3d8bff', weight: 3, opacity: 1 }).addTo(m);
-      L.circleMarker(pts[0], { radius: 6, color: '#fff', fillColor: '#2fbf71', fillOpacity: 1 }).addTo(m).bindTooltip('Start'); L.circleMarker(pts[pts.length - 1], { radius: 6, color: '#fff', fillColor: '#e5484d', fillOpacity: 1 }).addTo(m).bindTooltip('End'); pts.forEach(p => b.extend(p)); }
+      const ll = f.geometry.coordinates.map(c => [c[1], c[0]]); LF.polyline(ll, { color: f.properties.color_hex || '#888', weight: 5, opacity: .55 }).addTo(m); ll.forEach(p => b.extend(p)); }));
+    if (pts.length) { LF.polyline(pts, { color: '#fff', weight: 6, opacity: .35 }).addTo(m); LF.polyline(pts, { color: '#3d8bff', weight: 3, opacity: 1 }).addTo(m);
+      LF.circleMarker(pts[0], { radius: 6, color: '#fff', fillColor: '#2fbf71', fillOpacity: 1 }).addTo(m).bindTooltip('Start'); LF.circleMarker(pts[pts.length - 1], { radius: 6, color: '#fff', fillColor: '#e5484d', fillOpacity: 1 }).addTo(m).bindTooltip('End'); pts.forEach(p => b.extend(p)); }
     if (b.isValid()) m.fitBounds(b, { padding: [16, 16] }); else m.setView([35.24, -106.66], 13);
   }
+  // Shared with the Team Hub (hub-team.js): same loaders, same edit/clear/map handlers, same data.
+  O.hoursHTML = hoursHTML; O.drawMap = drawMap; O.teamRoutes = teamRoutes; O.fmt = { n1, tOnly, dOnly, pace, day };
   // ----- Control: bot launcher (permissions.launcher) + notes for bots
   function ctlHTML() {
     const ids = (typeof can === 'function' ? can('launcher', []) : []) || [], N = O.d.bot_notes;
