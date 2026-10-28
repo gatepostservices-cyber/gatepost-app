@@ -159,7 +159,7 @@
     const err = await delShifts(T.map(x => x.id)); if (err) return toast('Not cleared: ' + err.message); toast(`Cleared ${T.length} shifts for ${name}`); load('team_shifts', 1); };
   // ----- Team Accounts: approve/remove Gatepost Team workers, assign routes, per-shift walked-path map
   // Tables: team_members, route_assignments, team_shift_paths (admin RLS via is_admin()). Route ids = slugs in the team app's data/index.json.
-  const ROUTE_DATA_URL = 'https://gatepostservices-cyber.github.io/gatepost-team/'; // static route data (JSON) only; the admin app never links to or opens the Team app
+  const ROUTE_DATA_URL = 'https://team.gatepostservices.com/'; // static route data (JSON) only; the admin app never links to or opens the Team app
   O.routes = null; O.map = null;
   async function teamRoutes() { if (O.routes) return O.routes; try { const r = await fetch(ROUTE_DATA_URL + 'data/index.json', { cache: 'no-cache' }); O.routes = (await r.json()).neighborhoods || []; } catch (x) { O.routes = []; } paint(); return O.routes; }
   function accountsHTML() {

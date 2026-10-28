@@ -6,7 +6,7 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const PLANS: Record<string, string> = { oncall: "On-Call", keepup: "Keep-Up", fullcare: "Full Care", landlord: "Landlord" };
-const APP_URL = Deno.env.get("APP_URL") ?? "https://gatepostservices-cyber.github.io/gatepost-app/customer/";
+const APP_URL = Deno.env.get("APP_URL") ?? "https://hub.gatepostservices.com/customer/";
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",

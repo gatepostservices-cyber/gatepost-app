@@ -1,5 +1,5 @@
 // Gatepost Home service worker (scope /customer/). Bump CACHE on every release.
-const CACHE = 'gp-home-v8';
+const CACHE = 'gp-home-v9';
 const SBJS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.min.js';
 const SHELL = ['./', './index.html', './app.js?v=8', './manifest.json?v=1', './icon-192.png?v=1', './apple-touch-icon.png?v=1', '../logo.png', '../arch-mark.png?v=2', '../config.js', SBJS];
 // One missing file must not abort the whole install.

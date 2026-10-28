@@ -4,7 +4,7 @@
 2. SQL Editor -> paste `supabase-setup.sql` -> Run, then `supabase-roles.sql`, `supabase-calendar-privacy.sql`, `supabase-bot-chat.sql`, `supabase-bot-activity.sql`, `supabase-resolve-request.sql` (roles, Outlook privacy, Town chat desks, activity log, bot request clearing).
 3. Authentication -> Sign In / Providers -> Email: keep enabled. For simplest onboarding turn OFF "Confirm email"
    (otherwise each new user must click an email link before logging in).
-4. Authentication -> URL Configuration -> Site URL: https://gatepostservices-cyber.github.io/gatepost-app/
+4. Authentication -> URL Configuration -> Site URL: https://hub.gatepostservices.com/
 5. Project Settings -> API: copy Project URL + anon (publishable) key into `config.js`.
 6. Register first in the app -> that account becomes admin automatically. Others start with 0 access.
 
