@@ -200,7 +200,7 @@
     const geos = await Promise.all(R.filter(x => ids.includes(x.slug)).map(x => fetch(ROUTE_DATA_URL + 'data/' + x.file).then(y => y.json()).then(g => ({ x, g })).catch(() => null)));
     const pts = ((P && P.points) || []).map(p => [p[0], p[1]]);
     O.map = { cap: `${r.worker_name} \u00b7 ${dOnly(r.clock_in)} ${tOnly(r.clock_in)}\u2013${tOnly(r.clock_out)} \u00b7 ${pts.length} GPS points${geos.filter(Boolean).length ? ' \u00b7 route: ' + geos.filter(Boolean).map(z => z.x.name).join(', ') : ''}` };
-    O.map.data = { geos, pts, sess }; paint(); toast(pts.length ? '' : 'No GPS path was recorded for this shift.'); };
+    O.map.data = { geos, pts, sess }; paint(); toast(pts.length ? '' : 'No GPS path was recorded for this shift.'); setTimeout(() => { const w = document.getElementById('ta-mapwrap'); if (w && w.scrollIntoView) w.scrollIntoView({ block: 'start', behavior: 'smooth' }); }, 120); };
   function drawMap() { const el = document.getElementById('ta-map'); if (!el || !O.map || !O.map.data || !window.L) return;
     // index.html declares its own top-level `let L` (local-mode state) that shadows Leaflet's global L, so use window.L explicitly
     const LF = window.L, { geos, pts, sess } = O.map.data;
@@ -210,7 +210,10 @@
       const ll = f.geometry.coordinates.map(c => [c[1], c[0]]); LF.polyline(ll, { color: f.properties.color_hex || '#888', weight: 5, opacity: .55 }).addTo(m); ll.forEach(p => b.extend(p)); }));
     if (pts.length) { LF.polyline(pts, { color: '#fff', weight: 6, opacity: .35 }).addTo(m); LF.polyline(pts, { color: '#3d8bff', weight: 3, opacity: 1 }).addTo(m);
       LF.circleMarker(pts[0], { radius: 6, color: '#fff', fillColor: '#2fbf71', fillOpacity: 1 }).addTo(m).bindTooltip('Start'); LF.circleMarker(pts[pts.length - 1], { radius: 6, color: '#fff', fillColor: '#e5484d', fillOpacity: 1 }).addTo(m).bindTooltip('End'); pts.forEach(p => b.extend(p)); }
-    if (b.isValid()) m.fitBounds(b, { padding: [16, 16] }); else m.setView([35.24, -106.66], 13);
+    const fit = () => { m.invalidateSize(); if (b.isValid()) m.fitBounds(b, { padding: [16, 16] }); else m.setView([35.24, -106.66], 13); };
+    fit(); O.leafMap = m; setTimeout(() => { if (O.leafMap === m && el.isConnected) fit(); }, 250);
+    if (!O.mapResizeBound) { O.mapResizeBound = true; let t; const rs = () => { clearTimeout(t); t = setTimeout(() => { const mm = O.leafMap; if (mm && mm.getContainer().isConnected) mm.invalidateSize(); }, 150); };
+      window.addEventListener('resize', rs); window.addEventListener('orientationchange', rs); }
   }
   // Shared with the Team Hub (hub-team.js): same loaders, same edit/clear/map handlers, same data.
   O.hoursHTML = hoursHTML; O.drawMap = drawMap; O.teamRoutes = teamRoutes; O.fmt = { n1, tOnly, dOnly, pace, day };
