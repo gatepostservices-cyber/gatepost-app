@@ -453,6 +453,18 @@ button.ws-link .ws-ln { display:flex; flex-direction:column; gap:2px; } button.w
 .ws-contact { display:flex; flex-wrap:wrap; gap:4px 14px; margin:2px 0 4px; font-size:.9rem; } .ws-contact a { color:var(--sky); } .ws-buyer > div { font-size:.88rem; margin-top:2px; }
 .ws-st-considering { color:#4a5560 !important; } .ws-st-offered { color:#9a6a1f !important; } .ws-st-under-contract { color:#2d6481 !important; } .ws-st-assigned { color:#2f7d4f !important; } .ws-st-dead { color:#8a4a3c !important; }
 .ws-stats { margin-bottom:6px; } .ws-upd { font-size:.78rem; }
+.t-stat.ws-tap { font:inherit; cursor:pointer; min-height:64px; position:relative; -webkit-tap-highlight-color:transparent; } .t-stat.ws-tap i { font-style:normal; font-size:.62rem; letter-spacing:.06em; color:var(--mute); } .t-stat.ws-tap:active { transform:scale(.97); }
+.ws-leads h2 { margin:6px 0 2px; } .ws-bkt { flex-wrap:wrap; } .ws-q { width:100%; box-sizing:border-box; font-size:16px; margin:8px 0 4px; }
+button.ws-lead { display:flex; flex-direction:column; gap:4px; width:100%; text-align:left; padding:12px 12px; margin:8px 0 0; border-radius:12px; background:#fff !important; border:1px solid var(--line) !important; color:var(--text) !important; font:inherit; min-height:44px; }
+button.ws-lead .ws-lh { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; } button.ws-lead .ws-lh b { font-weight:600; color:var(--pine); word-break:break-word; }
+.ws-score { flex:none; min-width:30px; text-align:center; padding:1px 8px; border-radius:999px; background:#1f3a2b; color:#f6f0df; font-size:.8rem; font-weight:600; }
+.ws-lm { font-size:.76rem; color:var(--mute); } .ws-lw { font-size:.84rem; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.ws-lf { display:flex; justify-content:space-between; align-items:center; } .ws-go { color:var(--mute); font-size:1.2rem; }
+.ws-more { width:100%; margin-top:12px; min-height:44px; } .ws-showing, .ws-end { font-size:.78rem; text-align:center; margin:10px 0 0; }
+.ws-ls-new { color:#4a5560 !important; } .ws-ls-called { color:#9a6a1f !important; } .ws-ls-mail-sent { color:#2d6481 !important; } .ws-ls-offer-drafted { color:#6a4a8a !important; } .ws-ls-under-contract { color:#2f7d4f !important; } .ws-ls-dead { color:#8a4a3c !important; }
+.ws-chipline { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 6px; } .ws-bk-call-today { color:#a3442c !important; } .ws-bk-this-week { color:#9a6a1f !important; } .ws-bk-worth-a-look { color:#4a5560 !important; }
+.ws-sheet .ws-dl { grid-template-columns:minmax(0,max-content) 1fr; } .ws-sheet select { width:100%; min-height:44px; font-size:16px; } .ws-sheet .ws-why { line-height:1.5; } .ws-ext { display:block; padding:8px 0; color:var(--sky) !important; word-break:break-word; }
+.ws-dealbox { border:1px solid var(--line); border-radius:12px; padding:10px 12px; } .ws-priv { font-size:.74rem; margin-top:18px; }
 </style>
 <script src="config.js?v=req1"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.min.js"></script>
@@ -1018,7 +1030,7 @@ Promise.all([API.init(), domReady]).then(()=>{ if (location.hash.length>1) docum
 <script src="simplify.js?v=3"></script>
 <script src="hubs.js?v=1"></script>
 <script src="hub-team.js?v=2"></script>
-<script src="hub-wholesale.js?v=5"></script>
+<script src="hub-wholesale.js?v=6"></script>
 <script src="chat.js?v=8"></script>
 <script src="pwa.js?v=8"></script>
 </body>
