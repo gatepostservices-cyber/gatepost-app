@@ -5,7 +5,7 @@
 //   wholesale_title_cos title companies per state (tools/title.sh creates/edits; the app edits status + call_notes only)
 //   wholesale_builders  builders/buyers per state + type (tools/builders.sh creates/edits; the app edits status, call_notes, buy_box only)
 //   wholesale_leads     leads per state + type + bucket (tools/wholesale_leads.sh loads from Dex's CSVs; the app edits status + call_notes only; linked to wholesale_deals by ext_id)
-// Never owner names or mailing addresses: no such columns exist.
+// Wholesale leads carry owner_name / owner_mail / owner_mail_state (approved by Christian; owner-only RLS). The other wholesale tables hold no owner data.
 (function () {
   const W = window.WS = { d: null, at: 0, busy: false, tab: 'summary', ll: null, lc: null, lcBusy: false, lead: null, deals: null, buyers: null, dBusy: false, bBusy: false, filter: 'All', tfilter: 'All', st: {}, tc: null, tcBusy: false, td: {}, tcOpen: {}, bl: null, blBusy: false, bd: {}, blOpen: {}, msg: '', dd: {}, bf: {}, bedit: null,
     calc: { arv: '', rehab: '', list: '', fee: '', dc: '' } };
@@ -284,10 +284,10 @@
     const L = W.ll; if (!L || !window.gpSb) return; if (!reset && (L.more || L.rows.length >= (L.total || 0))) return;
     const seq = ++L.seq, from = reset ? 0 : L.rows.length; L.busy = true; L.more = !reset; if (reset) L.err = '';
     paintList();
-    let q = gpSb.from('wholesale_leads').select('id,ext_id,state,type,market,bucket,score,address,parcel_id,why,status,touched_at', { count: 'exact' }).eq('state', L.state).eq('type', L.type).eq('bucket', L.bucket);
+    let q = gpSb.from('wholesale_leads').select('id,ext_id,state,type,market,bucket,score,address,parcel_id,owner_name,why,status,touched_at', { count: 'exact' }).eq('state', L.state).eq('type', L.type).eq('bucket', L.bucket);
     if (L.sf !== 'All') q = q.eq('status', L.sf);
     const t = L.q.replace(/[,()%*\\"'_]/g, ' ').trim();
-    if (t) q = q.or(`address.ilike.%${t}%,parcel_id.ilike.%${t}%,why.ilike.%${t}%`);
+    if (t) q = q.or(`address.ilike.%${t}%,owner_name.ilike.%${t}%,parcel_id.ilike.%${t}%,why.ilike.%${t}%`);
     if (L.sort === 'addr') q = q.order('address', { ascending: true }).order('score', { ascending: false });
     else if (L.sort === 'worked') q = q.order('touched_at', { ascending: false, nullsFirst: false }).order('score', { ascending: false });
     else q = q.order('score', { ascending: L.sort === 'score_asc' }).order('address', { ascending: true });
@@ -301,7 +301,7 @@
   const snip = (s, n) => { s = String(s || ''); return s.length > n ? s.slice(0, n - 1).trimEnd() + '\u2026' : s; };
   function leadRow(r) {
     return `<button type="button" class="ws-lead" data-lead="${e(r.id)}" onclick="wsLeadOpen('${e(r.id)}')"><span class="ws-lh"><b>${e(r.address)}</b><span class="ws-score" title="Score">${e(r.score)}</span></span>
-      <span class="ws-lm">${e([r.market, r.parcel_id].filter(Boolean).join(' \u00b7 '))}</span><span class="ws-lw">${e(snip(r.why, 150))}</span><span class="ws-lf">${lstat(r.status)}<span class="ws-go" aria-hidden="true">\u203a</span></span></button>`;
+      <span class="ws-lm">${e([r.owner_name, r.market, r.parcel_id].filter(Boolean).join(' \u00b7 '))}</span><span class="ws-lw">${e(snip(r.why, 150))}</span><span class="ws-lf">${lstat(r.status)}<span class="ws-go" aria-hidden="true">\u203a</span></span></button>`;
   }
   function listInner() {
     const L = W.ll; if (!L) return '';
@@ -319,7 +319,7 @@
     return `<div class="card ws-card ws-leads" data-state="${e(L.state)}" data-type="${e(L.type)}" data-bucket="${e(L.bucket)}"><div class="uf-top"><button type="button" class="secondary q-sm" onclick="wsLeadsBack()">\u2039 Wholesale Hub</button><span class="badge ws-ty">${e(L.state)} ${TYNAME(L.type)}</span></div>
       <h2>${e(L.bucket)}</h2><p class="muted">${e(STATE_NAME[L.state] || L.state)} \u00b7 ${TYNAME(L.type)}. Tap a lead for everything on it.</p>
       <div class="of-tabs ws-chips ws-bkt" role="tablist" aria-label="Bucket">${LBUCKET.map(b => `<button type="button" role="tab" aria-selected="${L.bucket === b}" class="${L.bucket === b ? 'on' : ''}" data-bucket="${e(b)}" onclick="wsLeadBucket('${e(b)}')">${e(b)}${n(b)}</button>`).join('')}</div>
-      <input id="wl-q" class="ws-q" type="search" inputmode="search" autocomplete="off" placeholder="Search address, parcel or reason" aria-label="Search leads" value="${e(L.q)}" oninput="wsLeadQ(this.value)">
+      <input id="wl-q" class="ws-q" type="search" inputmode="search" autocomplete="off" placeholder="Search address, owner, parcel or reason" aria-label="Search leads by address, owner, parcel or reason" value="${e(L.q)}" oninput="wsLeadQ(this.value)">
       <div class="ws-two"><div><label for="wl-sort">Sort</label><select id="wl-sort" onchange="wsLeadSort(this.value)">${LSORT.map(([k, t]) => `<option value="${k}"${L.sort === k ? ' selected' : ''}>${t}</option>`).join('')}</select></div>
         <div><label for="wl-sf">Status</label><select id="wl-sf" onchange="wsLeadSF(this.value)">${['All'].concat(LSTAT).map(s => `<option${L.sf === s ? ' selected' : ''}>${s}</option>`).join('')}</select></div></div>
       <div id="wl-list">${listInner()}</div></div>`;
@@ -356,6 +356,7 @@
     W.lead.deal = b.error ? null : (b.data || null);
     paintLeadSheet(false);
   };
+  window.wsLeadCopyMail = async () => { const r = W.lead && (W.lead.full || W.lead.row); if (!r || !r.owner_mail) return; try { await navigator.clipboard.writeText(r.owner_mail); W.lead.msg = 'Mailing address copied.'; } catch (_) { W.lead.msg = 'Copy failed. Select the text and copy it.'; } paintLeadSheet(false, true); };
   window.wsLeadDraft = (k, v) => { if (W.lead) W.lead.dd[k] = v; };
   window.wsLeadDeal = () => { const d = W.lead && W.lead.deal; if (!d) return; closeLeadSheet(); W.filter = 'All'; W.tfilter = 'All'; W.tab = 'deals'; say(''); repaint(); setTimeout(() => { const el = document.querySelector(`[data-deal="${d.id}"]`); el && el.scrollIntoView && el.scrollIntoView({ block: 'start' }); }, 400); };
   window.wsLeadSave = async () => {
@@ -390,6 +391,7 @@
       <div class="sheet-body"><h2 class="sheet-title">${e(r.address)}</h2>
         <div class="ws-chipline"><span class="badge ws-bk ws-bk-${e(String(r.bucket).toLowerCase().replace(/\s+/g, '-'))}">${e(lbuck(r.bucket))}</span><span class="badge">Score ${e(r.score)}</span><span class="badge">${e(r.state)} ${TYNAME(r.type)}</span></div>
         ${S0.msg ? `<div class="muted q-rt" id="wl-msg" aria-live="polite">${e(S0.msg)}</div>` : '<div id="wl-msg" class="muted q-rt" aria-live="polite"></div>'}
+        <h3>Owner</h3>${r.owner_name || r.owner_mail ? `<dl class="facts ws-dl ws-own"><dt>Owner</dt><dd>${e(r.owner_name || '\u2014')}</dd><dt>Mailing address</dt><dd>${e(r.owner_mail || '\u2014')}${r.owner_mail_state ? ` <span class="muted">(${e(r.owner_mail_state)})</span>` : ''}</dd></dl>${r.owner_mail ? '<button type="button" class="secondary q-sm ws-cpm" onclick="wsLeadCopyMail()">Copy mailing address</button>' : ''}` : S0.full ? '<p class="muted">No owner on file for this lead.</p>' : '<p class="muted">Loading\u2026</p>'}
         <h3>Why it is a lead</h3>${why.length ? `<ul class="check ws-why">${why.map(x => `<li>${e(x)}</li>`).join('')}</ul>` : '<p class="muted">No reason recorded.</p>'}
         ${r.note ? `<h3>Note</h3><p class="sheet-text">${e(r.note)}</p>` : ''}
         <h3>Property facts</h3>${S0.full ? '' : '<p class="muted">Loading the rest\u2026</p>'}<dl class="facts ws-dl">${facts.map(([k, v]) => `<dt>${e(k)}</dt><dd>${e(v)}</dd>`).join('')}</dl>
@@ -397,7 +399,7 @@
         <h3>Deal</h3>${dealBox}
         <h3>Status</h3><select id="wl-st" aria-label="Status" onchange="wsLeadDraft('status',this.value)">${LSTAT.map(s => `<option${stv === s ? ' selected' : ''}>${s}</option>`).join('')}</select>
         <h3>Call notes</h3><textarea id="wl-nt" rows="5" maxlength="4000" placeholder="Who you talked to, what they said, next step" oninput="wsLeadDraft('call_notes',this.value)">${e(ntv)}</textarea>
-        <p class="muted ws-priv">Public records only. Owner names and mailing addresses are not stored in the app.</p></div>
+        <p class="muted ws-priv">Public records. Verify before outreach.</p></div>
       <div class="sheet-actions"><button type="button" class="secondary" onclick="wsLeadClose()">Close</button><button type="button" class="primary" id="wl-save" onclick="wsLeadSave()">Save</button></div>`;
     const nav = document.getElementById('sec-nav'); if (nav && !nav.classList.contains('hidden')) el.style.setProperty('bottom', nav.getBoundingClientRect().height + 'px', 'important');   // beats the global '.sheet { bottom:0 !important }' so Save is not under the nav
     document.body.appendChild(el);

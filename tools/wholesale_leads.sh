@@ -14,8 +14,9 @@
 #   --dry-run reads the files, validates, prints the counts it WOULD load, and touches neither the token nor the network.
 # ext_id (the link to wholesale_deals, which uses the same ids): nm-land-<apn>, nm-homes-<upc>, oh-homes-<parcel_id>
 #   (a CSV "ext_id" column wins if Dex adds one; rows with no id/duplicate id get a short hash of the address).
-# PRIVACY: only whitelisted property-record columns are picked out of each CSV by name. The owner, owner_mail, mail and mail_state columns (names / mailing
-#   addresses) are never read into memory, sent or stored; owner_flag (a category) and absentee / out_of_state (0/1) are kept. The RPC rejects owner/mail keys too.
+# OWNER DATA (approved by Christian 2026-10-30; the hub is owner-only): the CSV columns owner -> owner_name, owner_mail / mail -> owner_mail (mailing address, one line)
+#   and mail_state -> owner_mail_state (NM land) ARE loaded, into their own columns. Every other column is skipped by name. owner_flag (category) and
+#   absentee / out_of_state (0/1) stay in details. The RPC accepts only those three owner keys.
 # Token: ~/.config/gatepost/wholesale-token (same as wholesale.sh / deals.sh; override GATEPOST_WHOLESALE_TOKEN_FILE). Outside the repo, never printed.
 set -euo pipefail
 CMD="${1:-}"; [ $# -gt 0 ] && shift
@@ -54,14 +55,14 @@ if CMD == "status":
 
 BATCH = int(os.environ["BATCH"])
 if not 1 <= BATCH <= 500: die("--batch must be 1-500")
-# ---- columns we are allowed to read, by name. Anything else (owner, owner_mail, mail, mail_state, ...) is skipped without keeping the value. ----
+# ---- columns we read, by name. Anything not listed is skipped without keeping the value. ----
 SPECS = {
  "nm-homes": dict(file="leads_latest.csv", state="NM", type="homes",
-    cols="bucket score market address owner_flag absentee source source_url assessor_url upc permits permit_statuses latest_permit_year work why tax_delinquency note ext_id".split()),
+    cols="bucket score market address owner owner_mail owner_flag absentee source source_url assessor_url upc permits permit_statuses latest_permit_year work why tax_delinquency note ext_id".split()),
  "nm-land": dict(file="land/land_leads_latest.csv", state="NM", type="land",
-    cols="bucket score county region apn account address_or_legal area zip acres owner_flag death_cert out_of_state last_transfer_year last_transfer_date last_transfer_type sale_date_basis tax_flag tax_balance why source_url note ext_id".split()),
+    cols="bucket score county region apn account address_or_legal area zip acres owner mail mail_state owner_flag death_cert out_of_state last_transfer_year last_transfer_date last_transfer_type sale_date_basis tax_flag tax_balance why source_url note ext_id".split()),
  "oh-homes": dict(file="cleveland/leads_latest.csv", state="OH", type="homes",
-    cols="bucket score address owner_flag source source_url assessor_url parcel_id violations condemned boardups tax_delinquent_balance foreclosure_flag last_sale sqft year_built why note ext_id".split()),
+    cols="bucket score address owner owner_mail owner_flag source source_url assessor_url parcel_id violations condemned boardups tax_delinquent_balance foreclosure_flag last_sale sqft year_built why note ext_id".split()),
 }
 if ONLY and ONLY not in SPECS: die("--only must be one of " + ", ".join(SPECS))
 BUCKETS = ("Call today", "This week", "Worth a look")
@@ -79,6 +80,8 @@ def uniq(parts, sep):
     for p in (x.strip() for x in (parts or "").split(sep)):
         if p and p not in seen: seen.add(p); out.append(p)
     return out
+def one(v, n):
+    v = " ".join((v or "").split()); return clip(v, n) if v else None
 def hid(*a): return hashlib.sha1("|".join(a).encode()).hexdigest()[:8]
 def read(key):
     sp = SPECS[key]; path = os.path.join(DEX, sp["file"])
@@ -121,9 +124,10 @@ def build(key):
                      tax_delinquent_balance=tb, tax_delinquent=bool(tb and tb > 0), foreclosure_flag=bool((o["foreclosure_flag"] or "").strip()), last_sale=s(o["last_sale"]),
                      sqft=num(o["sqft"], int), year_built=num(o["year_built"], int))
             base = "oh-homes-" + (pid or hid(addr or ""))
+        own = dict(owner_name=one(o.get("owner"), 200), owner_mail=one(o.get("owner_mail") or o.get("mail"), 300), owner_mail_state=one(o.get("mail_state"), 10))
         if not addr: die("%s: row without an address" % key)
         row = dict(ext_id=s(o.get("ext_id")) or base, state=sp["state"], type=sp["type"], market=clip(market, 120), bucket=b, score=sc, address=clip(addr, 300), parcel_id=pid, why=clip(s(o["why"]), 2000),
-                   source_url=clip(s(o.get("source_url")), 1000), assessor_url=clip(s(o.get("assessor_url")), 1000), note=clip(s(o.get("note")), 1000),
+                   source_url=clip(s(o.get("source_url")), 1000), assessor_url=clip(s(o.get("assessor_url")), 1000), note=clip(s(o.get("note")), 1000), **own,
                    details={k: v for k, v in d.items() if v is not None}, data_date=date)
         row = {k: v for k, v in row.items() if v is not None}
         res.append(row)
