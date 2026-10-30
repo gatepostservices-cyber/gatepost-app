@@ -3,7 +3,7 @@
 # Usage:
 #   tools/unfinished.sh add     AGENT_ID BOT_NAME EXT_KEY "One-line summary" ["Last state"]
 #   tools/unfinished.sh update  AGENT_ID BOT_NAME EXT_KEY "One-line summary" "Last state"
-#   tools/unfinished.sh close   AGENT_ID EXT_KEY            # mark done
+#   tools/unfinished.sh close   AGENT_ID EXT_KEY [ASKED_BY]  # mark done; also adds a row to the Done list (tools/done.sh): ITEM_KEY = EXT_KEY, change = the item's summary, ASKED_BY defaults to Christian (or $DONE_ASKED_BY)
 #   tools/unfinished.sh aborted AGENT_ID                    # JSON list of items Christian aborted (not yet seen); marks them seen
 #   tools/unfinished.sh list    [AGENT_ID]                  # read-only: open items (ext_key, bot, summary, state, updated), oldest first
 # add/update are the same idempotent upsert on (AGENT_ID, EXT_KEY); an empty state keeps the old one. Done/aborted items are not reopened.
@@ -19,14 +19,38 @@ KEY=$(sed -n 's/.*SUPABASE_ANON_KEY: *"\([^"]*\)".*/\1/p' "$DIR/config.js")
 case "$CMD" in
   add|update) [ $# -ge 4 ] || { echo "usage: unfinished.sh $CMD AGENT_ID BOT_NAME EXT_KEY SUMMARY [STATE]" >&2; exit 2; }
     FN=unfinished_upsert; ARGS=$(python3 -c 'import json,sys;a=sys.argv[1:];print(json.dumps({"p_agent_id":a[0],"p_bot_name":a[1],"p_ext_key":a[2],"p_summary":a[3],"p_state":a[4] if len(a)>4 else ""}))' "$@");;
-  close) [ $# -ge 2 ] || { echo "usage: unfinished.sh close AGENT_ID EXT_KEY" >&2; exit 2; }
+  close) [ $# -ge 2 ] || { echo "usage: unfinished.sh close AGENT_ID EXT_KEY [ASKED_BY]" >&2; exit 2; }
+    ASKED="${3:-${DONE_ASKED_BY:-Christian}}"; case "$ASKED" in Christian|Nate) ;; *) echo "ASKED_BY must be Christian or Nate (got: $ASKED)" >&2; exit 2;; esac
     FN=unfinished_close; ARGS=$(python3 -c 'import json,sys;print(json.dumps({"p_agent_id":sys.argv[1],"p_ext_key":sys.argv[2]}))' "$1" "$2");;
   aborted) [ $# -ge 1 ] || { echo "usage: unfinished.sh aborted AGENT_ID" >&2; exit 2; }
     FN=unfinished_aborted; ARGS=$(python3 -c 'import json,sys;print(json.dumps({"p_agent_id":sys.argv[1]}))' "$1");;
   list) FN=unfinished_list; ARGS=$(python3 -c 'import json,sys;print(json.dumps({"p_agent_id":sys.argv[1] if len(sys.argv)>1 else None}))' "$@");;
   *) echo "unknown command: $CMD (add|update|close|aborted|list)" >&2; exit 2;;
 esac
+# close: remember the open item (bot + summary) BEFORE closing it, so the Done list row can reuse them. Best effort; never blocks the close.
+PRE_ITEM=""
+if [ "$CMD" = close ]; then
+  PRE_ITEM=$(AGENT="$1" EXTK="$2" TF="$TOKEN_FILE" URL="$URL" KEY="$KEY" python3 - <<'PY' 2>/dev/null || true
+import json, os, subprocess
+tok = open(os.environ["TF"]).read().strip()
+r = subprocess.run(["curl", "-sS", "-m", "20", "-w", "\n%{http_code}", os.environ["URL"] + "/rest/v1/rpc/unfinished_list", "-H", "apikey: " + os.environ["KEY"], "-H", "Content-Type: application/json", "-d", "@-"],
+                   input=json.dumps({"p_token": tok, "p_agent_id": os.environ["AGENT"]}).encode(), capture_output=True)
+body, _, code = r.stdout.decode().rpartition("\n")
+if code == "200":
+    for it in json.loads(body):
+        if it.get("ext_key") == os.environ["EXTK"].strip(): print(json.dumps({"bot": it["bot"], "summary": it["summary"]})); break
+PY
+)
+fi
 BODY=$(ARGS="$ARGS" TF="$TOKEN_FILE" python3 -c 'import json,os;d=json.loads(os.environ["ARGS"]);d["p_token"]=open(os.environ["TF"]).read().strip();print(json.dumps(d))')
 RES=$(curl -sS -w '\n%{http_code}' "$URL/rest/v1/rpc/$FN" -H "apikey: $KEY" -H "Content-Type: application/json" -d "$BODY")
 CODE=${RES##*$'\n'}; OUT=${RES%$'\n'*}
 if [ "$CODE" = 200 ]; then echo "$OUT"; else echo "failed ($CODE): $OUT" >&2; exit 1; fi
+# close -> also write a Done list row (best effort: a problem here only warns, the close itself already succeeded and its output/exit code are unchanged).
+if [ "$CMD" = close ] && [ -n "${PRE_ITEM:-}" ]; then
+  if [ "$(printf '%s' "$OUT" | python3 -c 'import json,sys;print(json.load(sys.stdin).get("status",""))' 2>/dev/null)" = done ]; then
+    ITEM_BOT=$(printf '%s' "$PRE_ITEM" | python3 -c 'import json,sys;print(json.load(sys.stdin)["bot"])'); ITEM_SUM=$(printf '%s' "$PRE_ITEM" | python3 -c 'import json,sys;print(json.load(sys.stdin)["summary"])')
+    "$(dirname "$0")/done.sh" add "$1" "$ITEM_BOT" "$2" "$ASKED" "$ITEM_SUM" >/dev/null 2>/tmp/.done_add_err.$$ || echo "note: closed, but the Done list row was not added: $(head -c 300 /tmp/.done_add_err.$$)" >&2
+    rm -f /tmp/.done_add_err.$$
+  fi
+fi
