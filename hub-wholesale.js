@@ -7,7 +7,7 @@
 //   wholesale_leads     leads per state + type + bucket (tools/wholesale_leads.sh loads from Dex's CSVs; the app edits status + call_notes only; linked to wholesale_deals by ext_id)
 // Wholesale leads carry owner_name / owner_mail / owner_mail_state (approved by Christian; owner-only RLS). The other wholesale tables hold no owner data.
 (function () {
-  const W = window.WS = { d: null, at: 0, busy: false, tab: 'summary', ll: null, lc: null, lcBusy: false, lead: null, deals: null, buyers: null, dBusy: false, bBusy: false, filter: 'All', tfilter: 'All', st: {}, tc: null, tcBusy: false, td: {}, tcOpen: {}, bl: null, blBusy: false, bd: {}, blOpen: {}, msg: '', dd: {}, bf: {}, bedit: null,
+  const W = window.WS = { d: null, at: 0, busy: false, tab: 'summary', state: (() => { try { const s = localStorage.getItem('gp_ws_state'); return s === 'NM' || s === 'OH' ? s : null; } catch (_) { return null; } })(), ll: null, lc: null, lcBusy: false, lead: null, deals: null, buyers: null, dBusy: false, bBusy: false, filter: 'All', tfilter: 'All', st: {}, tc: null, tcBusy: false, td: {}, tcOpen: {}, bl: null, blBusy: false, bd: {}, blOpen: {}, msg: '', dd: {}, bf: {}, bedit: null,
     calc: { arv: '', rehab: '', list: '', fee: '', dc: '' } };
   const e = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const num = v => v == null ? '\u2014' : Number(v).toLocaleString('en-US');
@@ -28,7 +28,7 @@
   }
   async function loadDeals(force) {
     if (!window.gpSb || W.dBusy || (!force && W.deals)) return; W.dBusy = true;
-    try { const { data, error } = await gpSb.from('wholesale_deals').select('id,ext_id,type,address,list_price,arv,rehab,max_offer,creative_structure,status,notes,call_script,updated_at').order('updated_at', { ascending: false });
+    try { const { data, error } = await gpSb.from('wholesale_deals').select('id,ext_id,state,type,address,list_price,arv,rehab,max_offer,creative_structure,status,notes,call_script,updated_at').order('updated_at', { ascending: false });
       if (error) { W.deals = W.deals || []; say('Could not load deals.'); window.gpReportError && gpReportError(error, { op: 'wholesale_deals' }); } else W.deals = data || []; }
     finally { W.dBusy = false; } repaint();
   }
@@ -39,6 +39,10 @@
     finally { W.bBusy = false; } repaint();
   }
   window.wsRefresh = () => { load(true); loadLeadCounts(true); loadTitle(true); loadBuilders(true); if (W.tab === 'deals') loadDeals(true); if (W.tab === 'buyers') loadBuyers(true); };
+  const inState = r => ((r && r.state) || 'NM') === W.state;   // rows with no state (older data) are New Mexico
+  const switchState = st => { closeLeadSheet(); W.state = st; W.ll = null; W.tab = 'summary'; W.filter = 'All'; W.tfilter = 'All'; W.bedit = null; W.bf = {}; W.dd = {}; say(''); try { st ? localStorage.setItem('gp_ws_state', st) : localStorage.removeItem('gp_ws_state'); } catch (_) {} };
+  window.wsPick = st => { if (st !== 'NM' && st !== 'OH') return; switchState(st); repaint(); window.scrollTo && window.scrollTo(0, 0); };
+  window.wsStates = () => { switchState(null); repaint(); window.scrollTo && window.scrollTo(0, 0); };
   window.wsTab = k => { closeLeadSheet(); W.tab = k; say(''); repaint(); };
 
   // ---- Deal Calculator (front end only; nothing is saved or sent) ----
@@ -109,14 +113,15 @@
   function dealsHTML() {
     loadDeals();
     if (W.deals == null) return '<div class="card ws-card"><h2>Deal Tracker</h2><p class="muted">Loading\u2026</p></div>';
-    const tcount = { Homes: W.deals.filter(d => d.type !== 'land').length, Land: W.deals.filter(d => d.type === 'land').length };
-    const byType = W.tfilter === 'All' ? W.deals : W.deals.filter(d => (d.type === 'land' ? 'Land' : 'Homes') === W.tfilter);
+    const DL = W.deals.filter(inState);
+    const tcount = { Homes: DL.filter(d => d.type !== 'land').length, Land: DL.filter(d => d.type === 'land').length };
+    const byType = W.tfilter === 'All' ? DL : DL.filter(d => (d.type === 'land' ? 'Land' : 'Homes') === W.tfilter);
     const counts = Object.fromEntries(STATUSES.map(s => [s, byType.filter(d => d.status === s).length]));
     const shown = W.filter === 'All' ? byType : byType.filter(d => d.status === W.filter);
-    return `<div class="card ws-card"><div class="uf-top"><h2>Deal Tracker</h2><button type="button" class="secondary q-sm" onclick="wsRefresh()">Refresh</button></div>
-      <div class="of-tabs ws-chips ws-types" role="group" aria-label="Filter by type">${['All', 'Homes', 'Land'].map(t => `<button type="button" class="${W.tfilter === t ? 'on' : ''}" onclick="wsTFilter('${t}')">${t === 'All' ? 'All types' : t} ${t === 'All' ? W.deals.length : tcount[t]}</button>`).join('')}</div>
+    return `<div class="card ws-card"><div class="uf-top"><h2>Deal Tracker</h2><button type="button" class="secondary q-sm" onclick="wsRefresh()">Refresh</button></div><p class="muted ws-where">${e(STATE_NAME[W.state])}</p>
+      <div class="of-tabs ws-chips ws-types" role="group" aria-label="Filter by type">${['All', 'Homes', 'Land'].map(t => `<button type="button" class="${W.tfilter === t ? 'on' : ''}" onclick="wsTFilter('${t}')">${t === 'All' ? 'All types' : t} ${t === 'All' ? DL.length : tcount[t]}</button>`).join('')}</div>
       <div class="of-tabs ws-chips" role="group" aria-label="Filter by status">${['All'].concat(STATUSES).map(s => `<button type="button" class="${W.filter === s ? 'on' : ''}" onclick="wsFilter('${s}')">${s}${s === 'All' ? ' ' + byType.length : ' ' + counts[s]}</button>`).join('')}</div>
-      ${shown.length ? shown.map(dealHTML).join('') : `<p class="muted">${W.deals.length ? 'No deals match these filters.' : 'No deals yet. New deals are added with tools/deals.sh; you change status and notes here.'}</p>`}</div>`;
+      ${shown.length ? shown.map(dealHTML).join('') : `<p class="muted">${DL.length ? 'No deals match these filters.' : 'No deals in this state yet. New deals are added with tools/deals.sh; you change status and notes here.'}</p>`}</div>`;
   }
 
   // ---- Buyers + buy-box ----
@@ -136,6 +141,7 @@
     if (row.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email)) return say('That email does not look right.');
     if (!window.gpSb) return say('Not connected.');
     const btn = document.getElementById('wb-save'); if (btn) btn.disabled = true;
+    if (!W.bedit) row.state = W.state;   // a new buyer belongs to the state you are in
     const q = W.bedit ? gpSb.from('wholesale_buyers').update(row).eq('id', W.bedit).select('*') : gpSb.from('wholesale_buyers').insert(row).select('*');
     const { data, error } = await q; if (btn) btn.disabled = false;
     if (error || !data || !data.length) return say('Not saved. ' + (error ? error.message : 'No access.'));
@@ -145,7 +151,7 @@
   function buyerForm() {
     const fld = ([k, label, type, ac]) => type === 'area' ? `<label for="wb-${k}">${label}</label><textarea id="wb-${k}" rows="3" maxlength="4000" oninput="wsBf('${k}',this.value)">${e(bval(k))}</textarea>`
       : `<label for="wb-${k}">${label}</label><input id="wb-${k}" type="${type === 'money' ? 'text' : type}"${type === 'money' ? ' inputmode="decimal" placeholder="$0"' : ''}${ac ? ` autocomplete="${ac}"` : ' autocomplete="off"'} value="${e(bval(k))}" oninput="wsBf('${k}',this.value)">`;
-    return `<div class="card ws-card" id="wb-form"><h2>${W.bedit ? 'Edit buyer' : 'Add a buyer'}</h2><p class="muted">Buy-box intake: what they want to buy.</p>${BF.slice(0, 6).map(fld).join('')}
+    return `<div class="card ws-card" id="wb-form"><h2>${W.bedit ? 'Edit buyer' : 'Add a buyer'}</h2><p class="muted">Buy-box intake: what they want to buy in ${e(STATE_NAME[W.state])}.</p>${BF.slice(0, 6).map(fld).join('')}
       <div class="ws-two">${BF.slice(6, 8).map(x => `<div>${fld(x)}</div>`).join('')}</div>${BF.slice(8).map(fld).join('')}
       <div class="of-row ws-btns"><button type="button" id="wb-save" onclick="wsBuyerSave()">${W.bedit ? 'Save changes' : 'Add buyer'}</button>${W.bedit ? '<button type="button" class="secondary" onclick="wsBuyerCancel()">Cancel</button>' : ''}</div></div>`;
   }
@@ -158,12 +164,12 @@
   }
   function buyersHTML() {
     loadBuyers();
-    const list = W.buyers == null ? '<p class="muted">Loading\u2026</p>' : W.buyers.length ? W.buyers.map(buyerItem).join('') : '<p class="muted">No buyers yet. Add the first one above.</p>';
-    return buyerForm() + `<div class="card ws-card"><div class="uf-top"><h2>Buyers${W.buyers ? ' (' + W.buyers.length + ')' : ''}</h2><button type="button" class="secondary q-sm" onclick="wsRefresh()">Refresh</button></div>${list}</div>`;
+    const BY = (W.buyers || []).filter(inState);
+    const list = W.buyers == null ? '<p class="muted">Loading\u2026</p>' : BY.length ? BY.map(buyerItem).join('') : '<p class="muted">No buyers in this state yet. Add the first one above.</p>';
+    return buyerForm() + `<div class="card ws-card"><div class="uf-top"><h2>Buyers${W.buyers ? ' (' + BY.length + ')' : ''}</h2><button type="button" class="secondary q-sm" onclick="wsRefresh()">Refresh</button></div>${list}</div>`;
   }
 
   const STATE_NAME = { NM: 'New Mexico (ABQ / Rio Rancho)', OH: 'Ohio (Cleveland)' };
-  const stOrder = c => c === 'NM' ? '0' : c === 'OH' ? '1' : '2' + c;
   const stamp = t => new Date(t).toLocaleString('en-US', { timeZone: 'America/Denver', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
   window.wsType = (st, t) => { W.st[st] = t; repaint(); };
 
@@ -410,8 +416,7 @@
 
   function summaryHTML() {
     load(); loadLeadCounts();
-    const D = W.d, TC = W.tc || [], BL = W.bl || [];
-    const states = D ? Array.from(new Set(Object.keys(D).concat(['NM', 'OH'], TC.map(c => c.state), BL.map(c => c.state)))).filter(st => D[st] || st === 'NM' || st === 'OH' || TC.some(c => c.state === st) || BL.some(c => c.state === st)).sort((x, y) => stOrder(x).localeCompare(stOrder(y))) : [];
+    const D = W.d, TC = W.tc || [], BL = W.bl || [], st = W.state;
     const group = st => { const byT = D[st] || {}, hasLand = !!byT.land || BL.some(c => c.state === st && c.type === 'land'), tabbed = st === 'NM' || hasLand, cur = tabbed && W.st[st] === 'land' ? 'land' : 'homes';
       const d = byT[cur] || {}, v = k => d[k] ? d[k].value : null, upd = Object.values(d).map(r => r.updated_at).filter(Boolean).sort().pop();
       const stat = (k, label, hot) => `<div class="t-stat${hot ? ' hot' : ''}" data-ws="${k}"><b>${num(v(k))}</b><span>${label}</span></div>`;
@@ -422,18 +427,31 @@
         <h3>Listings</h3><div class="t-stats ws-stats">${stat('listings', 'Listings considered')}</div>
         <h3>Leads</h3><div class="t-stats ws-stats">${lstatBtn('call_today', 'Call today', 1)}${lstatBtn('week', 'This week')}${lstatBtn('worth_a_look', 'Worth a look')}</div>
         ${upd ? `<p class="muted ws-upd">Updated ${e(stamp(upd))} (Denver time)</p>` : ''}
-        ${st === 'NM' || st === 'OH' || BL.some(c => c.state === st) ? buildersHTML(st, cur) : ''}
-        ${st === 'NM' || st === 'OH' || TC.some(c => c.state === st) ? titleHTML(st) : ''}</div>`; };
+        ${buildersHTML(st, cur)}
+        ${titleHTML(st)}</div>`; };
     return `<div class="card ws-card"><div class="uf-top"><h2>Wholesale Hub</h2><button type="button" class="secondary q-sm" onclick="wsRefresh()">Refresh</button></div>
-      <p class="muted">Summary numbers by state. Owner access only.</p></div>
-      ${D == null ? '<div class="card ws-card"><p class="muted">Loading\u2026</p></div>' : states.map(group).join('')}
-      <div class="card ws-card"><h2>Tools</h2><div class="ws-links">${[['calc', 'Deal Calculator', 'Max offer, spread, double close'], ['deals', 'Deal Tracker', 'Status and notes on every deal'], ['buyers', 'Buyers', 'Buy-box list and intake']].map(([k, n, s2]) => `<button type="button" class="ws-link" onclick="wsTab('${k}')"><span class="ws-ln"><b>${n}</b><small>${s2}</small></span><span>Open \u203a</span></button>`).join('')}</div></div>`;
+      <p class="muted">${e(STATE_NAME[st])}: only this state's numbers, leads, deals, buyers, builders and title companies. Owner access only.</p></div>
+      ${D == null ? '<div class="card ws-card"><p class="muted">Loading\u2026</p></div>' : group(st)}
+      <div class="card ws-card"><h2>Tools</h2><div class="ws-links">${[['calc', 'Deal Calculator', 'Max offer, spread, double close'], ['deals', 'Deal Tracker', 'Status and notes on ' + (st === 'OH' ? 'Ohio' : 'New Mexico') + ' deals'], ['buyers', 'Buyers', 'Buy-box list and intake']].map(([k, n, s2]) => `<button type="button" class="ws-link" onclick="wsTab('${k}')"><span class="ws-ln"><b>${n}</b><small>${s2}</small></span><span>Open \u203a</span></button>`).join('')}</div></div>`;
   }
+  // State picker: the Wholesale Hub opens here until a state has been chosen (the last choice is remembered on this device).
+  function pickerHTML() {
+    load(); loadLeadCounts();
+    const n = (st, k) => { const rows = (W.lc || []).filter(r => r.state === st && r.bucket === LKEY[k]); if (rows.length) return rows.reduce((s, r) => s + r.n, 0); const D = W.d && W.d[st]; return D ? Object.values(D).reduce((s, byK) => s + ((byK[k] && byK[k].value) || 0), 0) : null; };
+    const tile = st => { const ct = n(st, 'call_today'), wk = n(st, 'week');
+      return `<button type="button" class="ws-pick" data-state="${st}" onclick="wsPick('${st}')"><b>${e(STATE_NAME[st])}</b><span>${ct == null ? 'Open' : num(ct) + ' call today \u00b7 ' + num(wk) + ' this week'}</span><em aria-hidden="true">\u203a</em></button>`; };
+    return `<div class="card ws-card ws-picker"><h2>Wholesale Hub</h2><p class="muted">Pick a state. Each one is kept completely separate: its own leads, deals, buyers, builders and title companies.</p>
+      <div class="ws-picks">${tile('NM')}${tile('OH')}</div></div>`;
+  }
+  const stateBar = () => `<div class="ws-statebar"><button type="button" class="secondary q-sm" onclick="wsStates()" aria-label="Back to the state picker">\u2039 States</button>
+    <div class="of-tabs ws-stpills" role="tablist" aria-label="State">${['NM', 'OH'].map(s => `<button type="button" role="tab" aria-selected="${W.state === s}" class="${W.state === s ? 'on' : ''}" data-state="${s}" onclick="wsPick('${s}')">${s === 'NM' ? 'New Mexico' : 'Ohio'}</button>`).join('')}</div></div>`;
   function html() {
+    if (!W.state) return `<div id="ws-msg" class="muted q-rt" aria-live="polite">${e(W.msg)}</div>${pickerHTML()}`;
     const body = W.tab === 'leads' ? leadsHTML() : W.tab === 'calc' ? calcHTML() : W.tab === 'deals' ? dealsHTML() : W.tab === 'buyers' ? buyersHTML() : summaryHTML();
-    return `<div class="of-tabs ws-tabs" role="tablist">${TABS.map(([k, n]) => `<button type="button" role="tab" aria-selected="${W.tab === k}" class="${W.tab === k ? 'on' : ''}" onclick="wsTab('${k}')">${n}</button>`).join('')}</div>
+    return `${stateBar()}<div class="of-tabs ws-tabs" role="tablist">${TABS.map(([k, n]) => `<button type="button" role="tab" aria-selected="${W.tab === k}" class="${W.tab === k ? 'on' : ''}" onclick="wsTab('${k}')">${n}</button>`).join('')}</div>
       <div id="ws-msg" class="muted q-rt" aria-live="polite">${e(W.msg)}</div>${body}`;
   }
-  hubRegister({ id: 'wholesale', name: 'Wholesale Hub', desc: 'Deal calculator, deal tracker, buyers. Owner only', page: 'wholesale', pages: ['wholesale'], access: true,
+  hubRegister({ id: 'wholesale', name: 'Wholesale Hub', desc: 'New Mexico and Ohio, each on its own: leads, deals, buyers. Owner only', page: 'wholesale', pages: ['wholesale'], access: true,
     visible: () => hubAccess('wholesale'), render: html });
+  // (state split) every list below is filtered by the chosen state: stats, leads, deals, buyers, builders, title companies
 })();
