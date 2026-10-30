@@ -470,6 +470,10 @@ button.wr-item .wr-h { display:flex; justify-content:space-between; gap:10px; al
 .wr-f { display:flex; justify-content:space-between; align-items:center; font-size:.76rem; } .wr-go { color:var(--mute); font-size:1.2rem; }
 .wr-st-new { color:#a3442c !important; } .wr-st-contacted { color:#9a6a1f !important; } .wr-st-quoted { color:#2d6481 !important; } .wr-st-won { color:#2f7d4f !important; } .wr-st-lost { color:#8a4a3c !important; }
 .wr-contact { display:flex; flex-direction:column; gap:8px; margin:4px 0 10px; } .wr-contact a { display:flex; align-items:center; min-height:44px; padding:0 14px; border-radius:12px; border:1px solid var(--line); background:#fff; color:var(--pine) !important; font-weight:600; text-decoration:none; word-break:break-all; }
+.ws-statebar { display:flex; align-items:center; gap:10px; margin:0 0 8px; } .ws-stpills { flex:1; margin:0; } .ws-stpills button { flex:1; min-height:40px; } .ws-where { margin:0 0 6px; font-size:.8rem; }
+.ws-picks { display:flex; flex-direction:column; gap:14px; margin-top:12px; }
+button.ws-pick { position:relative; display:flex; flex-direction:column; align-items:flex-start; gap:6px; width:100%; min-height:120px; padding:22px 20px; border-radius:16px; border:0 !important; text-align:left; background:linear-gradient(160deg, #2a4a36, #1f3a2b) !important; color:#f6f0df !important; font:inherit; }
+button.ws-pick b { font-family:var(--serif); font-size:1.5rem; font-weight:500; line-height:1.15; color:#f6f0df; padding-right:28px; } button.ws-pick span { color:#c9d6bb; font-size:.9rem; } button.ws-pick em { position:absolute; right:18px; top:50%; transform:translateY(-50%); font-style:normal; font-size:2rem; color:#d8bf92; }
 .wr-contact a.wr-call { background:var(--pine); color:#fff !important; border-color:var(--pine); } .wr-sheet select, .wr-sheet input[type=text] { width:100%; box-sizing:border-box; min-height:44px; font-size:16px; }
 </style>
 <script src="config.js?v=req1"></script>
@@ -1038,7 +1042,7 @@ Promise.all([API.init(), domReady]).then(()=>{ if (location.hash.length>1) docum
 <script src="simplify.js?v=3"></script>
 <script src="hubs.js?v=1"></script>
 <script src="hub-team.js?v=2"></script>
-<script src="hub-wholesale.js?v=7"></script>
+<script src="hub-wholesale.js?v=8"></script>
 <script src="chat.js?v=8"></script>
 <script src="pwa.js?v=8"></script>
 </body>
