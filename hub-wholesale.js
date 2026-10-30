@@ -290,7 +290,7 @@
     const L = W.ll; if (!L || !window.gpSb) return; if (!reset && (L.more || L.rows.length >= (L.total || 0))) return;
     const seq = ++L.seq, from = reset ? 0 : L.rows.length; L.busy = true; L.more = !reset; if (reset) L.err = '';
     paintList();
-    let q = gpSb.from('wholesale_leads').select('id,ext_id,state,type,market,bucket,score,address,parcel_id,owner_name,why,status,touched_at', { count: 'exact' }).eq('state', L.state).eq('type', L.type).eq('bucket', L.bucket);
+    let q = gpSb.from('wholesale_leads').select('id,ext_id,state,type,market,bucket,score,address,parcel_id,owner_name,why,status,touched_at,archived_reason', { count: 'exact' }).eq('state', L.state).eq('type', L.type).eq('bucket', L.bucket).is('archived_at', null);   // archived (dropped by a rescore, untouched) leads are hidden; worked ones stay with a badge
     if (L.sf !== 'All') q = q.eq('status', L.sf);
     const t = L.q.replace(/[,()%*\\"'_]/g, ' ').trim();
     if (t) q = q.or(`address.ilike.%${t}%,owner_name.ilike.%${t}%,parcel_id.ilike.%${t}%,why.ilike.%${t}%`);
@@ -307,7 +307,7 @@
   const snip = (s, n) => { s = String(s || ''); return s.length > n ? s.slice(0, n - 1).trimEnd() + '\u2026' : s; };
   function leadRow(r) {
     return `<button type="button" class="ws-lead" data-lead="${e(r.id)}" onclick="wsLeadOpen('${e(r.id)}')"><span class="ws-lh"><b>${e(r.address)}</b><span class="ws-score" title="Score">${e(r.score)}</span></span>
-      <span class="ws-lm">${e([r.owner_name, r.market, r.parcel_id].filter(Boolean).join(' \u00b7 '))}</span><span class="ws-lw">${e(snip(r.why, 150))}</span><span class="ws-lf">${lstat(r.status)}<span class="ws-go" aria-hidden="true">\u203a</span></span></button>`;
+      <span class="ws-lm">${e([r.owner_name, r.market, r.parcel_id].filter(Boolean).join(' \u00b7 '))}</span><span class="ws-lw">${e(snip(r.why, 150))}</span><span class="ws-lf">${lstat(r.status)}${r.archived_reason ? '<span class="badge ws-drop" title="Dropped by rescore">Dropped by rescore</span>' : ''}<span class="ws-go" aria-hidden="true">\u203a</span></span></button>`;
   }
   function listInner() {
     const L = W.ll; if (!L) return '';
@@ -395,7 +395,7 @@
     const el = document.createElement('div'); el.id = 'ws-lead-sheet'; el.className = 'sheet ws-sheet' + (animate ? ' anim' : ''); el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', 'Lead detail');
     el.innerHTML = `<div class="sheet-head"><button class="sheet-back" type="button" onclick="wsLeadClose()" aria-label="Back to leads">\u2039 Leads</button><span>${lstat(r.status)}</span></div>
       <div class="sheet-body"><h2 class="sheet-title">${e(r.address)}</h2>
-        <div class="ws-chipline"><span class="badge ws-bk ws-bk-${e(String(r.bucket).toLowerCase().replace(/\s+/g, '-'))}">${e(lbuck(r.bucket))}</span><span class="badge">Score ${e(r.score)}</span><span class="badge">${e(r.state)} ${TYNAME(r.type)}</span></div>
+        <div class="ws-chipline"><span class="badge ws-bk ws-bk-${e(String(r.bucket).toLowerCase().replace(/\s+/g, '-'))}">${e(lbuck(r.bucket))}</span><span class="badge">Score ${e(r.score)}</span><span class="badge">${e(r.state)} ${TYNAME(r.type)}</span>${r.archived_reason ? `<span class="badge ws-drop" title="This lead is no longer in the latest scored list, but you worked it, so it stays here.">${e(r.archived_reason)}</span>` : ''}</div>
         ${S0.msg ? `<div class="muted q-rt" id="wl-msg" aria-live="polite">${e(S0.msg)}</div>` : '<div id="wl-msg" class="muted q-rt" aria-live="polite"></div>'}
         <h3>Owner</h3>${r.owner_name || r.owner_mail ? `<dl class="facts ws-dl ws-own"><dt>Owner</dt><dd>${e(r.owner_name || '\u2014')}</dd><dt>Mailing address</dt><dd>${e(r.owner_mail || '\u2014')}${r.owner_mail_state ? ` <span class="muted">(${e(r.owner_mail_state)})</span>` : ''}</dd></dl>${r.owner_mail ? '<button type="button" class="secondary q-sm ws-cpm" onclick="wsLeadCopyMail()">Copy mailing address</button>' : ''}` : S0.full ? '<p class="muted">No owner on file for this lead.</p>' : '<p class="muted">Loading\u2026</p>'}
         <h3>Why it is a lead</h3>${why.length ? `<ul class="check ws-why">${why.map(x => `<li>${e(x)}</li>`).join('')}</ul>` : '<p class="muted">No reason recorded.</p>'}

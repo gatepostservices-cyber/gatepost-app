@@ -3,7 +3,12 @@
 # (Named wholesale_leads.sh because tools/leads.sh is the existing Gatepost Admin Nextdoor-leads tool.)
 # Usage:
 #   tools/wholesale_leads.sh load [--dry-run] [--dump FILE.json] [--only nm-homes|nm-land|oh-homes] [--batch N] [--dex DIR]
-#   tools/wholesale_leads.sh status            counts in the database by state / type / bucket / status
+#   tools/wholesale_leads.sh status            counts in the database by state / type / bucket / status (+ archived / dropped flags)
+#   tools/wholesale_leads.sh prune [--dry-run] [--only nm-homes|nm-land|oh-homes] [--dex DIR] [--force]
+# prune (after a rescore): reads the CURRENT CSVs and calls wholesale_leads_prune once per pipeline with every ext_id in the file. Leads of that pipeline that are NOT in
+#   the file are ARCHIVED, never deleted: untouched ones (status New, no call notes) are hidden from the hub lists and counts; ones Christian already worked stay visible with a
+#   "Dropped by rescore" badge. A later `load` that contains an archived ext_id un-archives it. --dry-run changes nothing: it asks the database for the counts only
+#   (to archive / to tag / kept) and needs the token. The database refuses to touch more than half of a pipeline's visible rows unless --force (guards against a broken CSV).
 # load reads Dex's CSVs (default DIR /workspace/dex/leads):
 #     nm-homes  DIR/leads_latest.csv                NM  homes
 #     nm-land   DIR/land/land_leads_latest.csv      NM  land
@@ -22,20 +27,23 @@ set -euo pipefail
 CMD="${1:-}"; [ $# -gt 0 ] && shift
 DIR="$(cd "$(dirname "$0")/.." && pwd)"
 TOKEN_FILE="${GATEPOST_WHOLESALE_TOKEN_FILE:-$HOME/.config/gatepost/wholesale-token}"
-DRY=0; DUMP=""; ONLY=""; BATCH=400; DEX="${DEX_LEADS_DIR:-/workspace/dex/leads}"
+DRY=0; DUMP=""; ONLY=""; FORCE=0; BATCH=400; DEX="${DEX_LEADS_DIR:-/workspace/dex/leads}"
 case "$CMD" in
   load) while [ $# -gt 0 ]; do case "$1" in
       --dry-run) DRY=1; shift;; --dump) DUMP="${2:?--dump needs a file}"; DRY=1; shift 2;; --only) ONLY="${2:?--only needs nm-homes|nm-land|oh-homes}"; shift 2;; --batch) BATCH="${2:?}"; shift 2;; --dex) DEX="${2:?}"; shift 2;;
       *) echo "usage: wholesale_leads.sh load [--dry-run] [--dump FILE] [--only nm-homes|nm-land|oh-homes] [--batch N] [--dex DIR] | status" >&2; exit 2;; esac; done;;
+  prune) while [ $# -gt 0 ]; do case "$1" in
+      --dry-run) DRY=1; shift;; --only) ONLY="${2:?--only needs nm-homes|nm-land|oh-homes}"; shift 2;; --dex) DEX="${2:?}"; shift 2;; --force) FORCE=1; shift;;
+      *) echo "usage: wholesale_leads.sh prune [--dry-run] [--only nm-homes|nm-land|oh-homes] [--dex DIR] [--force]" >&2; exit 2;; esac; done;;
   status) FN=wholesale_leads_stats;;
-  *) echo "usage: wholesale_leads.sh load [--dry-run] [--dump FILE] [--only nm-homes|nm-land|oh-homes] [--batch N] [--dex DIR] | status" >&2; exit 2;;
+  *) echo "usage: wholesale_leads.sh load [--dry-run] [--dump FILE] [--only nm-homes|nm-land|oh-homes] [--batch N] [--dex DIR] | status | prune [--dry-run] [--only ...] [--force]" >&2; exit 2;;
 esac
-if [ "$CMD" = status ] || [ "$DRY" = 0 ]; then
+if [ "$CMD" = status ] || [ "$CMD" = prune ] || [ "$DRY" = 0 ]; then
   [ -r "$TOKEN_FILE" ] || { echo "token file not found: $TOKEN_FILE" >&2; exit 2; }
 fi
 URL=$(sed -n 's/.*SUPABASE_URL: *"\([^"]*\)".*/\1/p' "$DIR/config.js")
 KEY=$(sed -n 's/.*SUPABASE_ANON_KEY: *"\([^"]*\)".*/\1/p' "$DIR/config.js")
-export URL KEY TOKEN_FILE DRY DUMP ONLY BATCH DEX CMD
+export URL KEY TOKEN_FILE DRY DUMP ONLY BATCH DEX CMD FORCE
 exec python3 - <<'PY'
 import csv, datetime, hashlib, json, os, subprocess, sys
 CMD, DRY, ONLY, DEX = os.environ["CMD"], os.environ["DRY"] == "1", os.environ["ONLY"], os.environ["DEX"]
@@ -50,10 +58,15 @@ def rpc(fn, args):
     return json.loads(body)
 if CMD == "status":
     rows = rpc("wholesale_leads_stats", {}); tot = 0
-    for r in rows: print("%-3s %-6s %-13s %-15s %6d" % (r["state"], r["type"], r["bucket"], r["status"], r["n"])); tot += r["n"]
-    print("total", tot); sys.exit(0)
+    arch = drop = 0
+    for r in rows:
+        fl = ("ARCHIVED " if r.get("archived") else "") + ("dropped-by-rescore" if r.get("dropped") else "")
+        print("%-3s %-6s %-13s %-15s %6d  %s" % (r["state"], r["type"], r["bucket"], r["status"], r["n"], fl.strip())); tot += r["n"]
+        if r.get("archived"): arch += r["n"]
+        elif r.get("dropped"): drop += r["n"]
+    print("total", tot, " archived (hidden)", arch, " dropped-by-rescore but still visible", drop); sys.exit(0)
 
-BATCH = int(os.environ["BATCH"])
+BATCH = int(os.environ["BATCH"]) if CMD == "load" else 400
 if not 1 <= BATCH <= 500: die("--batch must be 1-500")
 # ---- columns we read, by name. Anything not listed is skipped without keeping the value. ----
 SPECS = {
@@ -152,6 +165,17 @@ def build(key):
         if bad: die("refusing to send owner/mail keys: %s" % bad)
     return sp, date, res, dups, exact
 keys = [ONLY] if ONLY else list(SPECS)
+if CMD == "prune":
+    FORCE = os.environ.get("FORCE") == "1"; ta = tt = tk = 0
+    print("%-9s %-6s %9s %11s %11s %9s %s" % ("pipeline", "csv", "visible", "to archive", "to tag", "kept", "(csv ids not in db)"))
+    for k in keys:
+        sp, date, res, dups, exact = build(k); ids = sorted({r["ext_id"] for r in res})
+        a = {"p_pipeline": k, "p_keep_ext_ids": ids, "p_dry_run": DRY, "p_force": FORCE}
+        r = rpc("wholesale_leads_prune", a)
+        print("%-9s %6d %9d %11d %11d %9d %d%s" % (k, len(ids), r["visible_before"], r["archived"], r["tagged"], r["kept"], r["in_list_not_in_db"], "  (dry run: nothing changed)" if DRY else "  (applied)"))
+        ta += r["archived"]; tt += r["tagged"]; tk += r["kept"]
+    print("TOTAL to archive %d, to tag (kept visible, badge) %d, kept %d%s" % (ta, tt, tk, "  (dry run)" if DRY else ""))
+    sys.exit(0)
 plan, grand = [], 0
 for k in keys:
     sp, date, res, dups, exact = build(k); plan.append((k, sp, date, res))
