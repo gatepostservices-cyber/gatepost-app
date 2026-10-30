@@ -4,9 +4,10 @@
 //   wholesale_buyers buyers + buy-box (added and edited here)
 //   wholesale_title_cos title companies per state (tools/title.sh creates/edits; the app edits status + call_notes only)
 //   wholesale_builders  builders/buyers per state + type (tools/builders.sh creates/edits; the app edits status, call_notes, buy_box only)
-// Never owner names or mailing addresses: no such columns exist.
+//   wholesale_leads     leads per state + type + bucket (tools/wholesale_leads.sh loads from Dex's CSVs; the app edits status + call_notes only; linked to wholesale_deals by ext_id)
+// Wholesale leads carry owner_name / owner_mail / owner_mail_state (approved by Christian; owner-only RLS). The other wholesale tables hold no owner data.
 (function () {
-  const W = window.WS = { d: null, at: 0, busy: false, tab: 'summary', deals: null, buyers: null, dBusy: false, bBusy: false, filter: 'All', tfilter: 'All', st: {}, tc: null, tcBusy: false, td: {}, tcOpen: {}, bl: null, blBusy: false, bd: {}, blOpen: {}, msg: '', dd: {}, bf: {}, bedit: null,
+  const W = window.WS = { d: null, at: 0, busy: false, tab: 'summary', ll: null, lc: null, lcBusy: false, lead: null, deals: null, buyers: null, dBusy: false, bBusy: false, filter: 'All', tfilter: 'All', st: {}, tc: null, tcBusy: false, td: {}, tcOpen: {}, bl: null, blBusy: false, bd: {}, blOpen: {}, msg: '', dd: {}, bf: {}, bedit: null,
     calc: { arv: '', rehab: '', list: '', fee: '', dc: '' } };
   const e = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const num = v => v == null ? '\u2014' : Number(v).toLocaleString('en-US');
@@ -37,8 +38,8 @@
       if (error) { W.buyers = W.buyers || []; say('Could not load buyers.'); window.gpReportError && gpReportError(error, { op: 'wholesale_buyers' }); } else W.buyers = data || []; }
     finally { W.bBusy = false; } repaint();
   }
-  window.wsRefresh = () => { load(true); loadTitle(true); loadBuilders(true); if (W.tab === 'deals') loadDeals(true); if (W.tab === 'buyers') loadBuyers(true); };
-  window.wsTab = k => { W.tab = k; say(''); repaint(); };
+  window.wsRefresh = () => { load(true); loadLeadCounts(true); loadTitle(true); loadBuilders(true); if (W.tab === 'deals') loadDeals(true); if (W.tab === 'buyers') loadBuyers(true); };
+  window.wsTab = k => { closeLeadSheet(); W.tab = k; say(''); repaint(); };
 
   // ---- Deal Calculator (front end only; nothing is saved or sent) ----
   function calcOut() {
@@ -255,17 +256,171 @@
       ${rows.length ? rows.map(blCard).join('') : '<p class="muted">None yet. They are added with tools/builders.sh.</p>'}</details>`;
   }
 
+  // ---- Leads (tap Call today / This week / Worth a look -> list, 50 at a time -> detail sheet; status + call notes editable) ----
+  // wholesale_leads: tools/wholesale_leads.sh loads/refreshes the rows; the app edits status + call_notes only (a reload never touches them). Property-record facts only.
+  const LSTAT = ['New', 'Called', 'Mail sent', 'Offer drafted', 'Under contract', 'Dead'], LBUCKET = ['Call today', 'This week', 'Worth a look'], LPAGE = 50;
+  const LKEY = { call_today: 'Call today', week: 'This week', worth_a_look: 'Worth a look' };
+  const LSORT = [['score_desc', 'Best score first'], ['score_asc', 'Lowest score first'], ['addr', 'Address A\u2013Z'], ['worked', 'Recently worked']];
+  const TYNAME = t => t === 'land' ? 'Land' : 'Homes';
+  const lbuck = b => ({ 'Call today': 'Call today', 'This week': 'This week', 'Worth a look': 'Worth a look' }[b] || b);
+  const lstat = s => `<span class="badge ws-ls ws-ls-${e(String(s).toLowerCase().replace(/\s+/g, '-'))}">${e(s)}</span>`;
+  async function loadLeadCounts(force) {
+    if (!window.gpSb || W.lcBusy || (!force && W.lc)) return; W.lcBusy = true;
+    try { const { data, error } = await gpSb.rpc('wholesale_leads_counts');
+      if (error) { W.lc = W.lc || []; window.gpReportError && gpReportError(error, { op: 'wholesale_leads_counts' }); } else W.lc = data || []; }
+    finally { W.lcBusy = false; } if (W.tab !== 'leads') repaint();
+  }
+  const lcRow = (st, ty, b) => (W.lc || []).find(r => r.state === st && r.type === ty && r.bucket === b);
+  const lcTotal = st => (W.lc || []).filter(r => r.state === st).reduce((n, r) => n + r.n, 0);
+  window.wsLeads = (st, ty, b) => { W.tab = 'leads'; closeLeadSheet(); W.ll = { state: st, type: ty, bucket: b, rows: [], total: null, q: '', sort: 'score_desc', sf: 'All', busy: false, more: false, err: '', seq: 0 }; say(''); repaint(); fetchLeads(true); window.scrollTo && window.scrollTo(0, 0); };
+  window.wsLeadsBack = () => { closeLeadSheet(); W.tab = 'summary'; say(''); loadLeadCounts(true); repaint(); };
+  window.wsLeadBucket = b => { const L = W.ll; if (!L || !LBUCKET.includes(b)) return; L.bucket = b; L.rows = []; L.total = null; L.err = ''; repaint(); fetchLeads(true); };
+  let qTimer = null;
+  window.wsLeadQ = v => { const L = W.ll; if (!L) return; L.q = v; clearTimeout(qTimer); qTimer = setTimeout(() => fetchLeads(true), 350); };
+  window.wsLeadSort = v => { const L = W.ll; if (!L || !LSORT.some(x => x[0] === v)) return; L.sort = v; fetchLeads(true); };
+  window.wsLeadSF = v => { const L = W.ll; if (!L) return; L.sf = v; fetchLeads(true); };
+  window.wsLeadMore = () => fetchLeads(false);
+  async function fetchLeads(reset) {
+    const L = W.ll; if (!L || !window.gpSb) return; if (!reset && (L.more || L.rows.length >= (L.total || 0))) return;
+    const seq = ++L.seq, from = reset ? 0 : L.rows.length; L.busy = true; L.more = !reset; if (reset) L.err = '';
+    paintList();
+    let q = gpSb.from('wholesale_leads').select('id,ext_id,state,type,market,bucket,score,address,parcel_id,owner_name,why,status,touched_at', { count: 'exact' }).eq('state', L.state).eq('type', L.type).eq('bucket', L.bucket);
+    if (L.sf !== 'All') q = q.eq('status', L.sf);
+    const t = L.q.replace(/[,()%*\\"'_]/g, ' ').trim();
+    if (t) q = q.or(`address.ilike.%${t}%,owner_name.ilike.%${t}%,parcel_id.ilike.%${t}%,why.ilike.%${t}%`);
+    if (L.sort === 'addr') q = q.order('address', { ascending: true }).order('score', { ascending: false });
+    else if (L.sort === 'worked') q = q.order('touched_at', { ascending: false, nullsFirst: false }).order('score', { ascending: false });
+    else q = q.order('score', { ascending: L.sort === 'score_asc' }).order('address', { ascending: true });
+    const { data, error, count } = await q.range(from, from + LPAGE - 1);
+    if (seq !== L.seq) return;   // a newer search/sort/filter replaced this request
+    L.busy = false; L.more = false;
+    if (error) { L.err = 'Could not load leads. ' + (error.message || ''); window.gpReportError && gpReportError(error, { op: 'wholesale_leads' }); }
+    else { L.rows = reset ? (data || []) : L.rows.concat(data || []); L.total = count == null ? L.rows.length : count; }
+    paintList();
+  }
+  const snip = (s, n) => { s = String(s || ''); return s.length > n ? s.slice(0, n - 1).trimEnd() + '\u2026' : s; };
+  function leadRow(r) {
+    return `<button type="button" class="ws-lead" data-lead="${e(r.id)}" onclick="wsLeadOpen('${e(r.id)}')"><span class="ws-lh"><b>${e(r.address)}</b><span class="ws-score" title="Score">${e(r.score)}</span></span>
+      <span class="ws-lm">${e([r.owner_name, r.market, r.parcel_id].filter(Boolean).join(' \u00b7 '))}</span><span class="ws-lw">${e(snip(r.why, 150))}</span><span class="ws-lf">${lstat(r.status)}<span class="ws-go" aria-hidden="true">\u203a</span></span></button>`;
+  }
+  function listInner() {
+    const L = W.ll; if (!L) return '';
+    if (L.err) return `<p class="wc-flag neg">${e(L.err)}</p>`;
+    if (L.total == null) return '<p class="muted">Loading\u2026</p>';
+    if (!L.rows.length) return `<p class="muted">${L.q.trim() || L.sf !== 'All' ? 'No leads match this search or filter.' : 'No leads loaded here yet. Load them with tools/wholesale_leads.sh.'}</p>`;
+    const left = L.total - L.rows.length;
+    return `<p class="muted ws-showing" aria-live="polite">Showing ${num(L.rows.length)} of ${num(L.total)}</p>${L.rows.map(leadRow).join('')}
+      ${left > 0 ? `<button type="button" class="secondary ws-more" id="wl-more" onclick="wsLeadMore()"${L.more ? ' disabled' : ''}>${L.more ? 'Loading\u2026' : 'Show ' + Math.min(LPAGE, left) + ' more (' + num(left) + ' left)'}</button>` : '<p class="muted ws-end">End of list.</p>'}`;
+  }
+  function paintList() { const el = document.getElementById('wl-list'); if (el) el.innerHTML = listInner(); }
+  function leadsHTML() {
+    const L = W.ll; if (!L) { W.tab = 'summary'; return summaryHTML(); }
+    const n = b => { const r = lcRow(L.state, L.type, b); return r ? ' ' + num(r.n) : ''; };
+    return `<div class="card ws-card ws-leads" data-state="${e(L.state)}" data-type="${e(L.type)}" data-bucket="${e(L.bucket)}"><div class="uf-top"><button type="button" class="secondary q-sm" onclick="wsLeadsBack()">\u2039 Wholesale Hub</button><span class="badge ws-ty">${e(L.state)} ${TYNAME(L.type)}</span></div>
+      <h2>${e(L.bucket)}</h2><p class="muted">${e(STATE_NAME[L.state] || L.state)} \u00b7 ${TYNAME(L.type)}. Tap a lead for everything on it.</p>
+      <div class="of-tabs ws-chips ws-bkt" role="tablist" aria-label="Bucket">${LBUCKET.map(b => `<button type="button" role="tab" aria-selected="${L.bucket === b}" class="${L.bucket === b ? 'on' : ''}" data-bucket="${e(b)}" onclick="wsLeadBucket('${e(b)}')">${e(b)}${n(b)}</button>`).join('')}</div>
+      <input id="wl-q" class="ws-q" type="search" inputmode="search" autocomplete="off" placeholder="Search address, owner, parcel or reason" aria-label="Search leads by address, owner, parcel or reason" value="${e(L.q)}" oninput="wsLeadQ(this.value)">
+      <div class="ws-two"><div><label for="wl-sort">Sort</label><select id="wl-sort" onchange="wsLeadSort(this.value)">${LSORT.map(([k, t]) => `<option value="${k}"${L.sort === k ? ' selected' : ''}>${t}</option>`).join('')}</select></div>
+        <div><label for="wl-sf">Status</label><select id="wl-sf" onchange="wsLeadSF(this.value)">${['All'].concat(LSTAT).map(s => `<option${L.sf === s ? ' selected' : ''}>${s}</option>`).join('')}</select></div></div>
+      <div id="wl-list">${listInner()}</div></div>`;
+  }
+
+  // ---- Lead detail sheet ----
+  const LABELS = { owner_flag: 'Owner type', absentee: 'Absentee owner', out_of_state: 'Out-of-state owner', tax_delinquent: 'Tax delinquent', tax_status: 'Tax status', tax_flag: 'Tax flag', tax_balance: 'Tax balance', tax_delinquent_balance: 'Tax delinquent balance',
+    permits: 'Permits', permit_statuses: 'Permit status', latest_permit_year: 'Latest permit year', work: 'Permit work', upc: 'UPC', apn: 'APN', account: 'County account', county: 'County', area: 'Area / subdivision', zip: 'ZIP', acres: 'Acres', death_cert: 'Death certificate on county account',
+    last_transfer_year: 'Last transfer year', last_transfer_date: 'Last transfer date', last_transfer_type: 'Last transfer type', sale_date_basis: 'Transfer date basis', violations: 'Open violations', condemned: 'Condemned', boardups: 'Board-ups', foreclosure_flag: 'Foreclosure flag',
+    last_sale: 'Last sale', sqft: 'Sq ft', year_built: 'Year built', source: 'Source' };
+  const DORDER = { homes: ['owner_flag', 'absentee', 'out_of_state', 'tax_delinquent', 'tax_status', 'tax_delinquent_balance', 'condemned', 'violations', 'boardups', 'foreclosure_flag', 'year_built', 'sqft', 'last_sale', 'permits', 'permit_statuses', 'latest_permit_year', 'work', 'upc', 'source'],
+    land: ['county', 'area', 'zip', 'acres', 'owner_flag', 'out_of_state', 'death_cert', 'tax_delinquent', 'tax_flag', 'tax_balance', 'last_transfer_date', 'last_transfer_year', 'last_transfer_type', 'sale_date_basis', 'account'] };
+  const MONEY = new Set(['tax_balance', 'tax_delinquent_balance']);
+  const prettyKey = k => LABELS[k] || String(k).replace(/_/g, ' ').replace(/^./, c => c.toUpperCase());
+  function fmtVal(k, v) {
+    if (typeof v === 'boolean') return v ? 'Yes' : 'No';
+    if (Array.isArray(v)) return v.join(', ');
+    if (MONEY.has(k) && v !== '' && !isNaN(v)) return money(v);
+    if (v && typeof v === 'object') return JSON.stringify(v);
+    return String(v);
+  }
+  const safeUrl = u => /^https?:\/\/\S+$/i.test(u) ? u : '';
+  const host = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (_) { return 'link'; } };
+  const links = (s, label) => String(s || '').split(/\s;\s/).map(x => x.trim()).filter(x => safeUrl(x.split(/\s+/)[0])).map(x => { const u = x.split(/\s+/)[0]; return `<a class="ws-ext" href="${e(u)}" target="_blank" rel="noopener noreferrer">${e(label)} (${e(host(u))})</a>`; });
+  const ldd = () => W.lead && W.lead.dd || {};
+  function closeLeadSheet() { W.lead = null; document.getElementById('ws-lead-sheet')?.remove(); document.body.classList.remove('sheet-open'); }
+  window.wsLeadClose = () => { closeLeadSheet(); };
+  window.wsLeadOpen = async id => {
+    const row = (W.ll && W.ll.rows.find(r => r.id === id)); if (!row || !window.gpSb) return;
+    W.lead = { id, row: { ...row }, full: null, deal: undefined, dd: {}, msg: '' }; paintLeadSheet(true);
+    const [a, b] = await Promise.all([gpSb.from('wholesale_leads').select('*').eq('id', id).maybeSingle(), gpSb.from('wholesale_deals').select('id,ext_id,type,address,list_price,arv,max_offer,status,notes').eq('ext_id', row.ext_id).maybeSingle()]);
+    if (!W.lead || W.lead.id !== id) return;
+    if (a.error || !a.data) { W.lead.msg = 'Could not load the full record.' + (a.error ? ' ' + a.error.message : ''); window.gpReportError && a.error && gpReportError(a.error, { op: 'wholesale_leads_detail' }); } else W.lead.full = a.data;
+    W.lead.deal = b.error ? null : (b.data || null);
+    paintLeadSheet(false);
+  };
+  window.wsLeadCopyMail = async () => { const r = W.lead && (W.lead.full || W.lead.row); if (!r || !r.owner_mail) return; try { await navigator.clipboard.writeText(r.owner_mail); W.lead.msg = 'Mailing address copied.'; } catch (_) { W.lead.msg = 'Copy failed. Select the text and copy it.'; } paintLeadSheet(false, true); };
+  window.wsLeadDraft = (k, v) => { if (W.lead) W.lead.dd[k] = v; };
+  window.wsLeadDeal = () => { const d = W.lead && W.lead.deal; if (!d) return; closeLeadSheet(); W.filter = 'All'; W.tfilter = 'All'; W.tab = 'deals'; say(''); repaint(); setTimeout(() => { const el = document.querySelector(`[data-deal="${d.id}"]`); el && el.scrollIntoView && el.scrollIntoView({ block: 'start' }); }, 400); };
+  window.wsLeadSave = async () => {
+    const S0 = W.lead; if (!S0 || !window.gpSb) return; const r = S0.full || S0.row, dr = S0.dd;
+    const upd = { status: dr.status !== undefined ? dr.status : r.status, call_notes: dr.call_notes !== undefined ? dr.call_notes : (r.call_notes ?? '') };
+    if (!LSTAT.includes(upd.status)) { S0.msg = 'Pick a valid status.'; return paintLeadSheet(false, true); }
+    if (String(upd.call_notes || '').length > 4000) { S0.msg = 'Call notes are too long (4000 max).'; return paintLeadSheet(false, true); }
+    const btn = document.getElementById('wl-save'); if (btn) btn.disabled = true;
+    const { data, error } = await gpSb.from('wholesale_leads').update({ status: upd.status, call_notes: upd.call_notes || null }).eq('id', S0.id).select('id,status,call_notes,touched_at');
+    if (btn) btn.disabled = false;
+    if (!W.lead || W.lead.id !== S0.id) return;
+    if (error || !data || !data.length) { S0.msg = 'Not saved. ' + (error ? error.message : 'No access.'); return paintLeadSheet(false, true); }
+    Object.assign(S0.row, data[0]); if (S0.full) Object.assign(S0.full, data[0]);
+    const lr = W.ll && W.ll.rows.find(x => x.id === S0.id); if (lr) Object.assign(lr, { status: data[0].status, touched_at: data[0].touched_at });
+    S0.dd = {}; S0.msg = 'Saved.'; paintLeadSheet(false, true); paintList(); loadLeadCounts(true);
+  };
+  function paintLeadSheet(animate, keepScroll) {
+    const S0 = W.lead, prev = document.getElementById('ws-lead-sheet'), scroll = (animate ? 0 : prev?.querySelector('.sheet-body')?.scrollTop) || 0; prev?.remove();
+    if (!S0) return; document.body.classList.add('sheet-open');
+    const r = S0.full || S0.row, det = (S0.full && S0.full.details) || {}, dr = S0.dd;
+    const stv = dr.status !== undefined ? dr.status : r.status, ntv = dr.call_notes !== undefined ? dr.call_notes : (r.call_notes || '');
+    const order = DORDER[r.type] || [], keys = order.filter(k => det[k] !== undefined && det[k] !== null && det[k] !== '').concat(Object.keys(det).filter(k => !order.includes(k) && det[k] !== null && det[k] !== ''));
+    const facts = [['Parcel', r.parcel_id], ['Market', r.market], ['Type', `${r.state} ${TYNAME(r.type)}`]].concat(keys.map(k => [prettyKey(k), fmtVal(k, det[k])]), S0.full ? [['Data as of', r.data_date]] : []).filter(([, v]) => v);
+    const why = String(r.why || '').split(/;\s+/).map(x => x.trim()).filter(Boolean);
+    const lk = links(r.source_url, 'Source').concat(links(r.assessor_url, 'Assessor / parcel record'));
+    const d = S0.deal;
+    const dealBox = d === undefined ? '<p class="muted">Checking for a deal\u2026</p>' : d ? `<div class="ws-dealbox"><div class="uf-top"><b>${e(d.address || d.ext_id)}</b>${badge(d.status)}</div>
+        <div class="ws-facts"><div><span>ARV</span><b>${money(d.arv)}</b></div><div><span>List</span><b>${money(d.list_price)}</b></div><div><span>Max offer</span><b>${money(d.max_offer)}</b></div></div>
+        <button type="button" class="secondary q-sm" id="wl-deal" onclick="wsLeadDeal()">Open deal \u203a</button></div>` : '<p class="muted">No deal on this lead yet. When one is added with the same ID it shows up here.</p>';
+    const el = document.createElement('div'); el.id = 'ws-lead-sheet'; el.className = 'sheet ws-sheet' + (animate ? ' anim' : ''); el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', 'Lead detail');
+    el.innerHTML = `<div class="sheet-head"><button class="sheet-back" type="button" onclick="wsLeadClose()" aria-label="Back to leads">\u2039 Leads</button><span>${lstat(r.status)}</span></div>
+      <div class="sheet-body"><h2 class="sheet-title">${e(r.address)}</h2>
+        <div class="ws-chipline"><span class="badge ws-bk ws-bk-${e(String(r.bucket).toLowerCase().replace(/\s+/g, '-'))}">${e(lbuck(r.bucket))}</span><span class="badge">Score ${e(r.score)}</span><span class="badge">${e(r.state)} ${TYNAME(r.type)}</span></div>
+        ${S0.msg ? `<div class="muted q-rt" id="wl-msg" aria-live="polite">${e(S0.msg)}</div>` : '<div id="wl-msg" class="muted q-rt" aria-live="polite"></div>'}
+        <h3>Owner</h3>${r.owner_name || r.owner_mail ? `<dl class="facts ws-dl ws-own"><dt>Owner</dt><dd>${e(r.owner_name || '\u2014')}</dd><dt>Mailing address</dt><dd>${e(r.owner_mail || '\u2014')}${r.owner_mail_state ? ` <span class="muted">(${e(r.owner_mail_state)})</span>` : ''}</dd></dl>${r.owner_mail ? '<button type="button" class="secondary q-sm ws-cpm" onclick="wsLeadCopyMail()">Copy mailing address</button>' : ''}` : S0.full ? '<p class="muted">No owner on file for this lead.</p>' : '<p class="muted">Loading\u2026</p>'}
+        <h3>Why it is a lead</h3>${why.length ? `<ul class="check ws-why">${why.map(x => `<li>${e(x)}</li>`).join('')}</ul>` : '<p class="muted">No reason recorded.</p>'}
+        ${r.note ? `<h3>Note</h3><p class="sheet-text">${e(r.note)}</p>` : ''}
+        <h3>Property facts</h3>${S0.full ? '' : '<p class="muted">Loading the rest\u2026</p>'}<dl class="facts ws-dl">${facts.map(([k, v]) => `<dt>${e(k)}</dt><dd>${e(v)}</dd>`).join('')}</dl>
+        <h3>Links</h3>${lk.length ? `<div class="links ws-links2">${lk.join('')}</div>` : '<p class="muted">No links.</p>'}
+        <h3>Deal</h3>${dealBox}
+        <h3>Status</h3><select id="wl-st" aria-label="Status" onchange="wsLeadDraft('status',this.value)">${LSTAT.map(s => `<option${stv === s ? ' selected' : ''}>${s}</option>`).join('')}</select>
+        <h3>Call notes</h3><textarea id="wl-nt" rows="5" maxlength="4000" placeholder="Who you talked to, what they said, next step" oninput="wsLeadDraft('call_notes',this.value)">${e(ntv)}</textarea>
+        <p class="muted ws-priv">Public records. Verify before outreach.</p></div>
+      <div class="sheet-actions"><button type="button" class="secondary" onclick="wsLeadClose()">Close</button><button type="button" class="primary" id="wl-save" onclick="wsLeadSave()">Save</button></div>`;
+    const nav = document.getElementById('sec-nav'); if (nav && !nav.classList.contains('hidden')) el.style.setProperty('bottom', nav.getBoundingClientRect().height + 'px', 'important');   // beats the global '.sheet { bottom:0 !important }' so Save is not under the nav
+    document.body.appendChild(el);
+    if (scroll) el.querySelector('.sheet-body').scrollTop = scroll;
+  }
+  document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && W.lead) closeLeadSheet(); });
+  document.addEventListener('click', ev => { if (W.lead && ev.target.closest && ev.target.closest('#main-nav, #sec-nav')) closeLeadSheet(); }, true);
+
   function summaryHTML() {
-    load();
+    load(); loadLeadCounts();
     const D = W.d, TC = W.tc || [], BL = W.bl || [];
     const states = D ? Array.from(new Set(Object.keys(D).concat(['NM', 'OH'], TC.map(c => c.state), BL.map(c => c.state)))).filter(st => D[st] || st === 'NM' || st === 'OH' || TC.some(c => c.state === st) || BL.some(c => c.state === st)).sort((x, y) => stOrder(x).localeCompare(stOrder(y))) : [];
     const group = st => { const byT = D[st] || {}, hasLand = !!byT.land || BL.some(c => c.state === st && c.type === 'land'), tabbed = st === 'NM' || hasLand, cur = tabbed && W.st[st] === 'land' ? 'land' : 'homes';
       const d = byT[cur] || {}, v = k => d[k] ? d[k].value : null, upd = Object.values(d).map(r => r.updated_at).filter(Boolean).sort().pop();
       const stat = (k, label, hot) => `<div class="t-stat${hot ? ' hot' : ''}" data-ws="${k}"><b>${num(v(k))}</b><span>${label}</span></div>`;
+      const lstatBtn = (k, label, hot) => { const lr = lcRow(st, cur, LKEY[k]), val = lr ? lr.n : v(k);
+        return `<button type="button" class="t-stat ws-tap${hot ? ' hot' : ''}" data-ws="${k}" data-lead="${LKEY[k]}" aria-label="${label}: ${val == null ? 'none' : val}. Show the leads" onclick="wsLeads('${e(st)}','${cur}','${LKEY[k]}')"><b>${num(val)}</b><span>${label}</span><i aria-hidden="true">View \u203a</i></button>`; };
       const tabs = tabbed ? `<div class="of-tabs ws-types" role="tablist" aria-label="Type">${[['homes', 'Homes'], ['land', 'Land']].map(([t, n]) => `<button type="button" role="tab" aria-selected="${cur === t}" class="${cur === t ? 'on' : ''}" data-type="${t}" onclick="wsType('${e(st)}','${t}')">${n}</button>`).join('')}</div>` : '';
       return `<div class="card ws-card ws-state" data-state="${e(st)}" data-type="${cur}"><h2>${e(STATE_NAME[st] || st)}</h2>${tabs}
         <h3>Listings</h3><div class="t-stats ws-stats">${stat('listings', 'Listings considered')}</div>
-        <h3>Leads</h3><div class="t-stats ws-stats">${stat('call_today', 'Call today', 1)}${stat('week', 'This week')}${stat('worth_a_look', 'Worth a look')}</div>
+        <h3>Leads</h3><div class="t-stats ws-stats">${lstatBtn('call_today', 'Call today', 1)}${lstatBtn('week', 'This week')}${lstatBtn('worth_a_look', 'Worth a look')}</div>
         ${upd ? `<p class="muted ws-upd">Updated ${e(stamp(upd))} (Denver time)</p>` : ''}
         ${st === 'NM' || st === 'OH' || BL.some(c => c.state === st) ? buildersHTML(st, cur) : ''}
         ${st === 'NM' || st === 'OH' || TC.some(c => c.state === st) ? titleHTML(st) : ''}</div>`; };
@@ -275,7 +430,7 @@
       <div class="card ws-card"><h2>Tools</h2><div class="ws-links">${[['calc', 'Deal Calculator', 'Max offer, spread, double close'], ['deals', 'Deal Tracker', 'Status and notes on every deal'], ['buyers', 'Buyers', 'Buy-box list and intake']].map(([k, n, s2]) => `<button type="button" class="ws-link" onclick="wsTab('${k}')"><span class="ws-ln"><b>${n}</b><small>${s2}</small></span><span>Open \u203a</span></button>`).join('')}</div></div>`;
   }
   function html() {
-    const body = W.tab === 'calc' ? calcHTML() : W.tab === 'deals' ? dealsHTML() : W.tab === 'buyers' ? buyersHTML() : summaryHTML();
+    const body = W.tab === 'leads' ? leadsHTML() : W.tab === 'calc' ? calcHTML() : W.tab === 'deals' ? dealsHTML() : W.tab === 'buyers' ? buyersHTML() : summaryHTML();
     return `<div class="of-tabs ws-tabs" role="tablist">${TABS.map(([k, n]) => `<button type="button" role="tab" aria-selected="${W.tab === k}" class="${W.tab === k ? 'on' : ''}" onclick="wsTab('${k}')">${n}</button>`).join('')}</div>
       <div id="ws-msg" class="muted q-rt" aria-live="polite">${e(W.msg)}</div>${body}`;
   }

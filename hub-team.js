@@ -20,13 +20,13 @@
   window.thPaint = () => { const r = document.getElementById('th-root'); if (!r) return; r.outerHTML = html(); };
 
   const stat = (b, l, hot) => `<div class="t-stat${hot ? ' hot' : ''}"><b>${b}</b><span>${l}</span></div>`;
-  function sums(rows) { const h = rows.reduce((t, r) => t + (+r.hours || 0), 0), hs = rows.reduce((t, r) => t + (+r.houses || 0), 0), est = rows.reduce((t, r) => t + (+r.est_minutes || 0), 0), act = rows.reduce((t, r) => t + (+r.actual_minutes || 0), 0);
-    return { n: rows.length, workers: new Set(rows.map(r => r.worker_id)).size, h, hs, hph: h > 0 ? hs / h : null, pace: est > 0 ? act / est : null }; }
+  function sums(rows) { const h = rows.reduce((t, r) => t + (+r.hours || 0), 0), mi = rows.reduce((t, r) => t + (+r.miles || 0), 0), hs = rows.reduce((t, r) => t + (+r.houses || 0), 0), est = rows.reduce((t, r) => t + (+r.est_minutes || 0), 0), act = rows.reduce((t, r) => t + (+r.actual_minutes || 0), 0);
+    return { mi, n: rows.length, workers: new Set(rows.map(r => r.worker_id)).size, h, hs, hph: h > 0 ? hs / h : null, pace: est > 0 ? act / est : null }; }
   function todayHTML(T) {
     const today = dk(new Date()), wk = Date.now() - 7 * 864e5, A = sums(T.filter(r => dk(r.clock_in) === today)), B = sums(T.filter(r => +new Date(r.clock_in) >= wk)), f = F();
     const recent = T.slice(0, 12).map(r => `<div class="of-item th-ci"><div class="uf-top"><span><b>${e(r.worker_name)}</b></span><span class="muted">${e(f.dOnly(r.clock_in))}</span></div>
-      <div class="muted">Clocked in ${e(f.tOnly(r.clock_in))} \u00b7 out ${e(f.tOnly(r.clock_out))} \u00b7 <b>${n1(r.hours, 2)} h</b> \u00b7 ${r.houses ?? '\u2014'} houses \u00b7 ${n1(r.houses_per_hour)}/hr \u00b7 pace ${r.pace_ratio == null ? '\u2014' : Number(r.pace_ratio).toFixed(2) + 'x'}</div></div>`).join('');
-    return `<div class="card"><h2>Today</h2><div class="t-stats">${stat(A.n, 'Clock-ins today', A.n)}${stat(n1(A.h, 2), 'Hours')}${stat(A.hs, 'Houses')}${stat(n1(A.hph), 'Houses/hr')}</div>
+      <div class="muted">Clocked in ${e(f.tOnly(r.clock_in))} \u00b7 out ${e(f.tOnly(r.clock_out))} \u00b7 <b>${n1(r.hours, 2)} h</b> \u00b7 ${r.miles == null ? '\u2014' : n1(r.miles, 2) + ' mi'} \u00b7 ${r.houses ?? '\u2014'} houses \u00b7 ${n1(r.houses_per_hour)}/hr \u00b7 pace ${r.pace_ratio == null ? '\u2014' : Number(r.pace_ratio).toFixed(2) + 'x'}</div></div>`).join('');
+    return `<div class="card"><h2>Today</h2><div class="t-stats">${stat(A.n, 'Clock-ins today', A.n)}${stat(n1(A.h, 2), 'Hours')}${stat(n1(A.mi, 2), 'Miles')}${stat(A.hs, 'Houses')}${stat(n1(A.hph), 'Houses/hr')}</div>
       <h3>Last 7 days</h3><div class="t-stats">${stat(B.workers, 'Workers')}${stat(n1(B.h, 2), 'Hours')}${stat(B.hs, 'Houses')}${stat(n1(B.hph), 'Houses/hr')}${stat(B.pace == null ? '\u2014' : B.pace.toFixed(2) + 'x', 'Pace')}</div>
       <p class="muted">Pace = actual route time \u00f7 app estimate (under 1.0x is faster than estimate). A shift shows up when the worker clocks out; someone still on the clock appears after they clock out.</p></div>
       <div class="card"><h2>Clock-ins</h2>${recent || '<p class="muted">No shifts yet.</p>'}</div>`; }
@@ -48,7 +48,7 @@
   function mapsHTML(T) {
     const S2 = T.filter(r => r.user_id), o = OFX(), f = F(); o.teamRoutes();
     return `<div class="card"><h2>Walked path vs route</h2><p class="muted">Blue = the path walked while clocked in. Coloured lines = the assigned route. Pick a shift.</p>
-      ${S2.length ? `<div class="th-wrap"><table class="of-t th-t"><thead><tr><th>Worker</th><th>Date</th><th>In</th><th>Out</th><th>Hours</th><th></th></tr></thead><tbody>${S2.slice(0, 100).map(r => `<tr><td><b>${e(r.worker_name)}</b></td><td>${e(f.dOnly(r.clock_in))}</td><td>${e(f.tOnly(r.clock_in))}</td><td>${e(f.tOnly(r.clock_out))}</td><td>${n1(r.hours, 2)}</td><td><button type="button" class="secondary q-sm" onclick="ofTmMap('${e(r.id)}')">Map</button></td></tr>`).join('')}</tbody></table></div>` : '<p class="muted">No signed-in shifts yet.</p>'}
+      ${S2.length ? `<div class="th-wrap"><table class="of-t th-t"><thead><tr><th>Worker</th><th>Date</th><th>In</th><th>Out</th><th>Hours</th><th>Miles</th><th></th></tr></thead><tbody>${S2.slice(0, 100).map(r => `<tr><td><b>${e(r.worker_name)}</b></td><td>${e(f.dOnly(r.clock_in))}</td><td>${e(f.tOnly(r.clock_in))}</td><td>${e(f.tOnly(r.clock_out))}</td><td>${n1(r.hours, 2)}</td><td>${r.miles == null ? '\u2014' : n1(r.miles, 2) + ' mi'}</td><td><button type="button" class="secondary q-sm" onclick="ofTmMap('${e(r.id)}')">Map</button></td></tr>`).join('')}</tbody></table></div>` : '<p class="muted">No signed-in shifts yet.</p>'}
       <div id="ta-mapwrap" ${o.map ? '' : 'hidden'}><p id="ta-mapcap" class="muted">${e(o.map && o.map.cap || '')}</p><div id="ta-map" class="ta-map"></div></div></div>`; }
   const who = id => { const u = (typeof S !== 'undefined' && S.users || []).find(x => x.id === id); return u && u.email ? u.email.split('@')[0] : 'an owner'; };
   const chg = (o, n, k, fmt) => o && n && o[k] !== n[k] ? `${fmt(o[k])} \u2192 ${fmt(n[k])}` : '';

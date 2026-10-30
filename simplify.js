@@ -12,7 +12,7 @@
     ['today', 'Today', [['town', 'Today'], ['dashboard', 'Hub']]],
     ['sales', 'Sales', [['quotes', 'Quotes'], ['estimate', 'Estimate'], ['leads', 'Leads']]],
     ['schedule', 'Schedule', [['calendar', 'Calendar'], ['joblog', 'Job Log']]],
-    ['inbox', 'Inbox', [['inbox', 'All'], ['requests', 'Requests'], ['unfinished', 'Unfinished']]],
+    ['inbox', 'Inbox', [['inbox', 'All'], ['requests', 'Requests'], ['unfinished', 'Unfinished'], ['webreq', 'Web']]],
     ['office', 'Office', [['office', 'Office'], ['admin', 'Team'], ['ask', 'AI']]]];
   const pageOK = pg => { const b = document.querySelector(`#main-nav button[data-page="${pg}"]`); return !!b && !b.classList.contains('hidden'); };
   const secOf = pg => (SECTIONS.find(s => s[2].some(t => t[0] === pg)) || SECTIONS[0])[0];
