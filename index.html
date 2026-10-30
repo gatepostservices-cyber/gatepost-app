@@ -465,6 +465,12 @@ button.ws-lead .ws-lh { display:flex; justify-content:space-between; gap:10px; a
 .ws-chipline { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 6px; } .ws-bk-call-today { color:#a3442c !important; } .ws-bk-this-week { color:#9a6a1f !important; } .ws-bk-worth-a-look { color:#4a5560 !important; }
 .ws-sheet .ws-dl { grid-template-columns:minmax(0,max-content) 1fr; } .ws-sheet select { width:100%; min-height:44px; font-size:16px; } .ws-sheet .ws-why { line-height:1.5; } .ws-ext { display:block; padding:8px 0; color:var(--sky) !important; word-break:break-word; }
 .ws-dealbox { border:1px solid var(--line); border-radius:12px; padding:10px 12px; } .ws-priv { font-size:.74rem; margin-top:18px; }
+.wr-chips { flex-wrap:wrap; margin:6px 0; } button.wr-item { display:flex; flex-direction:column; gap:4px; width:100%; text-align:left; padding:12px; margin:8px 0 0; border-radius:12px; background:#fff !important; border:1px solid var(--line) !important; color:var(--text) !important; font:inherit; min-height:44px; }
+button.wr-item .wr-h { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; } button.wr-item .wr-h b { font-weight:600; color:var(--pine); word-break:break-word; } .wr-s { font-size:.84rem; } .wr-d { font-size:.84rem; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; color:var(--mute); }
+.wr-f { display:flex; justify-content:space-between; align-items:center; font-size:.76rem; } .wr-go { color:var(--mute); font-size:1.2rem; }
+.wr-st-new { color:#a3442c !important; } .wr-st-contacted { color:#9a6a1f !important; } .wr-st-quoted { color:#2d6481 !important; } .wr-st-won { color:#2f7d4f !important; } .wr-st-lost { color:#8a4a3c !important; }
+.wr-contact { display:flex; flex-direction:column; gap:8px; margin:4px 0 10px; } .wr-contact a { display:flex; align-items:center; min-height:44px; padding:0 14px; border-radius:12px; border:1px solid var(--line); background:#fff; color:var(--pine) !important; font-weight:600; text-decoration:none; word-break:break-all; }
+.wr-contact a.wr-call { background:var(--pine); color:#fff !important; border-color:var(--pine); } .wr-sheet select, .wr-sheet input[type=text] { width:100%; box-sizing:border-box; min-height:44px; font-size:16px; }
 </style>
 <script src="config.js?v=req1"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.min.js"></script>
@@ -497,6 +503,7 @@ window.addEventListener('unhandledrejection', function(e){ gpReportError(e.reaso
   <button data-page="calendar">Calendar</button>
   <button data-page="requests" data-admin>Requests</button>
   <button data-page="unfinished" data-admin>Unfinished</button>
+  <button data-page="webreq" data-admin>Web requests</button>
   <button data-page="office" data-admin data-owner>Office</button>
   <button data-page="ask">AI</button>
   <button data-page="inbox" data-admin>Inbox</button>
@@ -668,7 +675,7 @@ function render() {
   
   if (p === 'quotes' && document.getElementById('quotes-root')) {} // keep the quote form (and keyboard focus) through background refreshes
   else if (window.hubPageFor && hubPageFor(p) != null) main.innerHTML = hubPageFor(p);
-  else main.innerHTML = p === 'town' ? (window.todayPage ? todayPage() : homePage()) : p === 'inbox' ? inboxPage() : p === 'leads' || p === 'joblog' ? officePage() : p === 'quotes' ? quotesPage() : p === 'estimate' ? estimatePage() : p === 'calendar' ? calendarPage() : p === 'requests' ? requestsPage() : p === 'unfinished' ? unfinishedPage() : p === 'office' ? officePage() : p === 'admin' ? adminPage() : p === 'ask' ? askPage() : dashboard();
+  else main.innerHTML = p === 'town' ? (window.todayPage ? todayPage() : homePage()) : p === 'inbox' ? inboxPage() : p === 'leads' || p === 'joblog' ? officePage() : p === 'quotes' ? quotesPage() : p === 'estimate' ? estimatePage() : p === 'calendar' ? calendarPage() : p === 'requests' ? requestsPage() : p === 'unfinished' ? unfinishedPage() : p === 'office' ? officePage() : p === 'admin' ? adminPage() : p === 'webreq' ? webreqPage() : p === 'ask' ? askPage() : dashboard();
   window.gpNavAfter && gpNavAfter();
   renderSaved(); renderEvents(); renderRequests(); renderUsers();
   if (OPEN_REQ && !REQ_EDIT) renderReqDetail();
@@ -678,7 +685,7 @@ function render() {
 
 // ---------- Home: tile grid (replaces the town scene) ----------
 const HOME_TILES = { dashboard: ['Hub', 'Account, settings and overview'], estimate: ['Estimate', 'Manual pricing calculator'], quotes: ['Quotes', 'Customer quotes and signing'],
-  calendar: ['Calendar', 'Schedule and jobs'], requests: ['Requests', 'Approvals from the bots'], unfinished: ['Unfinished', 'Inbox and work in progress'],
+  calendar: ['Calendar', 'Schedule and jobs'], requests: ['Requests', 'Approvals from the bots'], unfinished: ['Unfinished', 'Inbox and work in progress'], webreq: ['Web requests', 'Quote requests from the website'],
   office: ['Office', 'Leads, customers, price book, job log, control'], ask: ['Ask AI', 'Search the company docs'], admin: ['Team', 'Users, roles and access'] };
 function homePage() {
   const tiles = [...document.querySelectorAll('#main-nav button[data-page]')].filter(b => b.dataset.page !== 'town' && !b.classList.contains('hidden') && HOME_TILES[b.dataset.page])
@@ -1025,6 +1032,7 @@ Promise.all([API.init(), domReady]).then(()=>{ if (location.hash.length>1) docum
 <script src="quotes-sign.js?v=3"></script>
 <script src="quotes.js?v=7"></script>
 <script src="unfinished.js?v=6"></script>
+<script src="webreq.js?v=1"></script>
 <script src="admin.js?v=20"></script>
 <script src="town.js?v=52"></script>
 <script src="simplify.js?v=3"></script>
