@@ -3,7 +3,7 @@
 (function () {
   const QE = window.QuotesEngine, PHONE = '(505) 750-3019';
   const BASE = document.currentScript ? new URL('.', document.currentScript.src).href : ''; // so the public sign/ page can reuse the PDF builder
-  const ORDER = ['handyman', 'yard', 'junk', 'tree', 'pool', 'garage', 'moving', 'gutters', 'custom'];
+  const ORDER = ['handyman', 'yard', 'junk', 'tree', 'pool', 'garage', 'moving', 'custom']; // gutters removed from the picker 2 Nov 2026 (Legal review); form kept in quotes-engine.js only so saved quotes still open
   const money = n => '$' + (+n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   const e = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };

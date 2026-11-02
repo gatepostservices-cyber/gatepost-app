@@ -153,7 +153,7 @@ function scheduleView() {
   const row = v => `<div class="item"><div class="top"><strong>${esc(v.type)}</strong><span class="right badge ${esc(v.status)}">${esc(STATUS[v.status] || v.status)}</span></div>
     <div class="muted" style="margin-top:4px;">${esc(fmtDT(v.scheduled_for))}</div>${v.notes ? `<div class="muted small" style="margin-top:4px;white-space:pre-wrap;">${esc(v.notes)}</div>` : ''}</div>`;
   return `<h1>Schedule</h1>
-  <div class="card"><h2>Upcoming visits</h2>${up.length ? up.map(row).join('') : '<p class="muted">No visits scheduled yet. Maintenance like AC and furnace filter changes, weeding and gutter checks will show up here once booked.</p>'}</div>
+  <div class="card"><h2>Upcoming visits</h2>${up.length ? up.map(row).join('') : '<p class="muted">No visits scheduled yet. Maintenance like AC and furnace filter changes and weeding will show up here once booked.</p>'}</div>
   ${past.length ? `<div class="card"><h2>Past visits</h2>${past.map(row).join('')}</div>` : ''}`;
 }
 const PLANS = [
@@ -182,8 +182,7 @@ async function requestPlan(key) {
 const ADDONS = [
   { key: 'windows', ico: '🪟', name: 'Window cleaning', text: 'Outside windows. About $179 for a typical home.' },
   { key: 'pressure', ico: '💦', name: 'Pressure washing', text: 'Driveways, walkways, patios and walls.' },
-  { key: 'weeding', ico: '🌿', name: 'Weeding', text: 'Beds, gravel and yard cleanup.' },
-  { key: 'gutters', ico: '🏠', name: 'Gutter check', text: 'Clear and check gutters and downspouts.' },
+  { key: 'weeding', ico: '🌿', name: 'Weeding', text: 'Hand-pulled weeds from beds and gravel, plus yard cleanup. No spraying.' },
   { key: 'acfilter', ico: '🌬️', name: 'AC / furnace filters', text: 'Filter changes on a regular schedule.' },
   { key: 'upgrade', ico: '⬆️', name: 'Upgrade my plan', text: 'On-Call $29, Keep-Up $89, Full Care $169, Landlord $245 a month. See Plans on the Home tab.', wide: true }];
 function addonsView() {

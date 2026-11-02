@@ -31,7 +31,7 @@ After each reply/message you send (or a reply you see come in), log it. LEAD = t
 tools/followups.sh add EXT_KEY CHANNEL RECIPIENT "Body" DAY_OFFSET [DUE_AT_ISO] [CUSTOMER_NAME] [LEAD] [QUOTE_REF]
 tools/followups.sh approved
 tools/followups.sh sent ID|EXT_KEY
-# e.g. tools/followups.sh add Q-1042-d3 text "(505) 555-0123" "Hi Pat, just checking in on the gutter quote..." 3 2026-10-24T17:00:00-06:00 "Pat Lee" nd-12345 Q-1042
+# e.g. tools/followups.sh add Q-1042-d3 text "(505) 555-0123" "Hi Pat, just checking in on the fence quote..." 3 2026-10-24T17:00:00-06:00 "Pat Lee" nd-12345 Q-1042
 ```
 Follow-ups go out 1, 3 and 6 days after each quote, but **nothing sends without an owner's approval**. At the daily 6:30 PM run:
 1. **Add** a draft for every follow-up now due (day 1/3/6 after the quote) with `add`. Use a stable EXT_KEY (quote ref + day, e.g. `Q-1042-d3`) so re-runs don't duplicate. Re-adding only refreshes a draft that is still pending; approved/denied/sent drafts are never changed. CHANNEL `text|email`, DAY_OFFSET `1|3|6`.
@@ -49,7 +49,7 @@ The ext key defaults to `KIND-WEEK_ENDING` (e.g. `win_loss-2026-10-18`); re-post
 data JSON (all fields optional):
 ```
 {"counts":{"quoted":12,"won":5,"lost":4,"open":3},"dollars":{"won":4200,"lost":3100},
- "by_job_type":[{"type":"Gutter cleaning","quoted":4,"won":2,"lost":1,"won_usd":600}],
+ "by_job_type":[{"type":"Fence repair","quoted":4,"won":2,"lost":1,"won_usd":600}],
  "pricing_flags":[{"type":"Fence repair","direction":"high","reason":"Lost 3 of 3, all said price"}],
  "won":["Pat Lee"],"lost":["Sam Ortiz"]}
 ```

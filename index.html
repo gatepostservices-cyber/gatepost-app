@@ -772,7 +772,6 @@ function estimatePage() {
         <option value="fence">Fence cut-down (short run)</option>
         <option value="dirt">Dirt haul (~2 CY)</option>
         <option value="handyman">Handyman / repairs</option>
-        <option value="gutter">Gutter cleaning</option>
         <option value="moving">Moving help</option>
         <option value="trash">Trash / junk hauling</option>
       </select>
@@ -933,7 +932,7 @@ async function decide(id, status) { await API.decide(id, status); renderRequests
 const CU_ST = { new: 'Received', reviewing: 'Reviewing', scheduled: 'Scheduled', done: 'Done', closed: 'Closed' };
 const CU_TYPE = { repair: 'Repair', urgent: 'Urgent', addon: 'Add-on', cancel: 'Cancel' };
 const CV_ST = { scheduled: 'Scheduled', done: 'Done', canceled: 'Canceled' };
-const VISIT_TYPES = ['AC / furnace filter change', 'Weeding', 'Window cleaning', 'Pressure washing', 'Gutter check', 'Other'];
+const VISIT_TYPES = ['AC / furnace filter change', 'Weeding', 'Window cleaning', 'Pressure washing', 'Other'];
 const cuName = id => { const p = S.cust.people.find(x => x.id === id); return p ? (p.full_name || p.email) : 'Customer'; };
 const cuDue = r => { if (!r.due_at || ['done', 'closed'].includes(r.status)) return ''; const ms = Date.parse(r.due_at) - Date.now(), h = Math.floor(Math.abs(ms) / 3600e3), m = Math.floor(Math.abs(ms) % 3600e3 / 60e3);
   return `<span class="cu-due ${ms < 0 ? 'late' : ''}">${ms < 0 ? `Overdue ${h}h ${m}m` : `${h}h ${m}m left`}</span>`; };
