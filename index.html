@@ -468,6 +468,14 @@ button.ws-lead .ws-lh { display:flex; justify-content:space-between; gap:10px; a
 /* Wholesale lead phones: tap-to-call, type + confidence badges, Has phone filter */
 .ws-phone { margin:0 0 4px; } a.ws-call, .ws-call.ws-nocall { display:flex; align-items:center; justify-content:center; gap:8px; min-height:48px; padding:0 16px; margin:4px 0 8px; border-radius:12px; background:var(--pine2, #2f5d44) !important; color:#fff !important; font-size:1.1rem; font-weight:600; letter-spacing:.01em; text-decoration:none; -webkit-tap-highlight-color:transparent; word-break:break-word; } a.ws-call:active { transform:scale(.98); } .ws-call.ws-nocall { background:#e9e6df !important; color:var(--pine) !important; }
 .ws-pdl { margin-top:2px; } .ws-pdl .ws-ext { padding:2px 0; } .ws-dnc { font-size:.76rem; margin:6px 0 0; font-style:italic; }
+/* Wholesale lead Call script panel (call-scripts.js): collapsible, phone friendly */
+.ws-cs { margin-top:10px; border:1px solid var(--line); border-radius:12px; background:#fff; padding:0 12px; } .ws-cs > summary { display:flex; align-items:center; flex-wrap:wrap; gap:0 4px; min-height:48px; padding:8px 0; } .ws-cs .ws-cs-sum { font-weight:500; color:var(--mute); font-size:.86rem; }
+.ws-cs #ws-cs-body { padding:0 0 12px; } .ws-csrem { margin:0 0 12px; padding:10px 12px; border-radius:10px; background:#f6efdc; border:1px solid #e3d3a6; color:#4d3f1a; font-size:.84rem; line-height:1.45; } .ws-csrem ul { margin:6px 0 0; padding-left:18px; } .ws-csrem li { margin:3px 0; }
+.ws-cs-lab { display:block; font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--mute); margin:0 0 4px; } .ws-cs-why { font-size:.8rem; margin:6px 0 10px; }
+button.ws-cs-copy { width:100%; min-height:48px; font-size:1rem; font-weight:600; border-radius:12px; margin:0 0 4px; } .ws-cs-msg { display:block; min-height:1.1em; margin:0 0 6px; font-size:.8rem; }
+.ws-cs-text { font-size:.92rem; line-height:1.55; word-break:break-word; overflow-wrap:anywhere; color:var(--text); } .ws-cs-text p { margin:6px 0; } .ws-cs-text h4 { margin:18px 0 6px; padding-top:12px; border-top:1px solid var(--line); font-family:var(--sans); font-size:.78rem; letter-spacing:.1em; text-transform:uppercase; color:var(--pine); }
+.ws-cs-text blockquote { margin:8px 0; padding:4px 10px; border-left:3px solid #d8bf92; background:rgba(31,58,43,.05); border-radius:0 8px 8px 0; } .ws-cs-text blockquote p { margin:6px 0; } .ws-cs-text ul { margin:6px 0; padding-left:20px; } .ws-cs-text li { margin:4px 0; }
+.ws-cs-fill { background:#fff1c9; border-radius:4px; padding:0 3px; }
 .ws-pt-owner { color:#2f7d4f !important; } .ws-pt-agent { color:#2d6481 !important; } .ws-pt-company { color:#6a4a8a !important; } .ws-pc-high { color:#2f7d4f !important; } .ws-pc-medium { color:#9a6a1f !important; } .ws-pc-low { color:#8a4a3c !important; }
 .badge.ws-ph { color:#2f7d4f !important; background:#eef6ef !important; border-color:#9bc5a4 !important; text-transform:none; letter-spacing:.02em; }
 button.ws-lead .ws-lf { flex-wrap:wrap; gap:6px; } .ws-lf .ws-go { margin-left:auto; }
@@ -1061,7 +1069,8 @@ Promise.all([API.init(), domReady]).then(()=>{ if (location.hash.length>1) docum
 <script src="done.js?v=1"></script>
 <script src="hubs.js?v=1"></script>
 <script src="hub-team.js?v=2"></script>
-<script src="hub-wholesale.js?v=9"></script>
+<script src="call-scripts.js?v=1"></script>
+<script src="hub-wholesale.js?v=10"></script>
 <script src="chat.js?v=8"></script>
 <script src="pwa.js?v=8"></script>
 </body>

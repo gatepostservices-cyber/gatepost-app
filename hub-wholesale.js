@@ -366,6 +366,85 @@
       ${r.phone_contact || src ? `<dl class="facts ws-dl ws-pdl">${r.phone_contact ? `<dt>Contact</dt><dd>${e(r.phone_contact)}</dd>` : ''}${src ? `<dt>Source</dt><dd><a class="ws-ext" href="${e(src)}" target="_blank" rel="noopener noreferrer">Source (${e(host(src))})</a></dd>` : ''}</dl>` : ''}
       <p class="muted ws-dnc">Verify and DNC-scrub before calling</p></div>`;
   }
+  // ===== Call script panel (lead detail, next to Phone). Front-end only: scripts live in call-scripts.js (window.WS_SCRIPTS), picked per lead from fields already on the row. =====
+  // First match wins: deceased > foreclosure > LLC > agent > OH homes > NM land > NM homes. wsLeadScript() lets Christian override the pick for this lead (not saved anywhere).
+  const CS_KEYS = ['deceased_estate', 'foreclosure_tax', 'llc', 'listing_agent', 'oh_homes', 'nm_land', 'nm_homes'];
+  const CS_ENT = /(?:^|[^A-Z0-9])(?:L\.?L\.?L\.?P|L\.?L\.?C|L\.?L\.?P|L\.?P|INC|CORP|CORPORATION|LTD|COMPANY|TRUST\s+CO)(?=$|[^A-Z0-9])/;   // on the UPPER-cased owner name
+  const CS_COURT = /sheriff|tax sale|\bcourt\b|lis pendens|foreclos|auction|forfeit/i;
+  function csPick(r, det) {
+    det = det || {};
+    const flag = String(det.owner_flag || ''), nm = String(r.owner_name || '').replace(/\b(?:real|life)\s+estate\b/ig, ' ').toUpperCase(), entName = CS_ENT.test(nm);
+    if (det.death_cert === true) return ['deceased_estate', 'death certificate on the county account'];
+    if (/heirs?|deceased/i.test(flag)) return ['deceased_estate', 'owner flag says estate/heirs'];
+    if (!entName && /\bESTATE\b|\bHEIRS?\b|\bDECEASED\b|\bDEC'?D\b/.test(nm)) return ['deceased_estate', 'owner name says estate/heirs'];   // plain "estate/trust" flag is NOT enough (it also tags living trusts)
+    if (det.foreclosure_flag === true) return ['foreclosure_tax', 'foreclosure flag on the tax record'];
+    if (det.tax_delinquent === true && CS_COURT.test([r.why, det.tax_status, det.tax_flag].join(' '))) return ['foreclosure_tax', 'tax delinquent with a court or sale flag'];
+    if (/entity|LLC\/Inc/i.test(flag) || entName) return ['llc', 'owner is a company (LLC, Inc, Corp, Ltd, LP)'];
+    if (r.phone_type === 'agent' || /\b(?:listing|mls)\b/i.test(String(det.source || ''))) return ['listing_agent', r.phone_type === 'agent' ? 'the phone on file is an agent' : 'the lead came from a listing'];
+    if (r.state === 'OH') return ['oh_homes', 'Ohio homes'];
+    if (r.type === 'land') return ['nm_land', 'New Mexico land'];
+    return ['nm_homes', 'New Mexico homes'];
+  }
+  // Light, safe markdown for the scripts: ## headings, > spoken lines, - bullets, **bold**, *italic*, [fill-ins]. Everything is escaped first.
+  function csRender(text) {
+    const inl = t => e(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/(^|[^\w*])\*([^*\n]+)\*(?![\w*])/g, '$1<i>$2</i>').replace(/\[([^\]]*)\]/g, '<span class="ws-cs-fill">[$1]</span>');
+    const out = []; let mode = '';
+    const shut = () => { if (mode) out.push(mode === 'q' ? '</blockquote>' : '</ul>'); mode = ''; };
+    String(text || '').split('\n').forEach(ln => {
+      let m;
+      if (/^\s*$/.test(ln)) return shut();
+      if ((m = ln.match(/^##\s+(.*)$/))) { shut(); out.push(`<h4>${inl(m[1])}</h4>`); return; }
+      if ((m = ln.match(/^>\s?(.*)$/))) { if (mode !== 'q') { shut(); out.push('<blockquote>'); mode = 'q'; } out.push(`<p>${inl(m[1])}</p>`); return; }
+      if ((m = ln.match(/^\s*-\s+(.*)$/))) { if (mode !== 'u') { shut(); out.push('<ul>'); mode = 'u'; } out.push(`<li>${inl(m[1])}</li>`); return; }
+      shut(); out.push(`<p>${inl(ln)}</p>`);
+    });
+    shut(); return out.join('');
+  }
+  const csPlain = text => String(text || '').replace(/\*\*/g, '').replace(/^>\s?/gm, '').replace(/(^|[^\w*])\*([^*\n]+)\*(?![\w*])/g, '$1$2');
+  function csState() {   // { sel, key, why, auto } for the open lead, or null
+    const S0 = W.lead; if (!S0 || !window.WS_SCRIPTS) return null;
+    const r = S0.full || S0.row, pk = csPick(r, (S0.full && S0.full.details) || {}), sel = S0.csSel && window.WS_SCRIPTS[S0.csSel] ? S0.csSel : 'auto';
+    return { r, sel, auto: pk[0], why: pk[1], key: sel === 'auto' ? pk[0] : sel };
+  }
+  function csRemind(r, det, key) {
+    const oh = r.state === 'OH', careful = key === 'deceased_estate' || key === 'foreclosure_tax';
+    const away = det.out_of_state === true || /out-of-state/i.test(String(det.owner_flag || '')) || (r.owner_mail_state && r.owner_mail_state !== r.state);
+    return `<b>Before you dial</b><ul><li>Scrub the National Do Not Call registry (donotcall.gov) and your own list. Live calls only, no autodialer or recorded voicemail.</li>
+      <li>${oh ? 'Ohio is <b>Eastern</b>: 8 AM to 9 PM there is <b>6 AM to 7 PM Mountain</b>.' : 'New Mexico is <b>Mountain</b>: 8 AM to 9 PM your time.'}${careful ? ' For this one, stay inside <b>9 AM to 8 PM</b>.' : ''}</li>
+      ${away ? '<li>Owner mails from another state: use <i>their</i> local time too, or stay inside 9 AM to 8 PM in every zone it could be.</li>' : ''}
+      <li>If they say stop, hang up and mark DNC right away.</li></ul>`;
+  }
+  function csBodyHTML() {
+    const S0 = W.lead, c = csState(); if (!c) return '<p class="muted">Scripts did not load. Refresh the app.</p>';
+    if (!S0.full) return '<p class="muted">Loading the lead\u2026</p>';
+    const A = window.WS_SCRIPTS, det = S0.full.details || {};
+    return `<div class="ws-csrem" id="ws-cs-rem" role="note">${csRemind(c.r, det, c.key)}</div>
+      <label class="ws-cs-lab" for="ws-cs-sel">Script</label>
+      <select id="ws-cs-sel" aria-label="Choose the call script" onchange="wsLeadScript(this.value)"><option value="auto"${c.sel === 'auto' ? ' selected' : ''}>Auto: ${e(A[c.auto].label)}</option>${CS_KEYS.map(k => `<option value="${k}"${c.sel === k ? ' selected' : ''}>${e(A[k].label)}</option>`).join('')}</select>
+      <p class="muted ws-cs-why" id="ws-cs-why">${c.sel === 'auto' ? 'Picked because ' + e(c.why) + '.' : 'You chose this script. Auto would pick ' + e(A[c.auto].label) + '.'}</p>
+      <button type="button" class="secondary ws-cs-copy" id="ws-cs-copy" onclick="wsLeadCopyScript()">Copy script</button><span class="muted q-rt ws-cs-msg" id="ws-cs-msg" aria-live="polite"></span>
+      <div class="ws-cs-text" id="ws-cs-text">${csRender(A[c.key].text)}</div>`;
+  }
+  function csHTML() {
+    const c = csState();
+    return `<details class="ws-script ws-cs" id="ws-cs"${W.lead && W.lead.csOpen ? ' open' : ''} ontoggle="wsCsOpen(this.open)"><summary>Call script<span class="ws-cs-sum" id="ws-cs-sum">${c && W.lead.full ? ' \u00b7 ' + e(window.WS_SCRIPTS[c.key].label) : ''}</span></summary><div id="ws-cs-body">${csBodyHTML()}</div></details>`;
+  }
+  window.wsCsOpen = o => { if (W.lead) W.lead.csOpen = !!o; };
+  window.wsLeadScript = v => {
+    const S0 = W.lead; if (!S0 || !window.WS_SCRIPTS || !(v === 'auto' || window.WS_SCRIPTS[v])) return; S0.csSel = v;
+    const c = csState(), A = window.WS_SCRIPTS, set = (id, h) => { const el = document.getElementById(id); if (el) el.innerHTML = h; };
+    set('ws-cs-rem', csRemind(c.r, (S0.full && S0.full.details) || {}, c.key)); set('ws-cs-text', csRender(A[c.key].text)); set('ws-cs-sum', ' \u00b7 ' + e(A[c.key].label));
+    set('ws-cs-why', c.sel === 'auto' ? 'Picked because ' + e(c.why) + '.' : 'You chose this script. Auto would pick ' + e(A[c.auto].label) + '.');
+    const m = document.getElementById('ws-cs-msg'); if (m) m.textContent = '';
+  };
+  window.wsLeadCopyScript = async () => {
+    const c = csState(); if (!c) return; const txt = csPlain(window.WS_SCRIPTS[c.key].text); let ok = false;
+    try { await navigator.clipboard.writeText(txt); ok = true; } catch (_) {
+      try { const ta = document.createElement('textarea'); ta.value = txt; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0'; document.body.appendChild(ta); ta.select(); ok = document.execCommand('copy'); ta.remove(); } catch (__) { ok = false; }
+    }
+    const m = document.getElementById('ws-cs-msg'); if (m) m.textContent = ok ? 'Script copied.' : 'Copy failed. Select the text and copy it.';
+    const b = document.getElementById('ws-cs-copy'); if (b && ok) { b.textContent = 'Copied'; setTimeout(() => { const x = document.getElementById('ws-cs-copy'); if (x) x.textContent = 'Copy script'; }, 1800); }
+  };
   const ldd = () => W.lead && W.lead.dd || {};
   function closeLeadSheet() { W.lead = null; document.getElementById('ws-lead-sheet')?.remove(); document.body.classList.remove('sheet-open'); }
   window.wsLeadClose = () => { closeLeadSheet(); };
@@ -414,7 +493,7 @@
         <div class="ws-chipline"><span class="badge ws-bk ws-bk-${e(String(r.bucket).toLowerCase().replace(/\s+/g, '-'))}">${e(lbuck(r.bucket))}</span><span class="badge">Score ${e(r.score)}</span><span class="badge">${e(r.state)} ${TYNAME(r.type)}</span>${r.archived_reason ? `<span class="badge ws-drop" title="This lead is no longer in the latest scored list, but you worked it, so it stays here.">${e(r.archived_reason)}</span>` : ''}</div>
         ${S0.msg ? `<div class="muted q-rt" id="wl-msg" aria-live="polite">${e(S0.msg)}</div>` : '<div id="wl-msg" class="muted q-rt" aria-live="polite"></div>'}
         <h3>Owner</h3>${r.owner_name || r.owner_mail ? `<dl class="facts ws-dl ws-own"><dt>Owner</dt><dd>${e(r.owner_name || '\u2014')}</dd><dt>Mailing address</dt><dd>${e(r.owner_mail || '\u2014')}${r.owner_mail_state ? ` <span class="muted">(${e(r.owner_mail_state)})</span>` : ''}</dd></dl>${r.owner_mail ? '<button type="button" class="secondary q-sm ws-cpm" onclick="wsLeadCopyMail()">Copy mailing address</button>' : ''}` : S0.full ? '<p class="muted">No owner on file for this lead.</p>' : '<p class="muted">Loading\u2026</p>'}
-        <h3>Phone</h3>${phoneHTML(r, S0)}
+        <h3>Phone</h3>${phoneHTML(r, S0)}${csHTML()}
         <h3>Why it is a lead</h3>${why.length ? `<ul class="check ws-why">${why.map(x => `<li>${e(x)}</li>`).join('')}</ul>` : '<p class="muted">No reason recorded.</p>'}
         ${r.note ? `<h3>Note</h3><p class="sheet-text">${e(r.note)}</p>` : ''}
         <h3>Property facts</h3>${S0.full ? '' : '<p class="muted">Loading the rest\u2026</p>'}<dl class="facts ws-dl">${facts.map(([k, v]) => `<dt>${e(k)}</dt><dd>${e(v)}</dd>`).join('')}</dl>
