@@ -6,6 +6,7 @@
 //   wholesale_builders  builders/buyers per state + type (tools/builders.sh creates/edits; the app edits status, call_notes, buy_box only)
 //   wholesale_leads     leads per state + type + bucket (tools/wholesale_leads.sh loads from Dex's CSVs; the app edits status + call_notes only; linked to wholesale_deals by ext_id)
 // Wholesale leads carry owner_name / owner_mail / owner_mail_state (approved by Christian; owner-only RLS). The other wholesale tables hold no owner data.
+// They also carry an optional phone (phone, phone_type owner|agent|company, phone_contact, phone_source, phone_confidence high|medium|low), loaded by tools/wholesale_phones.sh from Dex's phones.csv; read-only here (tap-to-call).
 (function () {
   const W = window.WS = { d: null, at: 0, busy: false, tab: 'summary', state: (() => { try { const s = localStorage.getItem('gp_ws_state'); return s === 'NM' || s === 'OH' ? s : null; } catch (_) { return null; } })(), ll: null, lc: null, lcBusy: false, lead: null, deals: null, buyers: null, dBusy: false, bBusy: false, filter: 'All', tfilter: 'All', st: {}, tc: null, tcBusy: false, td: {}, tcOpen: {}, bl: null, blBusy: false, bd: {}, blOpen: {}, msg: '', dd: {}, bf: {}, bedit: null,
     calc: { arv: '', rehab: '', list: '', fee: '', dc: '' } };
@@ -278,20 +279,22 @@
   }
   const lcRow = (st, ty, b) => (W.lc || []).find(r => r.state === st && r.type === ty && r.bucket === b);
   const lcTotal = st => (W.lc || []).filter(r => r.state === st).reduce((n, r) => n + r.n, 0);
-  window.wsLeads = (st, ty, b) => { W.tab = 'leads'; closeLeadSheet(); W.ll = { state: st, type: ty, bucket: b, rows: [], total: null, q: '', sort: 'score_desc', sf: 'All', busy: false, more: false, err: '', seq: 0 }; say(''); repaint(); fetchLeads(true); window.scrollTo && window.scrollTo(0, 0); };
+  window.wsLeads = (st, ty, b) => { W.tab = 'leads'; closeLeadSheet(); W.ll = { state: st, type: ty, bucket: b, rows: [], total: null, q: '', sort: 'score_desc', sf: 'All', hp: false, busy: false, more: false, err: '', seq: 0 }; say(''); repaint(); fetchLeads(true); window.scrollTo && window.scrollTo(0, 0); };
   window.wsLeadsBack = () => { closeLeadSheet(); W.tab = 'summary'; say(''); loadLeadCounts(true); repaint(); };
   window.wsLeadBucket = b => { const L = W.ll; if (!L || !LBUCKET.includes(b)) return; L.bucket = b; L.rows = []; L.total = null; L.err = ''; repaint(); fetchLeads(true); };
   let qTimer = null;
   window.wsLeadQ = v => { const L = W.ll; if (!L) return; L.q = v; clearTimeout(qTimer); qTimer = setTimeout(() => fetchLeads(true), 350); };
   window.wsLeadSort = v => { const L = W.ll; if (!L || !LSORT.some(x => x[0] === v)) return; L.sort = v; fetchLeads(true); };
   window.wsLeadSF = v => { const L = W.ll; if (!L) return; L.sf = v; fetchLeads(true); };
+  window.wsLeadHP = () => { const L = W.ll; if (!L) return; L.hp = !L.hp; const b = document.getElementById('wl-hp'); if (b) { b.setAttribute('aria-pressed', String(L.hp)); b.classList.toggle('on', L.hp); } fetchLeads(true); };
   window.wsLeadMore = () => fetchLeads(false);
   async function fetchLeads(reset) {
     const L = W.ll; if (!L || !window.gpSb) return; if (!reset && (L.more || L.rows.length >= (L.total || 0))) return;
     const seq = ++L.seq, from = reset ? 0 : L.rows.length; L.busy = true; L.more = !reset; if (reset) L.err = '';
     paintList();
-    let q = gpSb.from('wholesale_leads').select('id,ext_id,state,type,market,bucket,score,address,parcel_id,owner_name,why,status,touched_at,archived_reason', { count: 'exact' }).eq('state', L.state).eq('type', L.type).eq('bucket', L.bucket).is('archived_at', null);   // archived (dropped by a rescore, untouched) leads are hidden; worked ones stay with a badge
+    let q = gpSb.from('wholesale_leads').select('id,ext_id,state,type,market,bucket,score,address,parcel_id,owner_name,why,status,touched_at,archived_reason,phone,phone_type,phone_confidence', { count: 'exact' }).eq('state', L.state).eq('type', L.type).eq('bucket', L.bucket).is('archived_at', null);   // archived (dropped by a rescore, untouched) leads are hidden; worked ones stay with a badge
     if (L.sf !== 'All') q = q.eq('status', L.sf);
+    if (L.hp) q = q.not('phone', 'is', null);   // "Has phone" filter
     const t = L.q.replace(/[,()%*\\"'_]/g, ' ').trim();
     if (t) q = q.or(`address.ilike.%${t}%,owner_name.ilike.%${t}%,parcel_id.ilike.%${t}%,why.ilike.%${t}%`);
     if (L.sort === 'addr') q = q.order('address', { ascending: true }).order('score', { ascending: false });
@@ -307,13 +310,13 @@
   const snip = (s, n) => { s = String(s || ''); return s.length > n ? s.slice(0, n - 1).trimEnd() + '\u2026' : s; };
   function leadRow(r) {
     return `<button type="button" class="ws-lead" data-lead="${e(r.id)}" onclick="wsLeadOpen('${e(r.id)}')"><span class="ws-lh"><b>${e(r.address)}</b><span class="ws-score" title="Score">${e(r.score)}</span></span>
-      <span class="ws-lm">${e([r.owner_name, r.market, r.parcel_id].filter(Boolean).join(' \u00b7 '))}</span><span class="ws-lw">${e(snip(r.why, 150))}</span><span class="ws-lf">${lstat(r.status)}${r.archived_reason ? '<span class="badge ws-drop" title="Dropped by rescore">Dropped by rescore</span>' : ''}<span class="ws-go" aria-hidden="true">\u203a</span></span></button>`;
+      <span class="ws-lm">${e([r.owner_name, r.market, r.parcel_id].filter(Boolean).join(' \u00b7 '))}</span><span class="ws-lw">${e(snip(r.why, 150))}</span><span class="ws-lf">${lstat(r.status)}${r.phone ? '<span class="badge ws-ph" title="Has a phone number">\u260e Phone</span>' : ''}${r.archived_reason ? '<span class="badge ws-drop" title="Dropped by rescore">Dropped by rescore</span>' : ''}<span class="ws-go" aria-hidden="true">\u203a</span></span></button>`;
   }
   function listInner() {
     const L = W.ll; if (!L) return '';
     if (L.err) return `<p class="wc-flag neg">${e(L.err)}</p>`;
     if (L.total == null) return '<p class="muted">Loading\u2026</p>';
-    if (!L.rows.length) return `<p class="muted">${L.q.trim() || L.sf !== 'All' ? 'No leads match this search or filter.' : 'No leads loaded here yet. Load them with tools/wholesale_leads.sh.'}</p>`;
+    if (!L.rows.length) return `<p class="muted">${L.q.trim() || L.sf !== 'All' || L.hp ? 'No leads match this search or filter.' : 'No leads loaded here yet. Load them with tools/wholesale_leads.sh.'}</p>`;
     const left = L.total - L.rows.length;
     return `<p class="muted ws-showing" aria-live="polite">Showing ${num(L.rows.length)} of ${num(L.total)}</p>${L.rows.map(leadRow).join('')}
       ${left > 0 ? `<button type="button" class="secondary ws-more" id="wl-more" onclick="wsLeadMore()"${L.more ? ' disabled' : ''}>${L.more ? 'Loading\u2026' : 'Show ' + Math.min(LPAGE, left) + ' more (' + num(left) + ' left)'}</button>` : '<p class="muted ws-end">End of list.</p>'}`;
@@ -328,6 +331,7 @@
       <input id="wl-q" class="ws-q" type="search" inputmode="search" autocomplete="off" placeholder="Search address, owner, parcel or reason" aria-label="Search leads by address, owner, parcel or reason" value="${e(L.q)}" oninput="wsLeadQ(this.value)">
       <div class="ws-two"><div><label for="wl-sort">Sort</label><select id="wl-sort" onchange="wsLeadSort(this.value)">${LSORT.map(([k, t]) => `<option value="${k}"${L.sort === k ? ' selected' : ''}>${t}</option>`).join('')}</select></div>
         <div><label for="wl-sf">Status</label><select id="wl-sf" onchange="wsLeadSF(this.value)">${['All'].concat(LSTAT).map(s => `<option${L.sf === s ? ' selected' : ''}>${s}</option>`).join('')}</select></div></div>
+      <button type="button" class="ws-hp${L.hp ? ' on' : ''}" id="wl-hp" aria-pressed="${L.hp}" onclick="wsLeadHP()">\u260e Has phone</button>
       <div id="wl-list">${listInner()}</div></div>`;
   }
 
@@ -350,6 +354,18 @@
   const safeUrl = u => /^https?:\/\/\S+$/i.test(u) ? u : '';
   const host = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (_) { return 'link'; } };
   const links = (s, label) => String(s || '').split(/\s;\s/).map(x => x.trim()).filter(x => safeUrl(x.split(/\s+/)[0])).map(x => { const u = x.split(/\s+/)[0]; return `<a class="ws-ext" href="${e(u)}" target="_blank" rel="noopener noreferrer">${e(label)} (${e(host(u))})</a>`; });
+  // tel: link for a phone as written, e.g. "(505) 227-5691 x12" -> tel:+15052275691;ext=12 (null when it is not a dialable number)
+  const telHref = p => { const m = String(p || '').match(/^(.*?)(?:\s*(?:x|ext\.?)\s*(\d{1,6}))?\s*$/i); const raw = m ? m[1] : ''; let d = raw.replace(/\D/g, ''); if (d.length < 7) return null;
+    d = raw.trim().startsWith('+') ? '+' + d : d.length === 10 ? '+1' + d : d.length === 11 && d[0] === '1' ? '+' + d : d; return 'tel:' + d + (m && m[2] ? ';ext=' + m[2] : ''); };
+  const PTYPE = { owner: 'Owner', agent: 'Agent', company: 'Company' }, PCONF = { high: 'High confidence', medium: 'Medium confidence', low: 'Low confidence' };
+  function phoneHTML(r, S0) {
+    if (!r.phone) return S0.full ? '<p class="muted">No phone on file for this lead.</p>' : '<p class="muted">Loading\u2026</p>';
+    const href = telHref(r.phone), src = safeUrl(String(r.phone_source || '').trim());
+    return `<div class="ws-phone">${href ? `<a class="ws-call" href="${e(href)}" aria-label="Call ${e(r.phone)}"><span aria-hidden="true">\u260e</span> ${e(r.phone)}</a>` : `<div class="ws-call ws-nocall">${e(r.phone)}</div>`}
+      <div class="ws-chipline">${r.phone_type ? `<span class="badge ws-pt ws-pt-${e(r.phone_type)}">${e(PTYPE[r.phone_type] || r.phone_type)}</span>` : ''}${r.phone_confidence ? `<span class="badge ws-pc ws-pc-${e(r.phone_confidence)}">${e(PCONF[r.phone_confidence] || r.phone_confidence)}</span>` : ''}</div>
+      ${r.phone_contact || src ? `<dl class="facts ws-dl ws-pdl">${r.phone_contact ? `<dt>Contact</dt><dd>${e(r.phone_contact)}</dd>` : ''}${src ? `<dt>Source</dt><dd><a class="ws-ext" href="${e(src)}" target="_blank" rel="noopener noreferrer">Source (${e(host(src))})</a></dd>` : ''}</dl>` : ''}
+      <p class="muted ws-dnc">Verify and DNC-scrub before calling</p></div>`;
+  }
   const ldd = () => W.lead && W.lead.dd || {};
   function closeLeadSheet() { W.lead = null; document.getElementById('ws-lead-sheet')?.remove(); document.body.classList.remove('sheet-open'); }
   window.wsLeadClose = () => { closeLeadSheet(); };
@@ -398,6 +414,7 @@
         <div class="ws-chipline"><span class="badge ws-bk ws-bk-${e(String(r.bucket).toLowerCase().replace(/\s+/g, '-'))}">${e(lbuck(r.bucket))}</span><span class="badge">Score ${e(r.score)}</span><span class="badge">${e(r.state)} ${TYNAME(r.type)}</span>${r.archived_reason ? `<span class="badge ws-drop" title="This lead is no longer in the latest scored list, but you worked it, so it stays here.">${e(r.archived_reason)}</span>` : ''}</div>
         ${S0.msg ? `<div class="muted q-rt" id="wl-msg" aria-live="polite">${e(S0.msg)}</div>` : '<div id="wl-msg" class="muted q-rt" aria-live="polite"></div>'}
         <h3>Owner</h3>${r.owner_name || r.owner_mail ? `<dl class="facts ws-dl ws-own"><dt>Owner</dt><dd>${e(r.owner_name || '\u2014')}</dd><dt>Mailing address</dt><dd>${e(r.owner_mail || '\u2014')}${r.owner_mail_state ? ` <span class="muted">(${e(r.owner_mail_state)})</span>` : ''}</dd></dl>${r.owner_mail ? '<button type="button" class="secondary q-sm ws-cpm" onclick="wsLeadCopyMail()">Copy mailing address</button>' : ''}` : S0.full ? '<p class="muted">No owner on file for this lead.</p>' : '<p class="muted">Loading\u2026</p>'}
+        <h3>Phone</h3>${phoneHTML(r, S0)}
         <h3>Why it is a lead</h3>${why.length ? `<ul class="check ws-why">${why.map(x => `<li>${e(x)}</li>`).join('')}</ul>` : '<p class="muted">No reason recorded.</p>'}
         ${r.note ? `<h3>Note</h3><p class="sheet-text">${e(r.note)}</p>` : ''}
         <h3>Property facts</h3>${S0.full ? '' : '<p class="muted">Loading the rest\u2026</p>'}<dl class="facts ws-dl">${facts.map(([k, v]) => `<dt>${e(k)}</dt><dd>${e(v)}</dd>`).join('')}</dl>
