@@ -782,15 +782,8 @@ function estimatePage() {
         <button class="${tab==='ai'?'primary':'secondary'}" onclick="estTab('ai')">AI</button>
       </div>
       <label>Service</label>
-      <select id="svc">
-        <option value="garden">Garden / Yard Cleanup</option>
-        <option value="fence">Fence cut-down (short run)</option>
-        <option value="dirt">Dirt haul (~2 CY)</option>
-        <option value="handyman">Handyman / repairs</option>
-        <option value="gutter">Gutter cleaning</option>
-        <option value="moving">Moving help</option>
-        <option value="trash">Trash / junk hauling</option>
-      </select>
+      <select id="svc" onchange="estPbHint()">${EST_SVCS.map(o => `<option value="${o.v}">${esc(o.l)}</option>`).join('')}</select>
+      <div id="est-pb" class="muted" style="font-size:.75rem;margin-top:4px;"></div>
       ${tab==='ai' ? `
       <label>Photos</label>
       <input id="est-photos" type="file" accept="image/*" multiple>
@@ -807,6 +800,39 @@ function estimatePage() {
     <div class="card"><h2>Saved estimates</h2><div id="saved-ests"></div></div>`;
 }
 function estTab(t) { window._estTab = t; render(); }
+// In-scope services only (Knowledge row 10, 11/24/2026). Prices come ONLY from the live price_book table: pb = exact price_book.service names, first found wins. No pb = flag to Marv.
+const EST_SVCS = [
+  { v: 'landscape', l: 'Landscape / xeriscape / hardscape install', pb: ['Xeriscape conversion, labor'] },
+  { v: 'lighting', l: 'Permanent outdoor lighting', pb: [] },
+  { v: 'grounds', l: 'Recurring grounds care (HOA, apartment, business)', pb: [] },
+  { v: 'garden', l: 'Yard cleanup, mowing and trimming', pb: ['Garden / yard cleanup, Standard'] },
+  { v: 'weeding', l: 'Hand weeding', pb: ['Weed pull, beds only'] },
+  { v: 'tree', l: 'Tree work', pb: ['Tree work / small tree removal, under 15 ft'] },
+  { v: 'trash', l: 'Hauling and junk removal', pb: ['Junk minimum pickup'] },
+  { v: 'gutter', l: 'Gutter cleaning', pb: ['Gutter clean, single story'] },
+  { v: 'painting', l: 'Painting', pb: ['Paint, room'] },
+  { v: 'cleaning', l: 'Cleaning', pb: ['Move-out clean'] },
+  { v: 'fence', l: 'Small fence job', pb: ['Fence cut-down, short run'] }];
+const EST_FLAT = ['job', 'visit', 'month']; // units that can fill Work as one amount; per-unit rows (sq ft, hr, room, each...) show the rate only
+let EST_PB = null;
+async function estPriceBook() {
+  if (window.OF?.d?.price_book?.length) return window.OF.d.price_book;
+  if (EST_PB) return EST_PB;
+  if (!window.gpSb) return [];
+  const { data, error } = await gpSb.from('price_book').select('id,section,service,unit,low,aim').limit(1000);
+  if (error) { window.gpReportError && gpReportError(error, { op: 'estimate price_book' }); return []; }
+  return (EST_PB = data || []);
+}
+async function estPbMatch(svc) {
+  const o = EST_SVCS.find(x => x.v === svc), P = await estPriceBook();
+  for (const n of (o?.pb || [])) { const r = P.find(x => x.service === n && x.aim != null); if (r) return r; }
+  return null;
+}
+const estCite = r => `Price book: \u201c${esc(r.service)}\u201d (row ${esc(r.id)}), Aim tier $${Number(r.aim).toFixed(2)} per ${esc(r.unit)}${r.low != null ? ` \u00b7 Low $${Number(r.low).toFixed(2)}` : ''}`;
+const EST_FLAG = 'Not in price book \u2014 flag to Marv';
+async function estPbHint() { const el = document.getElementById('est-pb'), svc = document.getElementById('svc')?.value; if (!el) return;
+  const r = await estPbMatch(svc); if (document.getElementById('svc')?.value !== svc) return;
+  el.innerHTML = r ? estCite(r) : `<span style="color:var(--warn);font-weight:600;">${EST_FLAG}</span>`; }
 async function estAI() {
   const notes = (document.getElementById('notes').value || '').trim();
   const svc = document.getElementById('svc').value;
@@ -847,14 +873,22 @@ async function estAI() {
     if (why) res.innerHTML += '<p class="muted" style="margin-top:8px;">' + esc(why) + '</p>';
   } catch (e) { box.innerHTML = '<p class="muted">Could not reach AI. ' + esc(e.message || 'Check the connection.') + '</p>'; }
 }
-function calcEstimate(fromAI) {
+async function calcEstimate(fromAI) {
   const svc = document.getElementById('svc').value, notes = document.getElementById('notes').value;
   let work = parseFloat(document.getElementById('work').value) || 0, materials = parseFloat(document.getElementById('materials').value) || 0;
   const discount = parseFloat(document.getElementById('discount').value) || 0, grtRate = parseFloat(document.getElementById('grt').value);
-  if (!fromAI && work === 0 && materials === 0) ({ garden:[650,0], fence:[275,0], dirt:[200,0], handyman:[250,80], gutter:[180,0], moving:[300,0], trash:[220,0] }[svc] || [0,0]).forEach((v,i) => i ? materials = v : work = v);
+  let cite = '';
+  if (!fromAI && work === 0 && materials === 0) {
+    const r = await estPbMatch(svc);
+    if (!r) { document.getElementById('est-result').innerHTML = `<div class="result"><strong style="color:var(--warn);">${EST_FLAG}</strong><div class="muted">No matching price book row for this service. Enter Work and Materials yourself once Marv confirms a price.</div></div>`; return; }
+    if (!EST_FLAT.includes(r.unit)) { document.getElementById('est-result').innerHTML = `<div class="result"><div>${estCite(r)}</div><div class="muted" style="margin-top:6px;">Priced per ${esc(r.unit)}. Enter Work = quantity \u00d7 $${Number(r.aim).toFixed(2)}, then Calculate.</div></div>`; return; }
+    work = Number(r.aim); cite = estCite(r);
+  }
+  const label = (EST_SVCS.find(x => x.v === svc) || {}).l || svc;
   const subtotal = Math.max(0, work + materials - discount), grt = +(subtotal * grtRate).toFixed(2), total = +(subtotal + grt).toFixed(2);
   window._lastEstimate = { svc, notes, work, materials, discount, grt, total };
-  document.getElementById('est-result').innerHTML = `<div class="result"><strong>${esc(svc)}</strong><div class="muted">${esc(notes) || '—'}</div>
+  document.getElementById('est-result').innerHTML = `<div class="result"><strong>${esc(label)}</strong><div class="muted">${esc(notes) || '\u2014'}</div>
+    ${cite ? `<div class="muted" style="font-size:.8rem;margin-top:6px;">${cite}</div>` : ''}
     <div style="margin-top:8px;">Work: $${work.toFixed(2)}</div><div>Materials: $${materials.toFixed(2)}</div>
     ${discount ? `<div>Discount: -$${discount.toFixed(2)}</div>` : ''}<div>Subtotal: $${subtotal.toFixed(2)}</div><div>GRT: $${grt.toFixed(2)}</div>
     <div style="font-family:var(--serif);font-size:1.5rem;margin-top:6px;">Total $${total.toFixed(2)}</div>
@@ -862,7 +896,7 @@ function calcEstimate(fromAI) {
 }
 async function saveLastEstimate() { if (!window._lastEstimate) return; await API.addItem('estimate', window._lastEstimate); window._lastEstimate = null;
   renderSaved(); const r = document.getElementById('est-result'); if (r) r.innerHTML = '<p class="muted">Saved.</p>'; }
-function renderSaved() { const el = document.getElementById('saved-ests'); if (!el) return;
+function renderSaved() { const el = document.getElementById('saved-ests'); if (!el) return; estPbHint();
   el.innerHTML = S.estimates.length ? S.estimates.map(e => `<div class="item"><strong>${esc(e.svc)}</strong> — $${Number(e.total).toFixed(2)}
     <div class="muted">${esc(e.notes)} · ${new Date(e.created).toLocaleDateString()} · ${esc(e.by)}</div></div>`).join('') : '<p class="muted">None yet.</p>'; }
 

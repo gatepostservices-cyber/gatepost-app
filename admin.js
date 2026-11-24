@@ -88,18 +88,25 @@
       ${ks.length ? ks.map(p => { const rs = by[p], nm = (rs.find(r => r.who) || {}).who || ''; return `<button type="button" class="of-cust" onclick="OF.cust='${e(p)}';ofRepaint()"><b>${e(nm) || 'Unknown'}</b> <span class="muted">${fmtPh(p)} \u00b7 ${rs.length} entries \u00b7 ${e(day(rs[0].at_))}</span></button>`; }).join('') : '<p class="muted">No confirmed customers yet.</p>'}</div>`; }
   window.ofRepaint = paint;
   // ----- Price Book (read-only list + search; filled later by the OneDrive sync)
+  // Legacy out-of-scope rows (landscaping scope, Knowledge row 10, 11/24/2026). UI tag only: rows and prices stay as-is in the DB.
+  const PB_OUT = [/^Handyman, /, /^Door /, /^Cabinet hardware/, /^Shelf install/, /^TV mount/, /^Blind \/ curtain/, /^Toilet /, /^Faucet /, /^Disposal /, /^Picture \/ mirror/, /^Caulk/, /^Weatherstrip/,
+    /^Garage door spring/i, /^Swamp cooler/i, /^Car lockout/i, /drywall/i, /^Hose bib/, /^Moving help/, /^Load \/ unload only/, /^Furniture assemble/, /^Shed assemble/, /^Pergola/, /^Deck (board|rail)/, /^Pre-emergent/];
+  const pbOut = r => r.unit !== 'rule' && PB_OUT.some(x => x.test(r.service || ''));
+  window.OF_pbOut = pbOut;
+  const pbFilter = () => { const q = O.q.toLowerCase(); return (O.d.price_book || []).filter(r => (O.pbAll || !pbOut(r)) && (!q || [r.section, r.service, r.unit, r.notes].join(' ').toLowerCase().includes(q))); };
   function pbHTML() {
-    const P = O.d.price_book, q = O.q.toLowerCase(), F = (P || []).filter(r => !q || [r.section, r.service, r.unit, r.notes].join(' ').toLowerCase().includes(q));
+    const nOut = (O.d.price_book || []).filter(pbOut).length;
     return `<div class="card"><h2>Price Book</h2><p class="muted">Read-only. Synced daily from the official rate book. Low / Aim before GRT.</p>
       <input id="pb-q" type="search" placeholder="Search services\u2026" value="${e(O.q)}" oninput="OF.q=this.value;ofPbList()">
-      <div id="pb-list">${loading('price_book') || pbRows(F)}</div></div>`; }
+      ${nOut ? `<label class="muted" style="display:flex;align-items:center;gap:6px;font-size:.8rem;margin:8px 0;"><input type="checkbox" style="width:18px;height:18px;min-height:0;padding:0;margin:0;appearance:auto;-webkit-appearance:checkbox;accent-color:#2f4a3a;" ${O.pbAll ? 'checked' : ''} onchange="OF.pbAll=this.checked;ofPbList()"> Show not offered (${nOut})</label>` : ''}
+      <div id="pb-list">${loading('price_book') || pbRows(pbFilter())}</div></div>`; }
   const pbRows = F => { if (!F.length) return '<p class="muted">' + ((O.d.price_book || []).length ? 'No matches.' : 'Price book is empty until the sync runs.') + '</p>';
     const G = []; F.forEach(r => { const k = r.section || 'Other'; let g = G.find(x => x.k === k); if (!g) G.push(g = { k, rows: [] }); g.rows.push(r); });
-    const src = (F.find(r => r.source) || {}).source;
+    const src = (F.find(r => r.source) || {}).source, tag = r => pbOut(r) ? ' <span class="badge" style="background:#5a2a2a;color:#fff;font-size:.65rem;">NOT OFFERED</span>' : '';
     return G.map(g => `<h3 class="pb-sec">${e(g.k)}</h3>` + (g.rows.every(r => r.unit === 'rule') ? `<ul class="pb-rules">${g.rows.map(r => `<li>${e(r.service)}</li>`).join('')}</ul>`
-      : `<table class="of-t"><thead><tr><th>Job</th><th>Unit</th><th>Low</th><th>Aim</th><th>Notes</th></tr></thead><tbody>${g.rows.map(r => r.unit === 'rule' ? `<tr><td colspan="5" class="muted">${e(r.service)}</td></tr>` : `<tr><td>${e(r.service)}</td><td>${e(r.unit)}</td><td>${money(r.low)}</td><td>${money(r.aim)}</td><td class="muted">${e(r.notes)}</td></tr>`).join('')}</tbody></table>`)).join('')
+      : `<table class="of-t"><thead><tr><th>Job</th><th>Unit</th><th>Low</th><th>Aim</th><th>Notes</th></tr></thead><tbody>${g.rows.map(r => r.unit === 'rule' ? `<tr><td colspan="5" class="muted">${e(r.service)}</td></tr>` : `<tr${pbOut(r) ? ' style="opacity:.6"' : ''}><td>${e(r.service)}${tag(r)}</td><td>${e(r.unit)}</td><td>${money(r.low)}</td><td>${money(r.aim)}</td><td class="muted">${e(r.notes)}</td></tr>`).join('')}</tbody></table>`)).join('')
       + (src ? `<p class="muted uf-st">Source: ${e(src)}</p>` : ''); };
-  window.ofPbList = () => { const q = O.q.toLowerCase(), el = document.getElementById('pb-list'); if (el) el.innerHTML = pbRows((O.d.price_book || []).filter(r => !q || [r.section, r.service, r.unit, r.notes].join(' ').toLowerCase().includes(q))); };
+  window.ofPbList = () => { const el = document.getElementById('pb-list'); if (el) el.innerHTML = pbRows(pbFilter()); };
   // ----- Job Log (for reference only)
   function jlHTML() {
     const J = O.d.job_log, loc = localEstimates();

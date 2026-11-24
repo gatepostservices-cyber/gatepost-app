@@ -182,7 +182,7 @@ async function requestPlan(key) {
 const ADDONS = [
   { key: 'windows', ico: '🪟', name: 'Window cleaning', text: 'Outside windows. About $179 for a typical home.' },
   { key: 'pressure', ico: '💦', name: 'Pressure washing', text: 'Driveways, walkways, patios and walls.' },
-  { key: 'weeding', ico: '🌿', name: 'Weeding', text: 'Beds, gravel and yard cleanup.' },
+  { key: 'weeding', ico: '🌿', name: 'Weeding', text: 'Hand-pulled weeds from beds and gravel, plus yard cleanup. No spraying.' },
   { key: 'gutters', ico: '🏠', name: 'Gutter check', text: 'Clear and check gutters and downspouts.' },
   { key: 'acfilter', ico: '🌬️', name: 'AC / furnace filters', text: 'Filter changes on a regular schedule.' },
   { key: 'upgrade', ico: '⬆️', name: 'Upgrade my plan', text: 'On-Call $29, Keep-Up $89, Full Care $169, Landlord $245 a month. See Plans on the Home tab.', wide: true }];
